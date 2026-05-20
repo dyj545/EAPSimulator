@@ -96,6 +96,12 @@ public partial class MainViewModel : ObservableObject
             await SendEditorMessageAsync(msgVm);
         };
 
+        // Wire up GEM state switch from StatusPanel
+        StatusPanel.GemStateChangeRequested += async (_, targetState) =>
+        {
+            await HandleGemStateChangeAsync(targetState);
+        };
+
         // Auto-update button text when Config.ConnectionMode changes
         Config.PropertyChanged += (_, e) =>
         {
@@ -549,6 +555,122 @@ public partial class MainViewModel : ObservableObject
                 StatusText = $"State: {e.OldState} -> {e.NewState}";
             }
         });
+    }
+
+    private async Task HandleGemStateChangeAsync(string targetState)
+    {
+        if (_currentProtocol is not SecsGemProtocol secsGem)
+        {
+            LogSystem("ERROR: 当前协议不是 SECS/GEM，无法切换 GEM 状态。");
+            return;
+        }
+
+        if (!secsGem.IsConnected())
+        {
+            LogSystem("ERROR: 未连接，无法切换 GEM 状态。");
+            return;
+        }
+
+        var model = secsGem.EquipmentModel;
+        var currentState = model.GemStateMachine.State;
+        LogSystem($"GEM 状态切换请求: {currentState} -> {targetState}");
+
+        try
+        {
+            switch (targetState)
+            {
+                case "OnlineLocal":
+                    if (currentState == GemState.OnlineRemote)
+                    {
+                        await SendSecsTemplateAsync(secsGem, "S1F15 - Request OFF-LINE");
+                        model.GemStateMachine.TryTrigger(GemEvent.GoOffline);
+                        await SendSecsTemplateAsync(secsGem, "S1F17 - Request ON-LINE");
+                        model.GemStateMachine.TryTrigger(GemEvent.StartCommunication);
+                        model.GemStateMachine.TryTrigger(GemEvent.CommunicationEstablished);
+                    }
+                    else if (currentState == GemState.Offline || currentState == GemState.AttemptOnline)
+                    {
+                        await SendSecsTemplateAsync(secsGem, "S1F17 - Request ON-LINE");
+                        model.GemStateMachine.TryTrigger(GemEvent.StartCommunication);
+                        model.GemStateMachine.TryTrigger(GemEvent.CommunicationEstablished);
+                    }
+                    break;
+
+                case "OnlineRemote":
+                    if (currentState == GemState.OnlineLocal)
+                    {
+                        model.GemStateMachine.TryTrigger(GemEvent.SwitchToRemote);
+                    }
+                    else if (currentState == GemState.Offline || currentState == GemState.AttemptOnline)
+                    {
+                        await SendSecsTemplateAsync(secsGem, "S1F17 - Request ON-LINE");
+                        model.GemStateMachine.TryTrigger(GemEvent.StartCommunication);
+                        model.GemStateMachine.TryTrigger(GemEvent.CommunicationEstablished);
+                        model.GemStateMachine.TryTrigger(GemEvent.SwitchToRemote);
+                    }
+                    break;
+
+                case "Offline":
+                    if (currentState == GemState.OnlineLocal || currentState == GemState.OnlineRemote)
+                    {
+                        await SendSecsTemplateAsync(secsGem, "S1F15 - Request OFF-LINE");
+                        model.GemStateMachine.TryTrigger(GemEvent.GoOffline);
+                    }
+                    break;
+            }
+
+            // Update CNTRS and send S6F11 ControlStateChange event
+            var newState = model.GemStateMachine.State;
+            model.UpdateCntrs(newState);
+            await SendControlStateChangeAsync(secsGem, model);
+
+            var cntrsDesc = EquipmentModel.GetCntrsDescription(model.Cntrs);
+            LogSystem($"GEM 状态已切换: -> {newState} (CNTRS={model.Cntrs}: {cntrsDesc})");
+
+            UpdateStatusPanelFromModel(model);
+        }
+        catch (Exception ex)
+        {
+            LogSystem($"ERROR 切换 GEM 状态: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Send S6F11 ControlStateChange collection event to Host.
+    /// </summary>
+    private async Task SendControlStateChangeAsync(SecsGemProtocol secsGem, EquipmentModel model)
+    {
+        // Build S6F11 with CEID=201 (ControlStateChange) and CNTRS VID
+        var s6f11 = new SecsMessage(6, 11, true,
+            SecsItem.L(
+                SecsItem.U4(0),           // DATAID
+                SecsItem.U2(201),         // CEID = ControlStateChange
+                SecsItem.L(               // RPT list
+                    SecsItem.L(           // Report
+                        SecsItem.L(       // VID/V value pair
+                            SecsItem.U2(1004),      // VID = CNTRS
+                            SecsItem.A(model.Cntrs.ToString())  // Value
+                        )
+                    )
+                )
+            ));
+
+        await secsGem.SendSecsMessageAsync(s6f11, CancellationToken.None);
+    }
+
+    private async Task SendSecsTemplateAsync(SecsGemProtocol secsGem, string templateName)
+    {
+        var msgVm = MessageEditor.AllMessages
+            .FirstOrDefault(m => m.Name == templateName);
+
+        if (msgVm == null)
+        {
+            LogSystem($"WARNING: 未找到消息模板 '{templateName}'，可用模板: {string.Join(", ", MessageEditor.AllMessages.Take(5).Select(m => m.Name))}");
+            return;
+        }
+
+        var msg = msgVm.ToSecsMessage();
+        await secsGem.SendSecsMessageAsync(msg, CancellationToken.None);
     }
 
     private void UpdateStatusPanelFromModel(EquipmentModel model)

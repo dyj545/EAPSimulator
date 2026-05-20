@@ -1,0 +1,6 @@
+{
+  "CustomHost": "127.0.0.1",
+  "CustomPort": 6000,
+  "CustomConfigPath": "custom_protocol.json",
+  "CustomIsServer": true
+}

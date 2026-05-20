@@ -665,6 +665,14 @@
       "itemXml": "<L><U4>0</U4><U2>103</U2><L><L><U2>2001</U2><A>LOT001</A></L></L></L>"
     },
     {
+      "name": "S6F11 - Collection Event Report (ControlStateChange)",
+      "stream": 6,
+      "function": 11,
+      "wbit": true,
+      "description": "Equipment 发送 Collection Event 报告 (控制状态变更)",
+      "itemXml": "<L><U4>0</U4><U2>201</U2><L><L><U2>1004</U2><A>4</A></L></L></L>"
+    },
+    {
       "name": "S6F12 - Collection Event Report Acknowledge",
       "stream": 6,
       "function": 12,

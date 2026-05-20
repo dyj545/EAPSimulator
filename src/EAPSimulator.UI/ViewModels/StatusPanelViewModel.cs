@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace EAPSimulator.UI.ViewModels;
 
@@ -26,14 +27,42 @@ public partial class StatusPanelViewModel : ObservableObject
     [ObservableProperty]
     private string _remoteEndpoint = "-";
 
+    [ObservableProperty]
+    private bool _canSwitchState;
+
+    [ObservableProperty]
+    private bool _isOnlineLocal;
+
+    [ObservableProperty]
+    private bool _isOnlineRemote;
+
+    [ObservableProperty]
+    private bool _isOffline = true;
+
     public ObservableCollection<StatusVariableViewModel> StatusVariables { get; } = new();
     public ObservableCollection<AlarmViewModel> Alarms { get; } = new();
     public ObservableCollection<CollectionEventViewModel> CollectionEvents { get; } = new();
+
+    /// <summary>
+    /// Event fired when user clicks a state transition button.
+    /// MainViewModel subscribes to this to trigger GEM state machine and send SECS messages.
+    /// </summary>
+    public event EventHandler<string>? GemStateChangeRequested;
+
+    [RelayCommand]
+    private void SwitchToOnlineLocal() => GemStateChangeRequested?.Invoke(this, "OnlineLocal");
+
+    [RelayCommand]
+    private void SwitchToOnlineRemote() => GemStateChangeRequested?.Invoke(this, "OnlineRemote");
+
+    [RelayCommand]
+    private void SwitchToOffline() => GemStateChangeRequested?.Invoke(this, "Offline");
 
     public void UpdateConnectionState(bool connected)
     {
         ConnectionState = connected ? "Connected" : "Disconnected";
         ConnectionStateColor = connected ? "#4CAF50" : "#F44336";
+        CanSwitchState = connected;
     }
 
     public void UpdateGemState(string state)
@@ -46,6 +75,10 @@ public partial class StatusPanelViewModel : ObservableObject
             "AttemptOnline" => "#FF9800",
             _ => "#FF9800",
         };
+
+        IsOnlineLocal = state == "OnlineLocal";
+        IsOnlineRemote = state == "OnlineRemote";
+        IsOffline = state == "Offline" || state == "AttemptOnline";
     }
 }
 

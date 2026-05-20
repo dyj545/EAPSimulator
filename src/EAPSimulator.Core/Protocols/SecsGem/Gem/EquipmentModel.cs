@@ -56,11 +56,19 @@ public class EquipmentModel
 
     public GemStateMachine GemStateMachine { get; } = new();
 
+    /// <summary>
+    /// CNTRS (Control State) VID - GEM control state indicator.
+    /// 1=Offline/machine offline, 2=Offline/online attempt,
+    /// 3=Offline/host offline, 4=Online/local, 5=Online/remote
+    /// </summary>
+    public ushort Cntrs { get; set; } = 1;
+
     public List<StatusVariable> StatusVariables { get; set; } = new()
     {
         new StatusVariable { Svid = 1001, Name = "Temperature", Value = "25.0", Unit = "C" },
         new StatusVariable { Svid = 1002, Name = "Pressure", Value = "101.3", Unit = "kPa" },
         new StatusVariable { Svid = 1003, Name = "RecipeName", Value = "DEFAULT", Unit = "" },
+        new StatusVariable { Svid = 1004, Name = "CNTRS", Value = "1", Unit = "" },
     };
 
     public List<EquipmentConstant> EquipmentConstants { get; set; } = new()
@@ -75,6 +83,7 @@ public class EquipmentModel
         new CollectionEvent { Ceid = 102, Name = "ProcessEnd" },
         new CollectionEvent { Ceid = 103, Name = "WaferArrived" },
         new CollectionEvent { Ceid = 104, Name = "WaferRemoved" },
+        new CollectionEvent { Ceid = 201, Name = "ControlStateChange", ReportLinks = { 2001 } },
     };
 
     public List<Alarm> Alarms { get; set; } = new()
@@ -91,5 +100,36 @@ public class EquipmentModel
 
     public Alarm? GetAlarm(ushort alid) =>
         Alarms.FirstOrDefault(a => a.Alid == alid);
+
+    /// <summary>
+    /// Update CNTRS based on current GEM state.
+    /// </summary>
+    public void UpdateCntrs(GemState state)
+    {
+        Cntrs = state switch
+        {
+            GemState.Offline => 1,
+            GemState.AttemptOnline => 2,
+            GemState.OnlineLocal => 4,
+            GemState.OnlineRemote => 5,
+            _ => 1
+        };
+        // Update the status variable value
+        var sv = GetStatusVariable(1004);
+        if (sv != null) sv.Value = Cntrs.ToString();
+    }
+
+    /// <summary>
+    /// Get CNTRS description for display.
+    /// </summary>
+    public static string GetCntrsDescription(ushort cntrs) => cntrs switch
+    {
+        1 => "Offline/machine offline",
+        2 => "Offline/online establish attempt",
+        3 => "Offline/host offline",
+        4 => "Online/local",
+        5 => "Online/remote",
+        _ => "Unknown"
+    };
 }
 

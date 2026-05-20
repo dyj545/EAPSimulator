@@ -109,6 +109,25 @@ public partial class ConfigViewModel : ObservableObject
     [ObservableProperty]
     private bool _acceptCommunication = true;
 
+    /// <summary>
+    /// Get the persistent config directory (project root, not bin output).
+    /// </summary>
+    private static string GetConfigDirectory()
+    {
+        // Try to find the project root by looking for .sln file
+        var dir = AppDomain.CurrentDomain.BaseDirectory;
+        while (dir != null)
+        {
+            if (Directory.GetFiles(dir, "*.sln").Length > 0)
+                return dir;
+            dir = Path.GetDirectoryName(dir);
+        }
+        // Fallback: use AppData
+        var appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EAPSimulator");
+        Directory.CreateDirectory(appData);
+        return appData;
+    }
+
     [RelayCommand]
     private void SaveSecsConfig()
     {
@@ -119,7 +138,7 @@ public partial class ConfigViewModel : ObservableObject
             "alternating" => "secs_gem_alternating.json",
             _ => "secs_gem_config.json"
         };
-        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+        var path = Path.Combine(GetConfigDirectory(), fileName);
 
         var settings = new HsmsSettings
         {
@@ -144,7 +163,7 @@ public partial class ConfigViewModel : ObservableObject
     {
         try
         {
-            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "custom_settings.json");
+            var path = Path.Combine(GetConfigDirectory(), "custom_settings.json");
             var settings = new
             {
                 CustomHost,
@@ -162,7 +181,7 @@ public partial class ConfigViewModel : ObservableObject
     {
         try
         {
-            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "custom_settings.json");
+            var path = Path.Combine(GetConfigDirectory(), "custom_settings.json");
             if (!File.Exists(path)) return;
             var json = File.ReadAllText(path);
             var obj = JsonConvert.DeserializeAnonymousType(json, new
@@ -192,7 +211,7 @@ public partial class ConfigViewModel : ObservableObject
         };
         if (fileName == null) return;
 
-        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+        var path = Path.Combine(GetConfigDirectory(), fileName);
         if (!File.Exists(path)) return;
 
         try

@@ -17,14 +17,28 @@
 
             <!-- GEM State -->
             <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="GEM State: " Opacity="0.6"/>
-                    <TextBlock Grid.Column="1" Text="{Binding GemState}" FontWeight="SemiBold"/>
-                </Grid>
+                <StackPanel>
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="GEM State: " Opacity="0.6"/>
+                        <TextBlock Grid.Column="1" Text="{Binding GemState}" FontWeight="SemiBold"/>
+                    </Grid>
+                    <!-- GEM State Switch Buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding CanSwitchState}">
+                        <Button Content="Local" Command="{Binding SwitchToOnlineLocalCommand}"
+                                IsEnabled="{Binding !IsOnlineLocal}" FontSize="11" Padding="8,3"
+                                Background="#4CAF50" Foreground="White"/>
+                        <Button Content="Remote" Command="{Binding SwitchToOnlineRemoteCommand}"
+                                IsEnabled="{Binding !IsOnlineRemote}" FontSize="11" Padding="8,3"
+                                Background="#2196F3" Foreground="White"/>
+                        <Button Content="Offline" Command="{Binding SwitchToOfflineCommand}"
+                                IsEnabled="{Binding !IsOffline}" FontSize="11" Padding="8,3"
+                                Background="#FF9800" Foreground="White"/>
+                    </StackPanel>
+                </StackPanel>
             </Border>
 
             <!-- Protocol / Role -->

@@ -1,13 +1,16 @@
 {
   "LocalHost": "0.0.0.0",
   "LocalPort": 5000,
-  "RemoteHost": "127.0.0.1",
+  "RemoteHost": "10.3.60.13",
   "RemotePort": 5000,
   "DeviceId": 1,
-  "ConnectionMode": "Active",
+  "ConnectionMode": 1,
   "T3Timeout": 45000,
   "T5Timeout": 10000,
   "T6Timeout": 5000,
   "T7Timeout": 10000,
-  "T8Timeout": 5000
+  "T8Timeout": 5000,
+  "IsActive": true,
+  "Host": "10.3.60.13",
+  "Port": 5000
 }
