@@ -83,7 +83,7 @@
                                                   VerticalAlignment="Center" Margin="0,0,12,0"/>
                                         <TextBlock Text="描述:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         <TextBox Text="{Binding Description}"
-                                                 MinWidth="200" Padding="4,2"/>
+                                                 MinWidth="200" Padding="4,2" VerticalContentAlignment="Center"/>
                                     </StackPanel>
 
                                     <!-- Trigger (S,F) -->
@@ -94,10 +94,10 @@
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="Stream:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                                 <TextBox Text="{Binding TriggerStream}"
-                                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace" Margin="0,0,12,0"/>
+                                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace" Margin="0,0,12,0" VerticalContentAlignment="Center"/>
                                                 <TextBlock Text="Function:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                                 <TextBox Text="{Binding TriggerFunction}"
-                                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace"/>
+                                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace" VerticalContentAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
@@ -131,13 +131,13 @@
                                                             <TextBlock Text="路径:" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                                             <TextBox Text="{Binding Path}"
                                                                      Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                                     Margin="0,0,8,0"
+                                                                     Margin="0,0,8,0" VerticalContentAlignment="Center"
                                                                      ToolTip.Tip="树路径，如 1/0 表示根列表第2个元素的第1个子元素"/>
                                                             <TextBlock Text="=" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                             <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                                             <TextBox Text="{Binding Value}"
                                                                      Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                                     Margin="0,0,4,0"/>
+                                                                     Margin="0,0,4,0" VerticalContentAlignment="Center"/>
                                                             <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                     CommandParameter="{Binding}"
                                                                     Padding="4,0" FontSize="11"/>
@@ -230,12 +230,12 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="名称:" VerticalAlignment="Center" Margin="0,0,6,0" MinWidth="40"/>
                                 <TextBox Text="{Binding SelectedScenario.Name}"
-                                         MinWidth="200" Padding="4,2"/>
+                                         MinWidth="200" Padding="4,2" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="描述:" VerticalAlignment="Center" Margin="0,0,6,0" MinWidth="40"/>
                                 <TextBox Text="{Binding SelectedScenario.Description}"
-                                         MinWidth="200" Padding="4,2"/>
+                                         MinWidth="200" Padding="4,2" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <CheckBox IsChecked="{Binding SelectedScenario.Enabled}" Content="启用"
@@ -257,10 +257,10 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="Stream:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox Text="{Binding SelectedStep.Stream}"
-                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace" Margin="0,0,12,0"/>
+                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace" Margin="0,0,12,0" VerticalContentAlignment="Center"/>
                                 <TextBlock Text="Function:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox Text="{Binding SelectedStep.Function}"
-                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace"/>
+                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace" VerticalContentAlignment="Center"/>
                             </StackPanel>
 
                             <!-- Conditions for this step -->
@@ -278,12 +278,12 @@
                                             <TextBlock Text="路径:" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                             <TextBox Text="{Binding Path}"
                                                      Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                     Margin="0,0,8,0"/>
+                                                     Margin="0,0,8,0" VerticalContentAlignment="Center"/>
                                             <TextBlock Text="=" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                             <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                             <TextBox Text="{Binding Value}"
                                                      Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                     Margin="0,0,4,0"/>
+                                                     Margin="0,0,4,0" VerticalContentAlignment="Center"/>
                                             <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     Padding="4,0" FontSize="11"/>
