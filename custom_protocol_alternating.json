@@ -1,0 +1,74 @@
+{
+  "name": "CustomProtocol_Alternating",
+  "description": "Alternating mode - either side can initiate",
+  "framing": "Delimiter",
+  "delimiter": "\r\n",
+  "encoding": "UTF-8",
+  "messages": [
+    {
+      "id": "CMD001",
+      "name": "HEARTBEAT",
+      "direction": "Both",
+      "fields": [
+        { "name": "CMD", "type": "String", "defaultValue": "HEARTBEAT" },
+        { "name": "TIMESTAMP", "type": "String", "description": "ISO8601 timestamp" }
+      ],
+      "description": "Heartbeat message for connection keep-alive"
+    },
+    {
+      "id": "CMD002",
+      "name": "STATUS_REQ",
+      "direction": "Both",
+      "fields": [
+        { "name": "CMD", "type": "String", "defaultValue": "STATUS_REQ" }
+      ],
+      "description": "Request equipment status"
+    },
+    {
+      "id": "CMD003",
+      "name": "STATUS_RSP",
+      "direction": "Both",
+      "fields": [
+        { "name": "CMD", "type": "String", "defaultValue": "STATUS_RSP" },
+        { "name": "STATE", "type": "String", "description": "IDLE/RUNNING/ERROR" },
+        { "name": "TEMPERATURE", "type": "Float" },
+        { "name": "COUNTER", "type": "Integer" }
+      ],
+      "description": "Equipment status response"
+    },
+    {
+      "id": "CMD004",
+      "name": "PROCESS_START",
+      "direction": "Both",
+      "fields": [
+        { "name": "CMD", "type": "String", "defaultValue": "PROCESS_START" },
+        { "name": "RECIPE", "type": "String" },
+        { "name": "LOT_ID", "type": "String" }
+      ],
+      "description": "Start a process with given recipe"
+    },
+    {
+      "id": "CMD005",
+      "name": "PROCESS_RESULT",
+      "direction": "Both",
+      "fields": [
+        { "name": "CMD", "type": "String", "defaultValue": "PROCESS_RESULT" },
+        { "name": "RESULT", "type": "String", "description": "OK/NG" },
+        { "name": "ELAPSED", "type": "Float", "description": "Seconds" }
+      ],
+      "description": "Process completion result"
+    },
+    {
+      "id": "CMD006",
+      "name": "ALARM",
+      "direction": "Both",
+      "fields": [
+        { "name": "CMD", "type": "String", "defaultValue": "ALARM" },
+        { "name": "ALID", "type": "Integer" },
+        { "name": "ALCD", "type": "String", "description": "SET/CLEAR" },
+        { "name": "ALTX", "type": "String", "description": "Alarm text" }
+      ],
+      "description": "Alarm notification"
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+<Window x:Class="EAPSimulator.UI.Views.FieldEditDialog"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:EAPSimulator.UI.ViewModels"
+        Title="字段编辑" Width="480" Height="580"
+        MinWidth="400" MinHeight="450"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E">
+
+    <DockPanel Margin="12">
+        <!-- Bottom: Buttons -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="确定" Click="OnOkClick" Classes="accent"
+                    Padding="16,6" Margin="0,0,8,0" FontSize="12"/>
+            <Button Content="取消" Click="OnCancelClick"
+                    Padding="16,6" FontSize="12"/>
+        </StackPanel>
+
+        <!-- Main content -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="8">
+                <!-- Basic Info -->
+                <Border Background="#252525" CornerRadius="4" Padding="10,8">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="基本信息" FontWeight="SemiBold" Foreground="#569CD6" FontSize="13"/>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="类型:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <ComboBox x:Name="TypeNameCombo"
+                                      ItemsSource="{x:Static vm:SecsItemViewModel.TypeNames}"
+                                      MinWidth="120" Height="26" FontSize="12"
+                                      FontFamily="Consolas,monospace" Padding="4,0"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="别名:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <TextBox x:Name="AliasBox" MinWidth="200" FontSize="12" Padding="4,2"
+                                     VerticalContentAlignment="Center" Watermark="字段别名/名称"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="描述:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <TextBox x:Name="DescriptionBox" MinWidth="200" FontSize="12" Padding="4,2"
+                                     VerticalContentAlignment="Center" Watermark="字段用途说明"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="当前值:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <TextBox x:Name="ValueText" MinWidth="200" FontSize="12" Padding="4,2"
+                                     VerticalContentAlignment="Center" FontFamily="Consolas,monospace"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Format & Default -->
+                <Border Background="#252525" CornerRadius="4" Padding="10,8">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="格式与默认值" FontWeight="SemiBold" Foreground="#4CAF50" FontSize="13"/>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="格式:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <TextBox x:Name="FormatBox" MinWidth="200" FontSize="12" Padding="4,2"
+                                     VerticalContentAlignment="Center" Watermark="如: UINT1, ASCII, BINARY"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="NLB:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <TextBox x:Name="NlbBox" MinWidth="200" FontSize="12" Padding="4,2"
+                                     VerticalContentAlignment="Center" Watermark="Number List Block"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="默认值:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <TextBox x:Name="DefaultValueBox" MinWidth="200" FontSize="12" Padding="4,2"
+                                     VerticalContentAlignment="Center" FontFamily="Consolas,monospace"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Value Mapping -->
+                <Border Background="#252525" CornerRadius="4" Padding="10,8">
+                    <StackPanel Spacing="6">
+                        <DockPanel>
+                            <TextBlock Text="值映射 (Value Mapping)" FontWeight="SemiBold"
+                                       Foreground="#FF9800" FontSize="13"
+                                       VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                            <Button Content="+ 添加" Click="OnAddMapping"
+                                    Classes="accent" Padding="8,2" FontSize="11"
+                                    DockPanel.Dock="Right"/>
+                        </DockPanel>
+
+                        <TextBlock Text="将原始值映射为可读的显示文本" FontSize="11" Opacity="0.5"/>
+
+                        <!-- Mapping header -->
+                        <Grid ColumnDefinitions="120,Auto,*">
+                            <TextBlock Grid.Column="0" Text="原始值" FontWeight="SemiBold"
+                                       FontSize="11" Foreground="#888"/>
+                            <TextBlock Grid.Column="2" Text="显示文本" FontWeight="SemiBold"
+                                       FontSize="11" Foreground="#888"/>
+                        </Grid>
+
+                        <!-- Mapping list -->
+                        <ItemsControl x:Name="MappingList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:ValueMappingEntry}">
+                                    <Grid ColumnDefinitions="120,30,*,30" Margin="0,2">
+                                        <TextBox Grid.Column="0" Text="{Binding Value}"
+                                                 FontSize="11" Padding="3,2"
+                                                 VerticalContentAlignment="Center"
+                                                 FontFamily="Consolas,monospace"/>
+                                        <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center" Opacity="0.5"/>
+                                        <TextBox Grid.Column="2" Text="{Binding DisplayText}"
+                                                 FontSize="11" Padding="3,2"
+                                                 VerticalContentAlignment="Center"/>
+                                        <Button Grid.Column="3" Content="✕" Tag="{Binding}"
+                                                Click="OnRemoveMapping"
+                                                Padding="4,0" FontSize="11" Background="Transparent"
+                                                VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Empty state -->
+                        <TextBlock x:Name="MappingEmptyText"
+                                   Text="暂无值映射" FontSize="11" Opacity="0.3"
+                                   HorizontalAlignment="Center" Margin="0,4"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Preview -->
+                <Border Background="#252525" CornerRadius="4" Padding="10,8">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="预览" FontWeight="SemiBold" Foreground="#9CDCFE" FontSize="13"/>
+                        <Border Background="#1E1E1E" CornerRadius="3" Padding="8,6">
+                            <StackPanel>
+                                <TextBlock x:Name="PreviewDisplayText" FontSize="12"
+                                           FontFamily="Consolas,monospace" Foreground="#D4D4D4"/>
+                                <TextBlock x:Name="PreviewToolTip" FontSize="11"
+                                           Opacity="0.6" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

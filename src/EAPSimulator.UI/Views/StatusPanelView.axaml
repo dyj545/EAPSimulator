@@ -1,0 +1,94 @@
+<UserControl x:Class="EAPSimulator.UI.Views.StatusPanelView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="12">
+            <!-- Title -->
+            <TextBlock Text="Status Panel" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,0,0,8"/>
+
+            <!-- Connection State -->
+            <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="12" Height="12" Fill="{Binding ConnectionStateColor}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ConnectionState}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- GEM State -->
+            <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="GEM State: " Opacity="0.6"/>
+                    <TextBlock Grid.Column="1" Text="{Binding GemState}" FontWeight="SemiBold"/>
+                </Grid>
+            </Border>
+
+            <!-- Protocol / Role -->
+            <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Protocol: " Opacity="0.6"/>
+                        <TextBlock Text="{Binding ProtocolType}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Role: " Opacity="0.6"/>
+                        <TextBlock Text="{Binding Role}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,4"/>
+
+            <!-- Status Variables -->
+            <TextBlock Text="Status Variables" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <DataGrid ItemsSource="{Binding StatusVariables}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      MaxHeight="200" FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="SVID" Binding="{Binding Svid}" Width="50"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="70"/>
+                    <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="50"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,4"/>
+
+            <!-- Alarms -->
+            <TextBlock Text="Alarms" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <DataGrid ItemsSource="{Binding Alarms}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      MaxHeight="150" FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ALID" Binding="{Binding Alid}" Width="50"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                    <DataGridTemplateColumn Header="Status" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Status}" FontWeight="Bold" Foreground="{Binding StatusColor}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,4"/>
+
+            <!-- Collection Events -->
+            <TextBlock Text="Collection Events" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <DataGrid ItemsSource="{Binding CollectionEvents}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      MaxHeight="150" FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="CEID" Binding="{Binding Ceid}" Width="50"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                    <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="60"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

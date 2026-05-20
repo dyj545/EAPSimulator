@@ -1,0 +1,108 @@
+<UserControl x:Class="EAPSimulator.UI.Views.ConfigView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontSize="12">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="12">
+            <!-- Title -->
+            <TextBlock Text="Configuration" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,0,0,8"/>
+
+            <!-- HSMS Settings -->
+            <TextBlock Text="HSMS Connection" FontSize="13" FontWeight="SemiBold" Opacity="0.8" Margin="0,0,0,4"/>
+
+            <TextBlock Text="Connection Mode:" Opacity="0.6"/>
+            <ComboBox x:Name="ConnectionModeCombo"
+                      ItemsSource="{Binding ConnectionModes}"
+                      SelectedItem="{Binding ConnectionMode}"
+                      Margin="0,2,0,2" Height="30"
+                      Padding="6,3"
+                      VerticalContentAlignment="Center"/>
+            <TextBlock Text="{Binding ConnectionModeHint}"
+                       FontSize="11" Opacity="0.5"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,6"/>
+
+            <TextBlock Text="Local IP:" Opacity="0.6"/>
+            <TextBox Text="{Binding LocalHost}"
+                     Watermark="0.0.0.0" Margin="0,2,0,6"/>
+
+            <TextBlock Text="Local Port:" Opacity="0.6"/>
+            <TextBox Text="{Binding LocalPort}"
+                     Watermark="5000" Margin="0,2,0,6"/>
+
+            <TextBlock Text="Remote IP:" Opacity="0.6"/>
+            <TextBox Text="{Binding RemoteHost}"
+                     Watermark="127.0.0.1" Margin="0,2,0,6"/>
+
+            <TextBlock Text="Remote Port:" Opacity="0.6"/>
+            <TextBox Text="{Binding RemotePort}"
+                     Watermark="5000" Margin="0,2,0,6"/>
+
+            <TextBlock Text="Device ID:" Opacity="0.6"/>
+            <TextBox Text="{Binding DeviceId}"
+                     Watermark="1" Margin="0,2,0,6"/>
+
+            <CheckBox Content="Accept Communication (S1F13→ACK)" IsChecked="{Binding AcceptCommunication}" Margin="0,4,0,6"/>
+
+            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,8"/>
+
+            <!-- Timeout Settings -->
+            <TextBlock Text="Timeouts (ms)" FontSize="13" FontWeight="SemiBold" Opacity="0.8" Margin="0,0,0,4"/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="T3:" VerticalAlignment="Center"/>
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding T3Timeout}" Margin="0,2"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="T5:" VerticalAlignment="Center"/>
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding T5Timeout}" Margin="0,2"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="T6:" VerticalAlignment="Center"/>
+                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding T6Timeout}" Margin="0,2"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="T7:" VerticalAlignment="Center"/>
+                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding T7Timeout}" Margin="0,2"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="T8:" VerticalAlignment="Center"/>
+                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding T8Timeout}" Margin="0,2"/>
+            </Grid>
+
+            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,8"/>
+
+            <!-- Custom Protocol Settings -->
+            <TextBlock Text="Custom Protocol" FontSize="13" FontWeight="SemiBold" Opacity="0.8" Margin="0,0,0,4"/>
+
+            <TextBlock Text="Host:" Opacity="0.6"/>
+            <TextBox Text="{Binding CustomHost}"
+                     Watermark="127.0.0.1" Margin="0,2,0,6"/>
+
+            <TextBlock Text="Port:" Opacity="0.6"/>
+            <TextBox Text="{Binding CustomPort}"
+                     Watermark="6000" Margin="0,2,0,6"/>
+
+            <TextBlock Text="Config File:" Opacity="0.6"/>
+            <DockPanel Margin="0,2,0,6">
+                <Button Content="..." Click="OnBrowseCustomConfigClick"
+                        DockPanel.Dock="Right"
+                        Padding="8,2" Margin="4,0,0,0" FontSize="12"
+                        ToolTip.Tip="选择配置文件"/>
+                <TextBox Text="{Binding CustomConfigPath}"
+                         Watermark="custom_protocol.json"/>
+            </DockPanel>
+
+            <CheckBox Content="Server Mode" IsChecked="{Binding CustomIsServer}" Margin="0,4"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

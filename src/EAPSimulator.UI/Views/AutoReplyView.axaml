@@ -1,0 +1,323 @@
+<UserControl x:Class="EAPSimulator.UI.Views.AutoReplyView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:EAPSimulator.UI.ViewModels"
+             xmlns:converters="using:EAPSimulator.UI.Converters"
+             FontSize="12">
+
+    <DockPanel>
+        <!-- Top: Tab switcher (Quick Reply / Scenario) + Toolbar -->
+        <Border DockPanel.Dock="Top" Padding="4,2" Background="#2D2D2D">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                    <RadioButton x:Name="QuickReplyTab" Content="快速回复" IsChecked="True"
+                                 Click="OnQuickReplyTabClick" Margin="0,0,8,0" FontSize="11"/>
+                    <RadioButton x:Name="ScenarioTab" Content="场景"
+                                 Click="OnScenarioTabClick" FontSize="11"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                    <Button Content="保存" Command="{Binding SaveRulesCommand}"
+                            Classes="accent" Padding="8,2" FontSize="11" Margin="0,0,4,0"/>
+                    <Button Content="加载" Command="{Binding LoadRulesCommand}"
+                            Padding="8,2" FontSize="11" Margin="0,0,4,0"/>
+                    <Button Content="📂" Click="OnBrowseFileClick"
+                            Padding="5,1" FontSize="13" ToolTip.Tip="选择规则文件"/>
+                </StackPanel>
+                <TextBlock Text="{Binding StatusMessage}" FontSize="11" Opacity="0.6"
+                           VerticalAlignment="Center" Margin="8,0,0,0"
+                           TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Quick Reply Panel -->
+        <Grid x:Name="QuickReplyPanel">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200" MinWidth="120" MaxWidth="350"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: Quick Reply rule list -->
+            <DockPanel Grid.Column="0">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,2">
+                    <Button Content="+ 添加" Command="{Binding AddQuickReplyCommand}"
+                            Classes="accent" Padding="6,2" FontSize="11" Margin="0,0,4,0"/>
+                    <Button Content="删除" Command="{Binding DeleteQuickReplyCommand}"
+                            Padding="6,2" FontSize="11"/>
+                </StackPanel>
+                <ListBox ItemsSource="{Binding QuickReplies}"
+                         SelectedItem="{Binding SelectedQuickReply}"
+                         Padding="2"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayText}" FontSize="11" FontFamily="Consolas,monospace"
+                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="4"
+                          HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- Right: Quick Reply detail -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="8,4">
+                <Panel>
+                    <!-- Empty state: shown when no rule selected -->
+                    <TextBlock x:Name="QuickReplyEmptyState"
+                               Text="← 选择左侧规则或点击 '+ 添加' 创建新规则"
+                               Opacity="0.4" FontSize="12"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Margin="0,40,0,0"/>
+                    <!-- Content: shown when a rule is selected -->
+                    <ContentControl x:Name="QuickReplyDetailContent"
+                                    Content="{Binding SelectedQuickReply}">
+                        <ContentControl.DataTemplates>
+                            <DataTemplate DataType="{x:Type vm:QuickReplyRuleViewModel}">
+                                <StackPanel>
+                                    <!-- Enable + Description -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <CheckBox IsChecked="{Binding Enabled}" Content="启用"
+                                                  VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                        <TextBlock Text="描述:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding Description}"
+                                                 MinWidth="200" Padding="4,2"/>
+                                    </StackPanel>
+
+                                    <!-- Trigger (S,F) -->
+                                    <Border Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="触发消息" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="#569CD6" Margin="0,0,0,6"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="Stream:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBox Text="{Binding TriggerStream}"
+                                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace" Margin="0,0,12,0"/>
+                                                <TextBlock Text="Function:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBox Text="{Binding TriggerFunction}"
+                                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Reply Template Picker -->
+                                    <Border Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="回复模板 (从消息编辑器中选择)" FontSize="11"
+                                                       FontWeight="SemiBold" Foreground="#4CAF50" Margin="0,0,0,6"/>
+                                            <ComboBox ItemsSource="{Binding DataContext.TemplateNames, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                      SelectedItem="{Binding ReplyTemplateName}"
+                                                      Padding="4,2" FontSize="12"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Conditions -->
+                                    <Border Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="匹配条件 (可选，全部满足时才回复)" FontSize="11"
+                                                           FontWeight="SemiBold" Foreground="#FF9800"
+                                                           VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                                                <Button Content="+ 添加条件" Command="{Binding DataContext.AddConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        Padding="6,1" FontSize="11"
+                                                        DockPanel.Dock="Right"/>
+                                            </DockPanel>
+                                            <ItemsControl ItemsSource="{Binding Conditions}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                            <TextBlock Text="路径:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <TextBox Text="{Binding Path}"
+                                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                                     Margin="0,0,8,0"
+                                                                     ToolTip.Tip="树路径，如 1/0 表示根列表第2个元素的第1个子元素"/>
+                                                            <TextBlock Text="=" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                            <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <TextBox Text="{Binding Value}"
+                                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                                     Margin="0,0,4,0"/>
+                                                            <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Padding="4,0" FontSize="11"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="路径格式: 0/1/2 表示根→第1项→第2项→第3项" FontSize="10"
+                                                       Opacity="0.4" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ContentControl.DataTemplates>
+                    </ContentControl>
+                </Panel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Scenario Panel (hidden by default) -->
+        <Grid x:Name="ScenarioPanel" IsVisible="False">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" MinWidth="180" MaxWidth="500"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: Scenario list + Step list -->
+            <DockPanel Grid.Column="0">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,2">
+                    <Button Content="+ 场景" Command="{Binding AddScenarioCommand}"
+                            Classes="accent" Padding="6,2" FontSize="11" Margin="0,0,4,0"/>
+                    <Button Content="删除" Command="{Binding DeleteScenarioCommand}"
+                            Padding="6,2" FontSize="11"/>
+                </StackPanel>
+                <ListBox ItemsSource="{Binding Scenarios}"
+                         SelectedItem="{Binding SelectedScenario}"
+                         Padding="2" MaxHeight="150">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock Text=" (" FontSize="11" Opacity="0.5"/>
+                                <TextBlock Text="{Binding Steps.Count}" FontSize="11"/>
+                                <TextBlock Text=" 步)" FontSize="11" Opacity="0.5"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,4,4,2">
+                    <TextBlock Text="步骤:" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <Button Content="+ 步骤" Command="{Binding AddStepCommand}"
+                            Classes="accent" Padding="6,1" FontSize="10" Margin="0,0,4,0"/>
+                    <Button Content="删除" Command="{Binding DeleteStepCommand}"
+                            Padding="6,1" FontSize="10" Margin="0,0,4,0"/>
+                    <Button Content="↑" Command="{Binding MoveStepUpCommand}"
+                            Padding="4,0" FontSize="11"/>
+                    <Button Content="↓" Command="{Binding MoveStepDownCommand}"
+                            Padding="4,0" FontSize="11"/>
+                </StackPanel>
+                <ListBox ItemsSource="{Binding SelectedScenario.Steps}"
+                         SelectedItem="{Binding SelectedStep}"
+                         Padding="2">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={x:Static converters:ListBoxIndexConverter.Instance}}"
+                                           FontSize="10" Opacity="0.5" Margin="0,0,6,0" MinWidth="20"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DisplayText}" FontSize="11" FontFamily="Consolas,monospace"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="4"
+                          HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- Right: Scenario/Step detail -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="8,4">
+                <StackPanel>
+                    <!-- Scenario settings (hidden when no scenario selected - handled in code-behind) -->
+                    <Border x:Name="ScenarioSettingsBorder" Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="场景设置" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#569CD6" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="名称:" VerticalAlignment="Center" Margin="0,0,6,0" MinWidth="40"/>
+                                <TextBox Text="{Binding SelectedScenario.Name}"
+                                         MinWidth="200" Padding="4,2"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="描述:" VerticalAlignment="Center" Margin="0,0,6,0" MinWidth="40"/>
+                                <TextBox Text="{Binding SelectedScenario.Description}"
+                                         MinWidth="200" Padding="4,2"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding SelectedScenario.Enabled}" Content="启用"
+                                          Margin="0,0,12,0"/>
+                                <CheckBox IsChecked="{Binding SelectedScenario.Loop}" Content="循环执行"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Step detail (hidden when no step selected - handled in code-behind) -->
+                    <Border x:Name="StepDetailBorder" Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="步骤详情" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#4CAF50" Margin="0,0,0,6"/>
+
+                            <!-- Trigger -->
+                            <TextBlock Text="触发条件:" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#569CD6" Margin="0,0,0,4"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="Stream:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBox Text="{Binding SelectedStep.Stream}"
+                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace" Margin="0,0,12,0"/>
+                                <TextBlock Text="Function:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBox Text="{Binding SelectedStep.Function}"
+                                         Width="50" Padding="4,2" FontFamily="Consolas,monospace"/>
+                            </StackPanel>
+
+                            <!-- Conditions for this step -->
+                            <DockPanel Margin="0,4,0,4">
+                                <TextBlock Text="条件:" FontSize="11" Foreground="#FF9800"
+                                           VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                                <Button Content="+ 条件" Command="{Binding DataContext.AddConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        Padding="6,1" FontSize="10"
+                                        DockPanel.Dock="Right"/>
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding SelectedStep.Conditions}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="路径:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <TextBox Text="{Binding Path}"
+                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                     Margin="0,0,8,0"/>
+                                            <TextBlock Text="=" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <TextBox Text="{Binding Value}"
+                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                     Margin="0,0,4,0"/>
+                                            <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Padding="4,0" FontSize="11"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Action Template -->
+                            <Border BorderBrush="#333" BorderThickness="0,1,0,0" Margin="0,8,0,4" Padding="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="回复动作:" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="#4CAF50" Margin="0,0,0,4"/>
+                                    <TextBlock Text="发送模板 (输入关键字模糊搜索):" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ComboBox x:Name="ActionTemplateCombo"
+                                              ItemsSource="{Binding DataContext.FilteredActionTemplates, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                              SelectedItem="{Binding SelectedStep.ActionTemplateName}"
+                                              Padding="4,2" FontSize="12"
+                                              DropDownOpened="OnActionTemplateDropDownOpened"
+                                              DropDownClosed="OnActionTemplateDropDownClosed"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Empty state: shown only when no step selected -->
+                    <TextBlock x:Name="StepEmptyState"
+                               Text="← 选择左侧场景和步骤进行编辑"
+                               Opacity="0.4" FontSize="12"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Margin="0,40,0,0"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</UserControl>

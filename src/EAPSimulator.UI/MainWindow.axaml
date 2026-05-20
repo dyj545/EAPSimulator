@@ -1,0 +1,77 @@
+<Window x:Class="EAPSimulator.UI.MainWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:EAPSimulator.UI.Views"
+        xmlns:converters="using:EAPSimulator.UI.Converters"
+        Title="EAP Simulator - SECS/GEM &amp; Custom Protocol"
+        Height="800" Width="1400"
+        WindowStartupLocation="CenterScreen"
+        KeyDown="OnMainWindowKeyDown">
+
+    <Window.Resources>
+        <converters:HexToBrushConverter x:Key="HexToBrush"/>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Toolbar -->
+        <Border DockPanel.Dock="Top" Padding="8,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Protocol:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox Width="120" ItemsSource="{Binding ProtocolTypes}"
+                          SelectedItem="{Binding SelectedProtocolType}"/>
+
+                <Border Width="1" Opacity="0.2" Background="Gray" Margin="8,2" Height="20"/>
+
+                <Button Content="{Binding ConnectButtonText}" Command="{Binding ConnectCommand}"
+                        Background="{Binding ConnectButtonColor, Converter={StaticResource HexToBrush}}" Foreground="White" Padding="16,4" FontWeight="SemiBold" Margin="4,0"/>
+                <Button Content="Disconnect" Command="{Binding DisconnectCommand}"
+                        Classes="danger" Padding="16,4" Margin="4,0"/>
+
+                <Border Width="1" Opacity="0.2" Background="Gray" Margin="8,2" Height="20"/>
+
+                <Button Content="&#x2699; Config" Click="OnConfigButtonClick"
+                        Padding="12,4" Margin="4,0"
+                        ToolTip.Tip="打开配置窗口"/>
+
+                <TextBlock Text="{Binding MessageEditor.StatusMessage, FallbackValue=''}"
+                           Opacity="0.6" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="11"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380" MinWidth="250" MaxWidth="700"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="300" MinWidth="200" MaxWidth="500"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Toggle button for Editor/AutoReply -->
+            <DockPanel x:Name="LeftPanel" Grid.Column="0">
+                <Border DockPanel.Dock="Top" Padding="4,2" Background="#2D2D2D">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="EditorTab" Content="消息编辑" IsChecked="True"
+                                     Click="OnEditorTabClick" Margin="0,0,8,0" FontSize="11"/>
+                        <RadioButton x:Name="AutoReplyTab" Content="自动回复"
+                                     Click="OnAutoReplyTabClick" FontSize="11"/>
+                    </StackPanel>
+                </Border>
+                <Panel>
+                    <views:MessageEditorView x:Name="EditorView" DataContext="{Binding MessageEditor}"/>
+                    <views:AutoReplyView x:Name="AutoReplyView" DataContext="{Binding AutoReply}" IsVisible="False"/>
+                </Panel>
+            </DockPanel>
+
+            <GridSplitter x:Name="Splitter1" Grid.Column="1" Width="4"
+                          ResizeDirection="Columns"
+                          Background="#444444"/>
+            <views:MessageLogView x:Name="MessageLogPanel" Grid.Column="2" DataContext="{Binding MessageLog}"/>
+            <GridSplitter x:Name="Splitter2" Grid.Column="3" Width="4"
+                          ResizeDirection="Columns"
+                          Background="#444444"/>
+            <views:StatusPanelView x:Name="StatusPanel" Grid.Column="4" DataContext="{Binding StatusPanel}"/>
+        </Grid>
+    </DockPanel>
+</Window>

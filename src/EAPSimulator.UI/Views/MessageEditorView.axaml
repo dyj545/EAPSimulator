@@ -1,0 +1,260 @@
+<UserControl x:Class="EAPSimulator.UI.Views.MessageEditorView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:EAPSimulator.UI.ViewModels">
+
+    <UserControl.Styles>
+        <Style Selector="TreeViewItem">
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="TreeViewItem:selected">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="Button.action-btn">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.action-btn:pointerover">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="TreeViewItem.drag-over">
+            <Setter Property="Background" Value="#33569CD6"/>
+            <Setter Property="BorderBrush" Value="#569CD6"/>
+            <Setter Property="BorderThickness" Value="0,1,0,1"/>
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.Resources>
+        <!-- ===== Vector icon paths (Material Design, 24x24) ===== -->
+        <!-- Plus: M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z -->
+        <!-- Copy: M19,21H8V7H19M19,5H8C6.9,5 6,5.9 6,7V21C6,22.1 6.9,23 8,23H19C20.1,23 21,22.1 21,21V7C21,5.9 20.1,5 19,5M16,1H4C2.9,1 2,1.9 2,3V17H4V3H16V1Z -->
+        <!-- Close(X): M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z -->
+        <!-- ArrowUp: M7,14L12,9L17,14Z -->
+        <!-- ArrowDown: M7,10L12,15L17,10Z -->
+
+        <ContextMenu x:Key="MessageContextMenu">
+            <MenuItem Header="添加子节点" Click="OnMsgAddChild">
+                <MenuItem.Icon><Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="16" Height="16" Stretch="Uniform" Fill="#6A9955"/></MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="克隆消息体" Click="OnMsgDuplicate">
+                <MenuItem.Icon><Path Data="M19,21H8V7H19M19,5H8C6.9,5 6,5.9 6,7V21C6,22.1 6.9,23 8,23H19C20.1,23 21,22.1 21,21V7C21,5.9 20.1,5 19,5M16,1H4C2.9,1 2,1.9 2,3V17H4V3H16V1Z" Width="16" Height="16" Stretch="Uniform" Fill="#569CD6"/></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="删除消息体" Click="OnMsgDelete">
+                <MenuItem.Icon><Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z" Width="16" Height="16" Stretch="Uniform" Fill="#F44747"/></MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+        <ContextMenu x:Key="ItemContextMenu">
+            <MenuItem Header="编辑字段..." Click="OnEditField" FontWeight="SemiBold">
+                <MenuItem.Icon><Path Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" Width="16" Height="16" Stretch="Uniform" Fill="#9CDCFE"/></MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="添加子节点" Click="OnAddChild">
+                <MenuItem.Icon><Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="16" Height="16" Stretch="Uniform" Fill="#6A9955"/></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="添加同级节点" Click="OnAddSibling">
+                <MenuItem.Icon><Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="16" Height="16" Stretch="Uniform" Fill="#6A9955"/></MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="复制节点" Click="OnCopyItem">
+                <MenuItem.Icon><Path Data="M19,21H8V7H19M19,5H8C6.9,5 6,5.9 6,7V21C6,22.1 6.9,23 8,23H19C20.1,23 21,22.1 21,21V7C21,5.9 20.1,5 19,5M16,1H4C2.9,1 2,1.9 2,3V17H4V3H16V1Z" Width="16" Height="16" Stretch="Uniform" Fill="#569CD6"/></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="删除节点" Click="OnDeleteItem">
+                <MenuItem.Icon><Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z" Width="16" Height="16" Stretch="Uniform" Fill="#F44747"/></MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="上移" Click="OnMoveUp">
+                <MenuItem.Icon><Path Data="M12,3L21,14H15V21H9V14H3Z" Width="16" Height="16" Stretch="Uniform" Fill="#888"/></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="下移" Click="OnMoveDown">
+                <MenuItem.Icon><Path Data="M12,21L3,10H9V3H15V10H21Z" Width="16" Height="16" Stretch="Uniform" Fill="#888"/></MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+        <ContextMenu x:Key="TreeContextMenu">
+            <MenuItem Header="全部展开" Click="OnExpandAll"/>
+            <MenuItem Header="全部折叠" Click="OnCollapseAll"/>
+        </ContextMenu>
+    </UserControl.Resources>
+
+    <Panel>
+    <!-- Drag preview overlay -->
+    <Border x:Name="DragPreview" IsVisible="False" Background="#33FFFFFF"
+            BorderBrush="#888" BorderThickness="1" CornerRadius="3"
+            Padding="8,3" Opacity="0.9" MinWidth="120"
+            HorizontalAlignment="Left" VerticalAlignment="Top"
+            Margin="0,0,0,0">
+        <TextBlock x:Name="DragPreviewText" FontFamily="Consolas,monospace"
+                   FontSize="12" Foreground="#E0E0E0"/>
+    </Border>
+
+    <DockPanel>
+        <!-- Toolbar -->
+        <Border DockPanel.Dock="Top" Padding="6,3">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="4,0,0,0">
+                    <Button Content="&#x25B6; 发送 (Ctrl+S)" Command="{Binding SendSelectedCommand}"
+                            Classes="accent" Padding="10,3" FontSize="11"/>
+                </StackPanel>
+                <WrapPanel VerticalAlignment="Center">
+                    <Button Content="&#x1F4C2;" Click="OnBrowseFileClick" ToolTip.Tip="打开消息模板文件"
+                            Padding="5,1" FontSize="13" Margin="0,0,4,0"/>
+                    <Button Content="&#x1F4BE;" Click="OnSaveFileClick" ToolTip.Tip="保存消息模板文件"
+                            Padding="5,1" FontSize="13" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding FilePath, FallbackValue=''}"
+                               VerticalAlignment="Center" FontSize="10" TextTrimming="CharacterEllipsis"
+                               MaxWidth="160" Margin="0,0,8,0" Opacity="0.6"/>
+                    <Border Width="1" Opacity="0.2" Background="Gray" Margin="4,2" Height="16"/>
+                    <TextBlock Text="+" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Margin="4,0,2,0"/>
+                    <ComboBox x:Name="AddMessageCombo"
+                              ItemsSource="{x:Static vm:MessageEditorViewModel.CommonMessageTypes}"
+                              Width="220" Height="22" FontSize="11"
+                              Padding="4,0" Margin="0,0,4,0"/>
+                    <Button Content="+ 添加消息" Click="OnAddMessageClick"
+                            Classes="accent" Padding="8,2" FontSize="11" Margin="0,0,8,0"/>
+                    <Button Content="&#x1F5D1; 删除" Click="OnToolbarDeleteClick"
+                            Padding="8,2" FontSize="11" Margin="0,0,4,0"/>
+                    <Button Content="&#x1F4CB; 复制" Click="OnToolbarDuplicateClick"
+                            Padding="8,2" FontSize="11"/>
+                </WrapPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Status -->
+        <Border DockPanel.Dock="Bottom" Padding="6,2">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="11" Opacity="0.6"/>
+        </Border>
+
+        <!-- Main tree -->
+        <TreeView x:Name="MessageTreeView"
+                  ItemsSource="{Binding Groups}"
+                  BorderThickness="0" Padding="2"
+                  Foreground="#E0E0E0"
+                  DragDrop.AllowDrop="True"
+                  ContextMenu="{StaticResource TreeContextMenu}"
+                  SelectionChanged="OnTreeViewSelectionChanged"
+                  ContextRequested="OnTreeViewContextRequested">
+
+            <TreeView.Styles>
+                <Style Selector="TreeViewItem">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                </Style>
+            </TreeView.Styles>
+
+            <TreeView.DataTemplates>
+                <!-- Level 1: Group -->
+                <TreeDataTemplate DataType="{x:Type vm:MessageGroupViewModel}"
+                                  ItemsSource="{Binding Pairs}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding DisplayText}" FontSize="13" FontWeight="Bold"
+                                   Foreground="#E0E0E0"/>
+                    </StackPanel>
+                </TreeDataTemplate>
+
+                <!-- Level 2: Pair -->
+                <TreeDataTemplate DataType="{x:Type vm:MessagePairViewModel}"
+                                  ItemsSource="{Binding Messages}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="#C586C0"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="  —  " Opacity="0.3" VerticalAlignment="Center" FontSize="12"/>
+                        <TextBox Text="{Binding Description}" FontSize="12" Foreground="#DCDCAA"
+                                 Background="Transparent" BorderThickness="0" Padding="0" MinWidth="60"
+                                 VerticalAlignment="Center" VerticalContentAlignment="Center" Height="22"/>
+                        <StackPanel Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center">
+                            <Button Classes="action-btn" Foreground="#569CD6" ToolTip.Tip="克隆消息组"
+                                    Tag="{Binding}" Click="OnPairCloneClick">
+                                <Path Data="M19,21H8V7H19M19,5H8C6.9,5 6,5.9 6,7V21C6,22.1 6.9,23 8,23H19C20.1,23 21,22.1 21,21V7C21,5.9 20.1,5 19,5M16,1H4C2.9,1 2,1.9 2,3V17H4V3H16V1Z"
+                                      Width="12" Height="12" Stretch="Uniform" Fill="#569CD6"/>
+                            </Button>
+                            <Button Classes="action-btn" Foreground="#F44747" ToolTip.Tip="删除消息组"
+                                    Tag="{Binding}" Click="OnPairDeleteClick">
+                                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z"
+                                      Width="12" Height="12" Stretch="Uniform" Fill="#F44747"/>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </TreeDataTemplate>
+
+                <!-- Level 3: Message -->
+                <TreeDataTemplate DataType="{x:Type vm:SecsMessageViewModel}"
+                                  ItemsSource="{Binding RootItem.Children}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                ContextMenu="{StaticResource MessageContextMenu}">
+                        <TextBlock FontFamily="Consolas,monospace" FontSize="12" VerticalAlignment="Center" Margin="0,0,2,0">
+                            <Run Text="S" Foreground="#569CD6"/><Run Text="{Binding Stream, Mode=OneWay}" Foreground="#B5CEA8"/>
+                            <Run Text="F" Foreground="#569CD6"/><Run Text="{Binding Function, Mode=OneWay}" Foreground="#B5CEA8"/>
+                        </TextBlock>
+                        <CheckBox IsChecked="{Binding WBit}" VerticalAlignment="Center" Margin="2,0,0,0"
+                                  Padding="0" MinWidth="0" MinHeight="0" HorizontalAlignment="Left"
+                                  ToolTip.Tip="W-Bit: Request/Inform">
+                            <TextBlock Text="W" FontFamily="Consolas,monospace" FontSize="12" FontWeight="Bold"
+                                       Foreground="#FF9800" VerticalAlignment="Center"/>
+                        </CheckBox>
+                        <TextBox Text="{Binding Name}" FontSize="12" Foreground="#DCDCAA"
+                                 Background="Transparent" BorderThickness="0"
+                                 Margin="0" Padding="2,0" MinWidth="80"
+                                 VerticalAlignment="Center" VerticalContentAlignment="Center" Height="22"
+                                 FontFamily="Consolas,monospace"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <Button Classes="action-btn" Foreground="#6A9955" ToolTip.Tip="添加子节点"
+                                    Command="{Binding RootItem.AddChildCommand}" CommandParameter="A">
+                                <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                                      Width="12" Height="12" Stretch="Uniform" Fill="#6A9955"/>
+                            </Button>
+                            <Button Classes="action-btn" Foreground="#569CD6" ToolTip.Tip="克隆"
+                                    Tag="{Binding}" Click="OnMsgCloneClick">
+                                <Path Data="M19,21H8V7H19M19,5H8C6.9,5 6,5.9 6,7V21C6,22.1 6.9,23 8,23H19C20.1,23 21,22.1 21,21V7C21,5.9 20.1,5 19,5M16,1H4C2.9,1 2,1.9 2,3V17H4V3H16V1Z"
+                                      Width="12" Height="12" Stretch="Uniform" Fill="#569CD6"/>
+                            </Button>
+                            <Button Classes="action-btn" Foreground="#F44747" ToolTip.Tip="删除"
+                                    Tag="{Binding}" Click="OnMsgDeleteClick">
+                                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z"
+                                      Width="12" Height="12" Stretch="Uniform" Fill="#F44747"/>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </TreeDataTemplate>
+
+                <!-- Level 4: Item (recursive) -->
+                <TreeDataTemplate DataType="{x:Type vm:SecsItemViewModel}"
+                                  ItemsSource="{Binding Children}">
+                    <Border Background="Transparent" Margin="-4,-2,-4,-2"
+                            DoubleTapped="OnItemDoubleTapped"
+                            ContextMenu="{StaticResource ItemContextMenu}">
+                        <StackPanel Orientation="Horizontal" Margin="5,2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding DisplayText}" FontSize="12" Foreground="#E0E0E0"
+                                       Margin="0,0,4,0" VerticalAlignment="Center"
+                                       FontFamily="Consolas,monospace"
+                                       ToolTip.Tip="{Binding ToolTipText}"/>
+                            <StackPanel Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center">
+                                <Button Classes="action-btn" Foreground="#569CD6" ToolTip.Tip="添加子节点(List)"
+                                        Command="{Binding AddChildCommand}" CommandParameter="A"
+                                        IsVisible="{Binding IsList}">
+                                    <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                                          Width="12" Height="12" Stretch="Uniform" Fill="#569CD6"/>
+                                </Button>
+                                <Button Classes="action-btn" Foreground="#F44747" ToolTip.Tip="删除"
+                                        Command="{Binding DeleteThisCommand}">
+                                    <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z"
+                                          Width="12" Height="12" Stretch="Uniform" Fill="#F44747"/>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </TreeDataTemplate>
+            </TreeView.DataTemplates>
+        </TreeView>
+    </DockPanel>
+    </Panel>
+</UserControl>

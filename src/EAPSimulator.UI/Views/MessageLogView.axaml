@@ -1,0 +1,55 @@
+<UserControl x:Class="EAPSimulator.UI.Views.MessageLogView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="180"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Padding="8,4">
+            <DockPanel>
+                <TextBlock Text="Message Log" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                <Button Content="Clear" Command="{Binding ClearCommand}" DockPanel.Dock="Right"
+                        Padding="12,2" HorizontalAlignment="Right"/>
+                <TextBox Text="{Binding FilterText}"
+                         Padding="4,2" Margin="8,0,0,0" DockPanel.Dock="Right" Width="200"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Message List -->
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Entries}"
+                  SelectedItem="{Binding SelectedEntry}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat='yyyy/M/d HH:mm:ss.fff'}" Width="SizeToCells"/>
+                <DataGridTemplateColumn Header="Dir" Width="SizeToCells">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Direction}" FontWeight="Bold" Foreground="{Binding DirectionColor}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="SizeToCells"/>
+                <DataGridTextColumn Header="ID" Binding="{Binding MessageId}" Width="SizeToCells"/>
+                <DataGridTextColumn Header="Content" Binding="{Binding Content}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Selected message detail label -->
+        <TextBlock Grid.Row="2" Text="Detail" FontWeight="SemiBold" Padding="8,4"/>
+
+        <!-- Detail Panel -->
+        <TextBox Grid.Row="3" Text="{Binding DetailText, Mode=OneWay}"
+                 IsReadOnly="True"
+                 TextWrapping="Wrap"
+                 FontFamily="Consolas,monospace"
+                 FontSize="12"
+                 Padding="8"/>
+    </Grid>
+</UserControl>
