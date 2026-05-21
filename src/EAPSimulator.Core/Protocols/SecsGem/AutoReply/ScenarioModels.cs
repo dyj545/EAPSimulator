@@ -15,13 +15,22 @@ public class FieldCondition
     public string Path { get; set; } = "";
 
     /// <summary>
+    /// Comparison operator: ==, !=, >, <, >=, <=, contains.
+    /// </summary>
+    [JsonProperty("operator")]
+    public string Operator { get; set; } = "==";
+
+    /// <summary>
     /// Expected value as string. Will be compared against the item's string representation.
     /// </summary>
     [JsonProperty("value")]
     public string Value { get; set; } = "";
 
     [JsonIgnore]
-    public string DisplayText => string.IsNullOrEmpty(Path) ? "(无条件)" : $"[{Path}] = {Value}";
+    public string DisplayText => string.IsNullOrEmpty(Path) ? "(无条件)" : $"[{Path}] {Operator} {Value}";
+
+    [JsonIgnore]
+    public static string[] SupportedOperators { get; } = ["==", "!=", ">", "<", ">=", "<=", "contains"];
 }
 
 /// <summary>

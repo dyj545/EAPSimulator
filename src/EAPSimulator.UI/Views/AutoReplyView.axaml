@@ -62,35 +62,51 @@
                           HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
 
             <!-- Right: Quick Reply detail -->
-            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="8,4">
-                <Panel>
-                    <!-- Empty state: shown when no rule selected -->
-                    <TextBlock x:Name="QuickReplyEmptyState"
-                               Text="← 选择左侧规则或点击 '+ 添加' 创建新规则"
-                               Opacity="0.4" FontSize="12"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               Margin="0,40,0,0"/>
-                    <!-- Content: shown when a rule is selected -->
-                    <ContentControl x:Name="QuickReplyDetailContent"
-                                    Content="{Binding SelectedQuickReply}">
+            <Grid Grid.Column="2" Margin="8,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <!-- Empty state: shown when no rule selected -->
+                <TextBlock x:Name="QuickReplyEmptyState"
+                           Text="← 选择左侧规则或点击 '+ 添加' 创建新规则"
+                           Opacity="0.4" FontSize="12"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Margin="0,40,0,0"/>
+                <!-- Content: shown when a rule is selected -->
+                <ContentControl x:Name="QuickReplyDetailContent"
+                                Content="{Binding SelectedQuickReply}"
+                                HorizontalAlignment="Stretch">
                         <ContentControl.DataTemplates>
                             <DataTemplate DataType="{x:Type vm:QuickReplyRuleViewModel}">
-                                <StackPanel>
+                                <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top">
                                     <!-- Enable + Description -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                        <CheckBox IsChecked="{Binding Enabled}" Content="启用"
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding Enabled}" Content="启用"
                                                   VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                        <TextBlock Text="描述:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <TextBox Text="{Binding Description}"
-                                                 MinWidth="200" Padding="4,2" VerticalContentAlignment="Center"/>
-                                    </StackPanel>
+                                        <TextBlock Grid.Column="1" Text="描述:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Grid.Column="2" Text="{Binding Description}"
+                                                 MinWidth="150" Padding="4,2" VerticalContentAlignment="Center"
+                                                 HorizontalAlignment="Stretch"/>
+                                    </Grid>
 
                                     <!-- Trigger (S,F) -->
                                     <Border Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
                                         <StackPanel>
                                             <TextBlock Text="触发消息" FontSize="11" FontWeight="SemiBold"
                                                        Foreground="#569CD6" Margin="0,0,0,6"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="模板:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <ComboBox ItemsSource="{Binding DataContext.TemplateNames, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          SelectedItem="{Binding TriggerTemplateName}"
+                                                          Padding="4,2" FontSize="11" MinWidth="160"
+                                                          PlaceholderText="(选择模板自动填充S/F)"/>
+                                            </StackPanel>
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="Stream:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                                 <TextBox Text="{Binding TriggerStream}"
@@ -108,7 +124,8 @@
                                             <TextBlock Text="回复模板 (从消息编辑器中选择)" FontSize="11"
                                                        FontWeight="SemiBold" Foreground="#4CAF50" Margin="0,0,0,6"/>
                                             <ComboBox ItemsSource="{Binding DataContext.TemplateNames, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                      SelectedItem="{Binding ReplyTemplateName}"
+                                                      SelectedItem="{Binding ReplyTemplateName, Mode=OneWay}"
+                                                      SelectionChanged="OnReplyTemplateSelectionChanged"
                                                       Padding="4,2" FontSize="12"/>
                                         </StackPanel>
                                     </Border>
@@ -128,15 +145,31 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
                                                         <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                            <TextBlock Text="路径:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <TextBlock Text="字段:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <ComboBox ItemsSource="{Binding TemplateFields}"
+                                                                      SelectedItem="{Binding SelectedFieldOption}"
+                                                                      MinWidth="180" MaxWidth="300"
+                                                                      Padding="3,1" FontSize="11"
+                                                                      Margin="0,0,4,0"
+                                                                      VerticalContentAlignment="Center"
+                                                                      PlaceholderText="(选择字段或直接输入路径)">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:FieldOption}">
+                                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
                                                             <TextBox Text="{Binding Path}"
                                                                      Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                                     Margin="0,0,8,0" VerticalContentAlignment="Center"
-                                                                     ToolTip.Tip="树路径，如 1/0 表示根列表第2个元素的第1个子元素"/>
-                                                            <TextBlock Text="=" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                     VerticalContentAlignment="Center"
+                                                                     ToolTip.Tip="手动输入路径，如 1/0"/>
+                                                            <ComboBox ItemsSource="{Binding Operators}"
+                                                                      SelectedItem="{Binding Operator}"
+                                                                      Width="55" Padding="3,1" FontSize="11"
+                                                                      Margin="4,0" VerticalContentAlignment="Center"/>
                                                             <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                                             <TextBox Text="{Binding Value}"
-                                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                                     Width="80" Padding="3,1" FontFamily="Microsoft YaHei" FontSize="11"
                                                                      Margin="0,0,4,0" VerticalContentAlignment="Center"/>
                                                             <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                     CommandParameter="{Binding}"
@@ -145,16 +178,13 @@
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
-                                            <TextBlock Text="路径格式: 0/1/2 表示根→第1项→第2项→第3项" FontSize="10"
-                                                       Opacity="0.4" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
                             </DataTemplate>
                         </ContentControl.DataTemplates>
                     </ContentControl>
-                </Panel>
-            </ScrollViewer>
+            </Grid>
         </Grid>
 
         <!-- Scenario Panel (hidden by default) -->
@@ -220,23 +250,35 @@
                           HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
 
             <!-- Right: Scenario/Step detail -->
-            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="8,4">
-                <StackPanel>
+            <Grid Grid.Column="2" Margin="8,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                     <!-- Scenario settings (hidden when no scenario selected - handled in code-behind) -->
                     <Border x:Name="ScenarioSettingsBorder" Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
                         <StackPanel>
                             <TextBlock Text="场景设置" FontSize="11" FontWeight="SemiBold"
                                        Foreground="#569CD6" Margin="0,0,0,6"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                <TextBlock Text="名称:" VerticalAlignment="Center" Margin="0,0,6,0" MinWidth="40"/>
-                                <TextBox Text="{Binding SelectedScenario.Name}"
-                                         MinWidth="200" Padding="4,2" VerticalContentAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                <TextBlock Text="描述:" VerticalAlignment="Center" Margin="0,0,6,0" MinWidth="40"/>
-                                <TextBox Text="{Binding SelectedScenario.Description}"
-                                         MinWidth="200" Padding="4,2" VerticalContentAlignment="Center"/>
-                            </StackPanel>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="名称:" VerticalAlignment="Center" Margin="0,0,6,0" MinWidth="40"/>
+                                <TextBox Grid.Column="1" Text="{Binding SelectedScenario.Name}"
+                                         MinWidth="200" Padding="4,2" VerticalContentAlignment="Center"
+                                         HorizontalAlignment="Stretch"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="描述:" VerticalAlignment="Center" Margin="0,0,6,0" MinWidth="40"/>
+                                <TextBox Grid.Column="1" Text="{Binding SelectedScenario.Description}"
+                                         MinWidth="200" Padding="4,2" VerticalContentAlignment="Center"
+                                         HorizontalAlignment="Stretch"/>
+                            </Grid>
                             <StackPanel Orientation="Horizontal">
                                 <CheckBox IsChecked="{Binding SelectedScenario.Enabled}" Content="启用"
                                           Margin="0,0,12,0"/>
@@ -254,6 +296,13 @@
                             <!-- Trigger -->
                             <TextBlock Text="触发条件:" FontSize="11" FontWeight="SemiBold"
                                        Foreground="#569CD6" Margin="0,0,0,4"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="模板:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox ItemsSource="{Binding DataContext.TemplateNames, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedItem="{Binding SelectedStep.TriggerTemplateName}"
+                                          Padding="4,2" FontSize="11" MinWidth="160"
+                                          PlaceholderText="(选择模板自动填充S/F)"/>
+                            </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="Stream:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox Text="{Binding SelectedStep.Stream}"
@@ -275,14 +324,31 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
                                         <StackPanel Orientation="Horizontal" Margin="0,2">
-                                            <TextBlock Text="路径:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <TextBlock Text="字段:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <ComboBox ItemsSource="{Binding TemplateFields}"
+                                                      SelectedItem="{Binding SelectedFieldOption}"
+                                                      MinWidth="180" MaxWidth="300"
+                                                      Padding="3,1" FontSize="11"
+                                                      Margin="0,0,4,0"
+                                                      VerticalContentAlignment="Center"
+                                                      PlaceholderText="(选择字段或直接输入路径)">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:FieldOption}">
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
                                             <TextBox Text="{Binding Path}"
                                                      Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                     Margin="0,0,8,0" VerticalContentAlignment="Center"/>
-                                            <TextBlock Text="=" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                     VerticalContentAlignment="Center"
+                                                     ToolTip.Tip="手动输入路径，如 1/0"/>
+                                            <ComboBox ItemsSource="{Binding Operators}"
+                                                      SelectedItem="{Binding Operator}"
+                                                      Width="55" Padding="3,1" FontSize="11"
+                                                      Margin="4,0" VerticalContentAlignment="Center"/>
                                             <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                             <TextBox Text="{Binding Value}"
-                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                     Width="80" Padding="3,1" FontFamily="Microsoft YaHei" FontSize="11"
                                                      Margin="0,0,4,0" VerticalContentAlignment="Center"/>
                                             <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
@@ -316,8 +382,7 @@
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
                                Margin="0,40,0,0"/>
-                </StackPanel>
-            </ScrollViewer>
+            </Grid>
         </Grid>
     </DockPanel>
 </UserControl>

@@ -131,8 +131,37 @@ public class ScenarioEngine : ISecsMessageHandler
         if (item == null) return false;
 
         var itemValue = GetItemValueString(item);
-        return string.Equals(itemValue, condition.Value, StringComparison.OrdinalIgnoreCase);
+        return EvaluateCondition(itemValue, condition.Operator, condition.Value);
     }
+
+    internal static bool EvaluateCondition(string itemValue, string op, string expected)
+    {
+        return op switch
+        {
+            "==" => string.Equals(itemValue, expected, StringComparison.OrdinalIgnoreCase),
+            "!=" => !string.Equals(itemValue, expected, StringComparison.OrdinalIgnoreCase),
+            "contains" => itemValue.Contains(expected, StringComparison.OrdinalIgnoreCase),
+            ">" or "<" or ">=" or "<=" =>
+                double.TryParse(itemValue, out var a) && double.TryParse(expected, out var b)
+                    ? EvaluateNumeric(a, op, b)
+                    : string.Compare(itemValue, expected, StringComparison.OrdinalIgnoreCase) switch
+                    {
+                        < 0 => op is "<" or "<=",
+                        0 => op is ">=" or "<=",
+                        > 0 => op is ">" or ">=",
+                    },
+            _ => string.Equals(itemValue, expected, StringComparison.OrdinalIgnoreCase),
+        };
+    }
+
+    private static bool EvaluateNumeric(double a, string op, double b) => op switch
+    {
+        ">" => a > b,
+        "<" => a < b,
+        ">=" => a >= b,
+        "<=" => a <= b,
+        _ => false,
+    };
 
     /// <summary>
     /// Navigate a SECS item tree by path. "0/1/2" means root (if list) -> item[0] -> item[1] -> item[2].

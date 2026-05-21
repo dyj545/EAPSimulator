@@ -63,7 +63,7 @@ public class AutoReplyHandler : ISecsMessageHandler
         if (item == null) return false;
 
         var itemValue = GetItemValueString(item);
-        return string.Equals(itemValue, condition.Value, StringComparison.OrdinalIgnoreCase);
+        return ScenarioEngine.EvaluateCondition(itemValue, condition.Operator, condition.Value);
     }
 
     internal static SecsItem? NavigatePath(SecsItem root, string path)

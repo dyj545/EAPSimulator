@@ -129,4 +129,14 @@ public partial class AutoReplyView : UserControl
     {
         // No action needed on close
     }
+
+    private void OnReplyTemplateSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox cb && e.AddedItems.Count > 0 && e.AddedItems[0] is string selected)
+        {
+            if (cb.DataContext is ViewModels.QuickReplyRuleViewModel rule)
+                rule.ReplyTemplateName = selected;
+        }
+    }
+
 }

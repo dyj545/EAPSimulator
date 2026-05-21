@@ -543,10 +543,21 @@ public partial class MessageEditorView : UserControl
 
     private async void OnItemDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
     {
-        // Get the SecsItemViewModel from the sender (StackPanel)
         if (sender is not Control ctrl) return;
         var item = ctrl.DataContext as SecsItemViewModel;
         if (item == null) return;
+
+        // Clear drag state — the second PointerPressed of the double-click
+        // already set _dragSource; without clearing it, mouse movement
+        // inside the modal dialog would be interpreted as a drag gesture.
+        _dragSource = null;
+        _dragStarted = false;
+        if (_dropTargetTvi != null)
+        {
+            _dropTargetTvi.Classes.Remove("drag-over");
+            _dropTargetTvi = null;
+        }
+        DragPreview.IsVisible = false;
 
         var owner = FindOwnerWindow();
         if (owner == null) return;

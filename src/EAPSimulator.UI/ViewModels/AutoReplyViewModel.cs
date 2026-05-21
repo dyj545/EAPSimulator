@@ -4,13 +4,24 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EAPSimulator.Core.Protocols.SecsGem;
 using EAPSimulator.Core.Protocols.SecsGem.AutoReply;
+using EAPSimulator.Core.Protocols.SecsGem.SecsII;
 using Newtonsoft.Json;
 
 namespace EAPSimulator.UI.ViewModels;
 
 public partial class AutoReplyViewModel : ObservableObject
 {
-    private string _configPath = AutoReplyConfig.GetDefaultPath();
+    /// <summary>Static reference for child VMs to access template data.</summary>
+    internal static AutoReplyViewModel? Instance { get; private set; }
+
+    private static string ResolveDefaultConfigPath()
+    {
+        var basePath = AppDomain.CurrentDomain.BaseDirectory;
+        var projectRoot = Path.GetFullPath(Path.Combine(basePath, "..", "..", "..", "..", "..", "auto_reply_rules.json"));
+        return File.Exists(projectRoot) ? projectRoot : AutoReplyConfig.GetDefaultPath();
+    }
+
+    private string _configPath = ResolveDefaultConfigPath();
 
     public ObservableCollection<QuickReplyRuleViewModel> QuickReplies { get; } = [];
     public ObservableCollection<ScenarioViewModel> Scenarios { get; } = [];
@@ -135,16 +146,28 @@ public partial class AutoReplyViewModel : ObservableObject
     [RelayCommand]
     private void AddCondition()
     {
+        var cond = new FieldConditionViewModel { Path = "1/0", Value = "0" };
+
         // If a scenario step is selected, add to it
         if (SelectedStep != null)
         {
-            SelectedStep.Conditions.Add(new FieldConditionViewModel { Path = "1/0", Value = "0" });
+            if (!string.IsNullOrEmpty(SelectedStep.TriggerTemplateName))
+            {
+                var fields = ExtractTemplateFields(SelectedStep.TriggerTemplateName);
+                foreach (var f in fields) cond.TemplateFields.Add(f);
+            }
+            SelectedStep.Conditions.Add(cond);
             return;
         }
         // Otherwise, if a quick reply rule is selected, add to it
         if (SelectedQuickReply != null)
         {
-            SelectedQuickReply.Conditions.Add(new FieldConditionViewModel { Path = "1/0", Value = "0" });
+            if (!string.IsNullOrEmpty(SelectedQuickReply.TriggerTemplateName))
+            {
+                var fields = ExtractTemplateFields(SelectedQuickReply.TriggerTemplateName);
+                foreach (var f in fields) cond.TemplateFields.Add(f);
+            }
+            SelectedQuickReply.Conditions.Add(cond);
             SelectedQuickReply.UpdateDisplayText();
         }
     }
@@ -244,6 +267,7 @@ public partial class AutoReplyViewModel : ObservableObject
 
     public void SetTemplates(IEnumerable<SecsMessageTemplate> templates)
     {
+        Instance = this;
         _allTemplates = templates.ToList();
         TemplateNames.Clear();
         foreach (var name in _allTemplates.Select(t => t.Name).Distinct())
@@ -258,6 +282,76 @@ public partial class AutoReplyViewModel : ObservableObject
     public SecsMessageTemplate? FindTemplateByName(string name)
     {
         return _allTemplates.FirstOrDefault(t => t.Name == name);
+    }
+
+    public SecsMessageTemplate? FindTemplateByStreamFunction(byte stream, byte function)
+    {
+        return _allTemplates.FirstOrDefault(t => t.Stream == stream && t.Function == function);
+    }
+
+    /// <summary>
+    /// Extract all fields from a template's item tree for dropdown selection.
+    /// </summary>
+    public List<FieldOption> ExtractTemplateFields(string templateName)
+    {
+        var tpl = FindTemplateByName(templateName);
+        if (tpl == null) return [];
+
+        var result = new List<FieldOption>();
+        try
+        {
+            var msg = tpl.BuildMessage();
+            if (msg.RootItem != null)
+                CollectFieldOptions(msg.RootItem, "", tpl.FieldMetadata, result);
+        }
+        catch { }
+        return result;
+    }
+
+    private static void CollectFieldOptions(SecsItem item, string path,
+        Dictionary<string, FieldMetadata>? metadata, List<FieldOption> result)
+    {
+        var meta = metadata != null && metadata.TryGetValue(path, out var m) ? m : null;
+        var alias = meta?.Alias;
+        var typeName = item.Format switch
+        {
+            SecsFormat.List => "L",
+            SecsFormat.ASCII => "A",
+            SecsFormat.Binary => "B",
+            SecsFormat.Boolean => "Boolean",
+            SecsFormat.U1 => "U1", SecsFormat.U2 => "U2", SecsFormat.U4 => "U4", SecsFormat.U8 => "U8",
+            SecsFormat.I1 => "I1", SecsFormat.I2 => "I2", SecsFormat.I4 => "I4", SecsFormat.I8 => "I8",
+            SecsFormat.F4 => "F4", SecsFormat.F8 => "F8",
+            _ => "?"
+        };
+
+        var display = !string.IsNullOrEmpty(alias)
+            ? $"{path} {alias} ({typeName})"
+            : $"{path} ({typeName})";
+        result.Add(new FieldOption { Path = path, DisplayName = display });
+
+        if (item is SecsList list)
+        {
+            for (int i = 0; i < list.Items.Length; i++)
+            {
+                var childPath = string.IsNullOrEmpty(path) ? i.ToString() : $"{path}/{i}";
+                CollectFieldOptions(list.Items[i], childPath, metadata, result);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Populate TemplateFields on each condition from the selected trigger template.
+    /// </summary>
+    public void PopulateTemplateFields(ObservableCollection<FieldConditionViewModel> conditions, string templateName)
+    {
+        var fields = ExtractTemplateFields(templateName);
+        foreach (var cond in conditions)
+        {
+            cond.TemplateFields.Clear();
+            foreach (var f in fields)
+                cond.TemplateFields.Add(f);
+        }
     }
 
     // ─── Load/Save ───
@@ -337,7 +431,31 @@ public partial class AutoReplyViewModel : ObservableObject
 
     partial void OnSelectedQuickReplyChanged(QuickReplyRuleViewModel? value)
     {
-        if (value != null) value.UpdateDisplayText();
+        if (value == null) return;
+        value.UpdateDisplayText();
+
+        // Auto-populate trigger/reply template from existing S/F
+        if (string.IsNullOrEmpty(value.TriggerTemplateName) && value.TriggerStream > 0)
+        {
+            var trigger = FindTemplateByStreamFunction(value.TriggerStream, value.TriggerFunction);
+            if (trigger != null)
+            {
+                value.TriggerTemplateName = trigger.Name;
+                // Reply template is auto-set by OnTriggerTemplateNameChanged
+            }
+        }
+        else if (!string.IsNullOrEmpty(value.TriggerTemplateName))
+        {
+            // Trigger template already set — ensure reply template is also populated
+            if (string.IsNullOrEmpty(value.ReplyTemplateName))
+            {
+                var reply = FindTemplateByStreamFunction(value.TriggerStream, (byte)(value.TriggerFunction + 1));
+                if (reply != null)
+                    value.ReplyTemplateName = reply.Name;
+            }
+            // Populate template fields for conditions
+            PopulateTemplateFields(value.Conditions, value.TriggerTemplateName);
+        }
     }
 }
 
@@ -350,6 +468,9 @@ public partial class QuickReplyRuleViewModel : ObservableObject
 
     [ObservableProperty]
     private byte _triggerFunction;
+
+    [ObservableProperty]
+    private string _triggerTemplateName = "";
 
     [ObservableProperty]
     private string _replyTemplateName = "";
@@ -367,6 +488,27 @@ public partial class QuickReplyRuleViewModel : ObservableObject
     private ObservableCollection<FieldConditionViewModel> _conditions = [];
 
     partial void OnTriggerStreamChanged(byte value) => UpdateDisplayText();
+    partial void OnReplyTemplateNameChanged(string value) => UpdateDisplayText();
+
+    partial void OnTriggerTemplateNameChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            var parent = AutoReplyViewModel.Instance;
+            var tpl = parent?.FindTemplateByName(value);
+            if (tpl != null)
+            {
+                TriggerStream = tpl.Stream;
+                TriggerFunction = tpl.Function;
+
+                // Auto-select reply template: reply function = trigger function + 1
+                var replyTpl = parent?.FindTemplateByStreamFunction(tpl.Stream, (byte)(tpl.Function + 1));
+                if (replyTpl != null)
+                    ReplyTemplateName = replyTpl.Name;
+            }
+            parent?.PopulateTemplateFields(Conditions, value);
+        }
+    }
 
     public void UpdateDisplayText()
     {
@@ -412,15 +554,51 @@ public partial class FieldConditionViewModel : ObservableObject
     private string _path = "";
 
     [ObservableProperty]
+    private string _operator = "==";
+
+    [ObservableProperty]
     private string _value = "";
 
-    public FieldCondition ToModel() => new() { Path = Path, Value = Value };
+    [ObservableProperty]
+    private FieldOption? _selectedFieldOption;
+
+    /// <summary>
+    /// Available fields from the selected trigger template, for dropdown selection.
+    /// </summary>
+    public ObservableCollection<FieldOption> TemplateFields { get; } = [];
+
+    public string[] Operators => FieldCondition.SupportedOperators;
+
+    partial void OnSelectedFieldOptionChanged(FieldOption? value)
+    {
+        if (value != null)
+            Path = value.Path;
+    }
+
+    partial void OnPathChanged(string value)
+    {
+        // Sync SelectedFieldOption when Path changes (e.g., loaded from model)
+        if (SelectedFieldOption?.Path != value)
+            SelectedFieldOption = TemplateFields.FirstOrDefault(f => f.Path == value);
+    }
+
+    public FieldCondition ToModel() => new() { Path = Path, Operator = Operator, Value = Value };
 
     public static FieldConditionViewModel FromModel(FieldCondition cond) => new()
     {
         Path = cond.Path,
+        Operator = cond.Operator ?? "==",
         Value = cond.Value,
     };
+}
+
+/// <summary>
+/// A selectable field from a template's item tree.
+/// </summary>
+public class FieldOption
+{
+    public required string Path { get; init; }
+    public required string DisplayName { get; init; }
 }
 
 // ─── Scenario ViewModel ───
@@ -479,6 +657,9 @@ public partial class ScenarioStepViewModel : ObservableObject
     private byte _function;
 
     [ObservableProperty]
+    private string _triggerTemplateName = "";
+
+    [ObservableProperty]
     private string _actionTemplateName = "";
 
     [ObservableProperty]
@@ -496,10 +677,31 @@ public partial class ScenarioStepViewModel : ObservableObject
     partial void OnFunctionChanged(byte value) => UpdateDisplayText();
     partial void OnActionTemplateNameChanged(string value) => UpdateDisplayText();
 
+    partial void OnTriggerTemplateNameChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            var parent = FindParentAutoReplyVm();
+            var tpl = parent?.FindTemplateByName(value);
+            if (tpl != null)
+            {
+                Stream = tpl.Stream;
+                Function = tpl.Function;
+            }
+            parent?.PopulateTemplateFields(Conditions, value);
+        }
+    }
+
+    private AutoReplyViewModel? FindParentAutoReplyVm()
+    {
+        // Walk up via the static reference set by AutoReplyViewModel
+        return AutoReplyViewModel.Instance;
+    }
+
     public void UpdateDisplayText()
     {
         var condStr = Conditions.Count > 0
-            ? " where " + string.Join(" & ", Conditions.Select(c => $"[{c.Path}]={c.Value}"))
+            ? " where " + string.Join(" & ", Conditions.Select(c => $"[{c.Path}] {c.Operator} {c.Value}"))
             : "";
         var action = !string.IsNullOrEmpty(ActionTemplateName) ? ActionTemplateName : "(未设置)";
         var trigger = Stream == 0 && Function == 0 ? "(未设置)" : $"S{Stream}F{Function}";

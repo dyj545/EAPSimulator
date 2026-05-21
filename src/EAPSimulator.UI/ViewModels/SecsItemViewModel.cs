@@ -45,16 +45,21 @@ public partial class SecsItemViewModel : ObservableObject
 
     /// <summary>
     /// Display text for the tree node. Shows alias if set, otherwise type and value.
+    /// Includes value mapping when available.
     /// </summary>
     public string DisplayText
     {
         get
         {
-            if (!string.IsNullOrEmpty(Alias))
-            {
-                return IsList ? Alias : $"{Alias}: {ValueText}";
-            }
-            return IsList ? $"L[{Children.Count}]" : $"{TypeName} {ValueText}";
+            var mapped = ValueMappings.FirstOrDefault(m => m.Value == ValueText);
+            var mappedSuffix = mapped != null ? $" = {mapped.DisplayText}" : "";
+
+            if (IsList)
+                return !string.IsNullOrEmpty(Alias) ? $"L {Alias}" : $"L[{Children.Count}]";
+
+            return !string.IsNullOrEmpty(Alias)
+                ? $"{TypeName} {Alias}: {ValueText}{mappedSuffix}"
+                : $"{TypeName} {ValueText}{mappedSuffix}";
         }
     }
 
@@ -113,6 +118,7 @@ public partial class SecsItemViewModel : ObservableObject
     public SecsItemViewModel()
     {
         Children.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsList));
+        ValueMappings.CollectionChanged += (_, _) => OnPropertyChanged(nameof(DisplayText));
     }
 
     public SecsItemViewModel(string typeName, string valueText = "") : this()

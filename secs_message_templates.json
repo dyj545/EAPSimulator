@@ -6,7 +6,8 @@
       "function": 1,
       "wbit": true,
       "description": "Equipment 向 Host 发送在线检查请求",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F2 - Are You There Reply",
@@ -14,7 +15,8 @@
       "function": 2,
       "wbit": false,
       "description": "Host 回复 Equipment 在线确认",
-      "itemXml": "<A>EAP_Simulator</A>"
+      "itemXml": "<A>EAP_Simulator</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F3 - Selected Equipment Status Request",
@@ -22,7 +24,8 @@
       "function": 3,
       "wbit": true,
       "description": "Host 请求 Equipment 的选定状态变量值",
-      "itemXml": "<L><U1>1</U1><U1>2</U1><U1>3</U1></L>"
+      "itemXml": "<L><U1>1</U1><U1>2</U1><U1>3</U1><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F4 - Selected Equipment Status Reply",
@@ -30,7 +33,8 @@
       "function": 4,
       "wbit": false,
       "description": "Equipment 回复选定状态变量值列表",
-      "itemXml": "<L><A>25.0</A><A>101.3</A><A>1</A></L>"
+      "itemXml": "<L><A>25.0</A><A>101.3</A><A>1</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F5 - List Alarmed Variables Request",
@@ -38,7 +42,8 @@
       "function": 5,
       "wbit": true,
       "description": "Host 请求当前报警变量列表",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F6 - List Alarmed Variables Reply",
@@ -46,7 +51,8 @@
       "function": 6,
       "wbit": false,
       "description": "Equipment 回复当前报警变量列表",
-      "itemXml": "<L><U2>1</U2><A>OverTemperature</A><U1>1</U1></L>"
+      "itemXml": "<L><U2>1</U2><A>OverTemperature</A><U1>1</U1><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F11 - Status Variable Namelist Request",
@@ -54,7 +60,8 @@
       "function": 11,
       "wbit": true,
       "description": "Host 请求状态变量名称列表",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F12 - Status Variable Namelist Reply",
@@ -62,7 +69,8 @@
       "function": 12,
       "wbit": false,
       "description": "Equipment 回复状态变量名称列表",
-      "itemXml": "<L><U2>1</U2><A>Temperature</A><A>Temperature of Chamber</A><A>C</A></L>"
+      "itemXml": "<L><U2>1</U2><A>Temperature</A><A>Temperature of Chamber</A><A>C</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F13 - Establish Communication Request",
@@ -70,7 +78,8 @@
       "function": 13,
       "wbit": true,
       "description": "发起 GEM 通信建立请求",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F14 - Establish Communication Reply (ACK)",
@@ -78,7 +87,8 @@
       "function": 14,
       "wbit": false,
       "description": "确认 GEM 通信建立成功",
-      "itemXml": "<L><B>00</B><L><A>EAP_Simulator</A><A>1.0</A></L></L>"
+      "itemXml": "<L><B>00</B><L><A>EAP_Simulator</A><A>1.0</A><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F14 - Establish Communication Reply (NACK)",
@@ -86,7 +96,8 @@
       "function": 14,
       "wbit": false,
       "description": "拒绝 GEM 通信建立",
-      "itemXml": "<L><B>01</B><L></L></L>"
+      "itemXml": "<L><B>01</B><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F15 - Request OFF-LINE",
@@ -94,7 +105,8 @@
       "function": 15,
       "wbit": true,
       "description": "Host 请求 Equipment 进入离线状态",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F16 - Request OFF-LINE Acknowledge (ACK)",
@@ -102,7 +114,8 @@
       "function": 16,
       "wbit": false,
       "description": "Equipment 确认进入离线状态",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F16 - Request OFF-LINE Acknowledge (NACK)",
@@ -110,7 +123,8 @@
       "function": 16,
       "wbit": false,
       "description": "Equipment 拒绝进入离线状态",
-      "itemXml": "<B>01</B>"
+      "itemXml": "<B>01</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F17 - Request ON-LINE",
@@ -118,7 +132,8 @@
       "function": 17,
       "wbit": true,
       "description": "Host 请求 Equipment 进入在线状态",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F18 - Request ON-LINE Acknowledge (ACK)",
@@ -126,7 +141,8 @@
       "function": 18,
       "wbit": false,
       "description": "Equipment 确认进入在线状态",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F18 - Request ON-LINE Acknowledge (NACK)",
@@ -134,7 +150,8 @@
       "function": 18,
       "wbit": false,
       "description": "Equipment 拒绝进入在线状态",
-      "itemXml": "<B>01</B>"
+      "itemXml": "<B>01</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F19 - Equipment Status Change Request",
@@ -142,7 +159,8 @@
       "function": 19,
       "wbit": true,
       "description": "Host 请求 Equipment 报告当前控制状态",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F20 - Equipment Status Change Report",
@@ -150,7 +168,8 @@
       "function": 20,
       "wbit": false,
       "description": "Equipment 回复当前控制状态 (ECMD/ECMI)",
-      "itemXml": "<L><B>00</B><U1>1</U1></L>"
+      "itemXml": "<L><B>00</B><U1>1</U1><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F21 - Data Variable Namelist Request",
@@ -158,7 +177,8 @@
       "function": 21,
       "wbit": true,
       "description": "Host 请求数据变量名称列表",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F22 - Data Variable Namelist Reply",
@@ -166,7 +186,8 @@
       "function": 22,
       "wbit": false,
       "description": "Equipment 回复数据变量名称列表",
-      "itemXml": "<L><U2>1001</U2><A>WaferCount</A><A>Number of wafers processed</A><A>U4</A></L>"
+      "itemXml": "<L><U2>1001</U2><A>WaferCount</A><A>Number of wafers processed</A><A>U4</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F23 - Collection Event Namelist Request",
@@ -174,7 +195,8 @@
       "function": 23,
       "wbit": true,
       "description": "Host 请求收集事件名称列表",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F24 - Collection Event Namelist Reply",
@@ -182,7 +204,8 @@
       "function": 24,
       "wbit": false,
       "description": "Equipment 回复收集事件名称列表",
-      "itemXml": "<L><U2>101</U2><A>ProcessStart</A><L><U2>1001</U2><U2>1002</U2></L></L>"
+      "itemXml": "<L><U2>101</U2><A>ProcessStart</A><L><U2>1001</U2><U2>1002</U2><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F25 - Request Spool Data",
@@ -190,7 +213,8 @@
       "function": 25,
       "wbit": true,
       "description": "Host 请求 Spool 数据",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S1F26 - Request Spool Data Reply",
@@ -198,7 +222,8 @@
       "function": 26,
       "wbit": false,
       "description": "Equipment 回复 Spool 数据",
-      "itemXml": "<L></L>"
+      "itemXml": "<L><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F1 - Equipment Constant Request",
@@ -206,7 +231,8 @@
       "function": 1,
       "wbit": true,
       "description": "Host 请求设备常量值列表",
-      "itemXml": "<L><U2>1</U2><U2>2</U2></L>"
+      "itemXml": "<L><U2>1</U2><U2>2</U2><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F2 - Equipment Constant Reply",
@@ -214,7 +240,8 @@
       "function": 2,
       "wbit": false,
       "description": "Equipment 回复设备常量值列表",
-      "itemXml": "<L><A>100</A><A>50</A></L>"
+      "itemXml": "<L><A>100</A><A>50</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F3 - New Equipment Constant Send",
@@ -222,7 +249,8 @@
       "function": 3,
       "wbit": true,
       "description": "Host 发送新设备常量值",
-      "itemXml": "<L><U2>1</U2><A>200</A></L>"
+      "itemXml": "<L><U2>1</U2><A>200</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F4 - New Equipment Constant Acknowledge",
@@ -230,7 +258,8 @@
       "function": 4,
       "wbit": false,
       "description": "Equipment 确认新设备常量设置",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F5 - Date and Time Set Request",
@@ -238,7 +267,8 @@
       "function": 5,
       "wbit": true,
       "description": "Host 设置 Equipment 日期和时间",
-      "itemXml": "<A>20260512103000</A>"
+      "itemXml": "<A>20260512103000</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F6 - Date and Time Set Acknowledge",
@@ -246,7 +276,8 @@
       "function": 6,
       "wbit": false,
       "description": "Equipment 确认日期时间设置",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F13 - Process Program Send",
@@ -254,7 +285,8 @@
       "function": 13,
       "wbit": true,
       "description": "Host 发送 Process Program 到 Equipment",
-      "itemXml": "<L><A>RECIPE01</A><B>01020304</B></L>"
+      "itemXml": "<L><A>RECIPE01</A><B>01020304</B><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F14 - Process Program Send Acknowledge",
@@ -262,7 +294,8 @@
       "function": 14,
       "wbit": false,
       "description": "Equipment 确认 Process Program 接收",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F15 - Process Program Request",
@@ -270,7 +303,8 @@
       "function": 15,
       "wbit": true,
       "description": "Host 请求 Equipment 的 Process Program",
-      "itemXml": "<A>RECIPE01</A>"
+      "itemXml": "<A>RECIPE01</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F16 - Process Program Request Reply",
@@ -278,7 +312,8 @@
       "function": 16,
       "wbit": false,
       "description": "Equipment 回复请求的 Process Program 内容",
-      "itemXml": "<L><A>RECIPE01</A><B>01020304</B></L>"
+      "itemXml": "<L><A>RECIPE01</A><B>01020304</B><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F17 - Date and Time Request",
@@ -286,7 +321,8 @@
       "function": 17,
       "wbit": true,
       "description": "请求设备当前日期和时间",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F18 - Date and Time Reply",
@@ -294,7 +330,8 @@
       "function": 18,
       "wbit": false,
       "description": "Equipment 回复当前日期和时间 (YYYYMMDDHHmmss)",
-      "itemXml": "<A>20260424103000</A>"
+      "itemXml": "<A>20260424103000</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F19 - Remote Command Send",
@@ -302,7 +339,8 @@
       "function": 19,
       "wbit": true,
       "description": "Host 发送远程命令",
-      "itemXml": "<A>START</A>"
+      "itemXml": "<A>START</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F20 - Remote Command Acknowledge (ACK)",
@@ -310,7 +348,8 @@
       "function": 20,
       "wbit": false,
       "description": "Equipment 确认远程命令",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F20 - Remote Command Acknowledge (NACK)",
@@ -318,7 +357,8 @@
       "function": 20,
       "wbit": false,
       "description": "Equipment 拒绝远程命令",
-      "itemXml": "<B>01</B>"
+      "itemXml": "<B>01</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F21 - Reset/Initialize Send",
@@ -326,7 +366,8 @@
       "function": 21,
       "wbit": true,
       "description": "Host 发送重置/初始化命令",
-      "itemXml": "<A>HCRESET</A>"
+      "itemXml": "<A>HCRESET</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F22 - Reset/Initialize Acknowledge",
@@ -334,7 +375,8 @@
       "function": 22,
       "wbit": false,
       "description": "Equipment 确认重置/初始化",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F25 - Loopback Diagnostic Request",
@@ -342,7 +384,8 @@
       "function": 25,
       "wbit": true,
       "description": "环回诊断请求，用于链路测试",
-      "itemXml": "<B>AABBCCDD</B>"
+      "itemXml": "<B>AABBCCDD</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F26 - Loopback Diagnostic Reply",
@@ -350,7 +393,8 @@
       "function": 26,
       "wbit": false,
       "description": "环回诊断回复",
-      "itemXml": "<B>AABBCCDD</B>"
+      "itemXml": "<B>AABBCCDD</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F27 - Initialize Process Program Send",
@@ -358,7 +402,8 @@
       "function": 27,
       "wbit": true,
       "description": "Host 请求 Equipment 初始化指定 Process Program",
-      "itemXml": "<A>RECIPE01</A>"
+      "itemXml": "<A>RECIPE01</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F28 - Initialize Process Program Acknowledge",
@@ -366,7 +411,8 @@
       "function": 28,
       "wbit": false,
       "description": "Equipment 确认 Process Program 初始化",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F29 - Equipment Constant Namelist Request",
@@ -374,7 +420,8 @@
       "function": 29,
       "wbit": true,
       "description": "Host 请求 Equipment 常量名称列表",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F30 - Equipment Constant Namelist Reply",
@@ -382,7 +429,8 @@
       "function": 30,
       "wbit": false,
       "description": "Equipment 回复常量名称列表",
-      "itemXml": "<L><U2>100</U2><A>MaxTemperature</A><A>Maximum temperature limit</A><A>C</A></L>"
+      "itemXml": "<L><U2>100</U2><A>MaxTemperature</A><A>Maximum temperature limit</A><A>C</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F33 - Define Report",
@@ -390,7 +438,8 @@
       "function": 33,
       "wbit": true,
       "description": "Host 定义报告 (RPTID + SVIDs)",
-      "itemXml": "<L><U4>0</U4><L><L><U2>1</U2><L><U2>1</U2><U2>2</U2></L></L></L></L>"
+      "itemXml": "<L><U4>0</U4><L><L><U2>1</U2><L><U2>1</U2><U2>2</U2><A></L></L></L></A><A></L></L></L></A><A></L></L></L></A></L></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F34 - Define Report Acknowledge",
@@ -398,7 +447,8 @@
       "function": 34,
       "wbit": false,
       "description": "Equipment 确认报告定义",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F35 - Link Event Report",
@@ -406,7 +456,8 @@
       "function": 35,
       "wbit": true,
       "description": "Host 将报告链接到事件",
-      "itemXml": "<L><U4>0</U4><L><L><U2>101</U2><L><U2>1</U2></L></L></L></L>"
+      "itemXml": "<L><U4>0</U4><L><L><U2>101</U2><L><U2>1</U2><A></L></L></L></A><A></L></L></L></A><A></L></L></L></A></L></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F36 - Link Event Report Acknowledge",
@@ -414,7 +465,8 @@
       "function": 36,
       "wbit": false,
       "description": "Equipment 确认事件报告链接",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F37 - Enable/Disable Event Report (Enable)",
@@ -422,7 +474,8 @@
       "function": 37,
       "wbit": true,
       "description": "Host 启用事件报告",
-      "itemXml": "<L><Boolean>1</Boolean><L><U2>101</U2><U2>102</U2></L></L>"
+      "itemXml": "<L><Boolean>1</Boolean><L><U2>101</U2><U2>102</U2><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F37 - Enable/Disable Event Report (Disable)",
@@ -430,7 +483,8 @@
       "function": 37,
       "wbit": true,
       "description": "Host 禁用事件报告",
-      "itemXml": "<L><Boolean>0</Boolean><L><U2>101</U2><U2>102</U2></L></L>"
+      "itemXml": "<L><Boolean>0</Boolean><L><U2>101</U2><U2>102</U2><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F38 - Enable/Disable Event Report Acknowledge",
@@ -438,7 +492,8 @@
       "function": 38,
       "wbit": false,
       "description": "Equipment 确认启用/禁用事件报告",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F41 - Host Command (START)",
@@ -446,7 +501,8 @@
       "function": 41,
       "wbit": true,
       "description": "Host 发送远程命令 (启动)",
-      "itemXml": "<L><A>START</A><L><L><A>RECIPE</A><A>RECIPE01</A></L></L></L>"
+      "itemXml": "<L><A>START</A><L><L><A>RECIPE</A><A>RECIPE01</A><A></L></L></A><A></L></L></A><A></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F41 - Host Command (STOP)",
@@ -454,7 +510,8 @@
       "function": 41,
       "wbit": true,
       "description": "Host 发送远程命令 (停止)",
-      "itemXml": "<L><A>STOP</A><L></L></L>"
+      "itemXml": "<L><A>STOP</A><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F41 - Host Command (ABORT)",
@@ -462,7 +519,8 @@
       "function": 41,
       "wbit": true,
       "description": "Host 发送远程命令 (中止)",
-      "itemXml": "<L><A>ABORT</A><L></L></L>"
+      "itemXml": "<L><A>ABORT</A><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F42 - Host Command Acknowledge (ACK)",
@@ -470,7 +528,8 @@
       "function": 42,
       "wbit": false,
       "description": "Equipment 确认远程命令执行成功",
-      "itemXml": "<L><B>00</B><L></L></L>"
+      "itemXml": "<L><B>00</B><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F42 - Host Command Acknowledge (NACK)",
@@ -478,7 +537,8 @@
       "function": 42,
       "wbit": false,
       "description": "Equipment 拒绝远程命令",
-      "itemXml": "<L><B>01</B><L></L></L>"
+      "itemXml": "<L><B>01</B><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F49 - Enhanced Host Command (Start)",
@@ -486,7 +546,8 @@
       "function": 49,
       "wbit": true,
       "description": "Host 增强远程命令 (带 OBJID)",
-      "itemXml": "<L><U4>1</U4><A>EQP01</A><L><A>START</A><L><L><A>PPID</A><A>RECIPE01</A></L></L></L></L>"
+      "itemXml": "<L><U4>1</U4><A>EQP01</A><L><A>START</A><L><L><A>PPID</A><A>RECIPE01</A><A></L></L></L></A><A></L></L></L></A><A></L></L></L></A></L></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F50 - Enhanced Host Command Acknowledge (ACK)",
@@ -494,7 +555,8 @@
       "function": 50,
       "wbit": false,
       "description": "Equipment 确认增强远程命令",
-      "itemXml": "<L><B>00</B><L></L></L>"
+      "itemXml": "<L><B>00</B><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F43 - Reset Spooling Streams",
@@ -502,7 +564,8 @@
       "function": 43,
       "wbit": true,
       "description": "Host 请求重置指定 Stream 的 Spooling",
-      "itemXml": "<L><U1>6</U1></L>"
+      "itemXml": "<L><U1>6</U1><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F44 - Reset Spooling Acknowledge (ACK)",
@@ -510,7 +573,8 @@
       "function": 44,
       "wbit": false,
       "description": "Equipment 确认重置 Spooling",
-      "itemXml": "<L><B>00</B><L></L></L>"
+      "itemXml": "<L><B>00</B><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F44 - Reset Spooling Acknowledge (NACK)",
@@ -518,7 +582,8 @@
       "function": 44,
       "wbit": false,
       "description": "Equipment 拒绝重置 Spooling",
-      "itemXml": "<L><B>01</B><L><U1>6</U1></L></L>"
+      "itemXml": "<L><B>01</B><L><U1>6</U1><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F45 - Define Variable Limit Attributes",
@@ -526,7 +591,8 @@
       "function": 45,
       "wbit": true,
       "description": "Host 定义变量限值属性",
-      "itemXml": "<L><U2>1</U2><L><L><U2>1001</U2><A>25.0</A><A>50.0</A></L></L></L>"
+      "itemXml": "<L><U2>1</U2><L><L><U2>1001</U2><A>25.0</A><A>50.0</A><A></L></L></A><A></L></L></A><A></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F46 - Variable Limit Attributes Acknowledge (ACK)",
@@ -534,7 +600,8 @@
       "function": 46,
       "wbit": false,
       "description": "Equipment 确认变量限值属性设置",
-      "itemXml": "<L><B>00</B><L></L></L>"
+      "itemXml": "<L><B>00</B><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F47 - Variable Limit Attributes Request",
@@ -542,7 +609,8 @@
       "function": 47,
       "wbit": true,
       "description": "Host 请求变量限值属性",
-      "itemXml": "<L><U2>1001</U2></L>"
+      "itemXml": "<L><U2>1001</U2><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F48 - Variable Limit Attributes Reply",
@@ -550,7 +618,8 @@
       "function": 48,
       "wbit": false,
       "description": "Equipment 回复变量限值属性",
-      "itemXml": "<L><L><U2>1001</U2><A>Temperature</A><A>25.0</A><A>50.0</A></L></L>"
+      "itemXml": "<L><L><U2>1001</U2><A>Temperature</A><A>25.0</A><A>50.0</A><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F51 - Establish Communication with Enhanced IDs",
@@ -558,7 +627,8 @@
       "function": 51,
       "wbit": true,
       "description": "Host 发送建立通信请求 (增强设备ID)",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F52 - Establish Communication Enhanced Acknowledge (ACK)",
@@ -566,7 +636,8 @@
       "function": 52,
       "wbit": false,
       "description": "Equipment 确认建立通信 (增强)",
-      "itemXml": "<L><B>00</B><L><A>EAP_Simulator</A><A>1.0</A></L></L>"
+      "itemXml": "<L><B>00</B><L><A>EAP_Simulator</A><A>1.0</A><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S2F52 - Establish Communication Enhanced Acknowledge (NACK)",
@@ -574,7 +645,8 @@
       "function": 52,
       "wbit": false,
       "description": "Equipment 拒绝建立通信 (增强)",
-      "itemXml": "<L><B>01</B><L></L></L>"
+      "itemXml": "<L><B>01</B><L><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S5F1 - Alarm Report (SET)",
@@ -582,7 +654,8 @@
       "function": 1,
       "wbit": true,
       "description": "Equipment 报警 SET 事件上报给 Host",
-      "itemXml": "<L><U1>1</U1><U2>1</U2><A>OverTemperature</A><A>Temperature exceeds 100C</A></L>"
+      "itemXml": "<L><U1>1</U1><U2>1</U2><A>OverTemperature</A><A>Temperature exceeds 100C</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S5F1 - Alarm Report (CLEAR)",
@@ -590,7 +663,8 @@
       "function": 1,
       "wbit": true,
       "description": "Equipment 报警 CLEAR 事件上报给 Host",
-      "itemXml": "<L><U1>0</U1><U2>1</U2><A>OverTemperature</A><A>Temperature returned to normal</A></L>"
+      "itemXml": "<L><U1>0</U1><U2>1</U2><A>OverTemperature</A><A>Temperature returned to normal</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S5F2 - Alarm Report Acknowledge",
@@ -598,7 +672,8 @@
       "function": 2,
       "wbit": false,
       "description": "Host 确认收到报警报告",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S5F3 - Enable/Disable Alarm Report (Enable)",
@@ -606,7 +681,8 @@
       "function": 3,
       "wbit": true,
       "description": "Host 启用指定报警报告",
-      "itemXml": "<L><Boolean>1</Boolean><L><U2>1</U2><U2>2</U2></L></L>"
+      "itemXml": "<L><Boolean>1</Boolean><L><U2>1</U2><U2>2</U2><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S5F3 - Enable/Disable Alarm Report (Disable)",
@@ -614,7 +690,8 @@
       "function": 3,
       "wbit": true,
       "description": "Host 禁用指定报警报告",
-      "itemXml": "<L><Boolean>0</Boolean><L><U2>1</U2><U2>2</U2></L></L>"
+      "itemXml": "<L><Boolean>0</Boolean><L><U2>1</U2><U2>2</U2><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S5F4 - Enable/Disable Alarm Report Acknowledge",
@@ -622,7 +699,8 @@
       "function": 4,
       "wbit": false,
       "description": "Equipment 确认启用/禁用报警报告",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S5F5 - List Alarms Request",
@@ -630,7 +708,8 @@
       "function": 5,
       "wbit": true,
       "description": "Host 请求报警列表",
-      "itemXml": "<L><U2>1</U2><U2>2</U2></L>"
+      "itemXml": "<L><U2>1</U2><U2>2</U2><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S5F6 - List Alarms Reply",
@@ -638,7 +717,8 @@
       "function": 6,
       "wbit": false,
       "description": "Equipment 回复报警列表",
-      "itemXml": "<L><L><U2>1</U2><U1>1</U1><A>OverTemperature</A><A>Temperature exceeds 100C</A></L><L><U2>2</U2><U1>1</U1><A>LowPressure</A><A>Pressure below threshold</A></L></L>"
+      "itemXml": "<L><L><U2>1</U2><U1>1</U1><A>OverTemperature</A><A>Temperature exceeds 100C</A><A><L><U2>2</U2><U1>1</U1><A>LowPressure</A><A>Pressure below threshold</A><A></L></A><A></L></A></L></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F11 - Collection Event Report (ProcessStart)",
@@ -646,7 +726,8 @@
       "function": 11,
       "wbit": true,
       "description": "Equipment 发送 Collection Event 报告 (加工开始)",
-      "itemXml": "<L><U4>0</U4><U2>101</U2><L><L><U2>1001</U2><A>25.0</A></L><L><U2>1002</U2><A>101.3</A></L></L></L>"
+      "itemXml": "<L><U4>0</U4><U2>101</U2><L><L><U2>1001</U2><A>25.0</A><A><L><U2>1002</U2><A>101.3</A><A></L></L></A><A></L></L></A></L></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F11 - Collection Event Report (ProcessEnd)",
@@ -654,7 +735,8 @@
       "function": 11,
       "wbit": true,
       "description": "Equipment 发送 Collection Event 报告 (加工结束)",
-      "itemXml": "<L><U4>0</U4><U2>102</U2><L><L><U2>1001</U2><A>30.5</A></L></L></L>"
+      "itemXml": "<L><U4>0</U4><U2>102</U2><L><L><U2>1001</U2><A>30.5</A><A></L></L></A><A></L></L></A><A></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F11 - Collection Event Report (MaterialArrival)",
@@ -662,7 +744,8 @@
       "function": 11,
       "wbit": true,
       "description": "Equipment 发送 Collection Event 报告 (物料到达)",
-      "itemXml": "<L><U4>0</U4><U2>103</U2><L><L><U2>2001</U2><A>LOT001</A></L></L></L>"
+      "itemXml": "<L><U4>0</U4><U2>103</U2><L><L><U2>2001</U2><A>LOT001</A><A></L></L></A><A></L></L></A><A></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F11 - Collection Event Report (ControlStateChange)",
@@ -670,7 +753,17 @@
       "function": 11,
       "wbit": true,
       "description": "Equipment 发送 Collection Event 报告 (控制状态变更)",
-      "itemXml": "<L><U4>0</U4><U2>201</U2><L><L><U2>1004</U2><A>4</A></L></L></L>"
+      "itemXml": "<L><U4>0</U4><U2>201</U2><L><L><U2>1004</U2><A>4</A></L></L></L>",
+      "fieldMetadata": {
+        "2/0/1": {
+          "alias": "机台状态",
+          "description": "5 = Remote，4 = Local",
+          "format": "",
+          "nlb": "",
+          "defaultValue": "",
+          "valueMappings": null
+        }
+      }
     },
     {
       "name": "S6F12 - Collection Event Report Acknowledge",
@@ -678,7 +771,8 @@
       "function": 12,
       "wbit": false,
       "description": "Host 确认 Collection Event 报告",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F5 - Multi-Block Inquire",
@@ -686,7 +780,8 @@
       "function": 5,
       "wbit": true,
       "description": "Equipment 请求多块数据传输许可",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F6 - Multi-Block Grant",
@@ -694,7 +789,8 @@
       "function": 6,
       "wbit": false,
       "description": "Host 授予多块数据传输许可",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F1 - List Reports Request",
@@ -702,7 +798,8 @@
       "function": 1,
       "wbit": true,
       "description": "Host 请求当前已定义的报告列表",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F2 - List Reports Reply",
@@ -710,7 +807,8 @@
       "function": 2,
       "wbit": false,
       "description": "Equipment 回复已定义的报告列表",
-      "itemXml": "<L><L><U2>1</U2><L><U2>1001</U2><U2>1002</U2></L></L></L>"
+      "itemXml": "<L><L><U2>1</U2><L><U2>1001</U2><U2>1002</U2><A></L></L></A><A></L></L></A><A></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F3 - List Event Reports Request",
@@ -718,7 +816,8 @@
       "function": 3,
       "wbit": true,
       "description": "Host 请求事件报告链接关系",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F4 - List Event Reports Reply",
@@ -726,7 +825,8 @@
       "function": 4,
       "wbit": false,
       "description": "Equipment 回复事件报告链接关系",
-      "itemXml": "<L><L><U2>101</U2><L><U2>1</U2></L></L></L>"
+      "itemXml": "<L><L><U2>101</U2><L><U2>1</U2><A></L></L></A><A></L></L></A><A></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F9 - Event Report Request",
@@ -734,7 +834,8 @@
       "function": 9,
       "wbit": true,
       "description": "Host 请求未确认的事件报告",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F10 - Event Report Request Reply",
@@ -742,7 +843,8 @@
       "function": 10,
       "wbit": false,
       "description": "Equipment 回复事件报告请求",
-      "itemXml": "<L></L>"
+      "itemXml": "<L><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F13 - Event Report (Unbuffered)",
@@ -750,7 +852,8 @@
       "function": 13,
       "wbit": true,
       "description": "Equipment 发送无缓冲事件报告",
-      "itemXml": "<L><U4>0</U4><U2>101</U2><L><L><U2>1001</U2><A>25.0</A></L></L></L>"
+      "itemXml": "<L><U4>0</U4><U2>101</U2><L><L><U2>1001</U2><A>25.0</A><A></L></L></A><A></L></L></A><A></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F14 - Event Report Acknowledge (Unbuffered)",
@@ -758,7 +861,8 @@
       "function": 14,
       "wbit": false,
       "description": "Host 确认无缓冲事件报告",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F15 - Event Report Request",
@@ -766,7 +870,8 @@
       "function": 15,
       "wbit": true,
       "description": "Host 请求特定事件报告",
-      "itemXml": "<U2>101</U2>"
+      "itemXml": "<U2>101</U2>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F16 - Event Report Request Reply",
@@ -774,7 +879,8 @@
       "function": 16,
       "wbit": false,
       "description": "Equipment 回复请求的事件报告",
-      "itemXml": "<L><U2>101</U2><L><L><U2>1001</U2><A>25.0</A></L></L></L>"
+      "itemXml": "<L><U2>101</U2><L><L><U2>1001</U2><A>25.0</A><A></L></L></A><A></L></L></A><A></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F17 - Individual Report Request",
@@ -782,7 +888,8 @@
       "function": 17,
       "wbit": true,
       "description": "Host 请求个别报告",
-      "itemXml": "<L><U2>1</U2></L>"
+      "itemXml": "<L><U2>1</U2><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F18 - Individual Report Reply",
@@ -790,7 +897,8 @@
       "function": 18,
       "wbit": false,
       "description": "Equipment 回复个别报告",
-      "itemXml": "<L><L><U2>1001</U2><A>25.0</A></L></L>"
+      "itemXml": "<L><L><U2>1001</U2><A>25.0</A><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F19 - Request or Purge Spooled Data",
@@ -798,7 +906,8 @@
       "function": 19,
       "wbit": true,
       "description": "Host 请求或清除 Spooled 数据",
-      "itemXml": "<U2>1</U2>"
+      "itemXml": "<U2>1</U2>",
+      "fieldMetadata": null
     },
     {
       "name": "S6F20 - Request or Purge Spooled Data Reply",
@@ -806,7 +915,8 @@
       "function": 20,
       "wbit": false,
       "description": "Equipment 回复 Spooled 数据请求",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F1 - Process Program Load Inquire",
@@ -814,7 +924,8 @@
       "function": 1,
       "wbit": true,
       "description": "Host 请求加载 Process Program",
-      "itemXml": "<A>RECIPE01</A>"
+      "itemXml": "<A>RECIPE01</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F2 - Process Program Load Grant (ACK)",
@@ -822,7 +933,8 @@
       "function": 2,
       "wbit": false,
       "description": "Equipment 允许加载 Process Program",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F2 - Process Program Load Grant (NACK)",
@@ -830,7 +942,8 @@
       "function": 2,
       "wbit": false,
       "description": "Equipment 拒绝加载 Process Program",
-      "itemXml": "<B>01</B>"
+      "itemXml": "<B>01</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F3 - Process Program Send",
@@ -838,7 +951,8 @@
       "function": 3,
       "wbit": true,
       "description": "Host 发送 Process Program 下载到 Equipment",
-      "itemXml": "<L><A>RECIPE01</A><B>48656C6C6F</B></L>"
+      "itemXml": "<L><A>RECIPE01</A><B>48656C6C6F</B><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F4 - Process Program Send Acknowledge",
@@ -846,7 +960,8 @@
       "function": 4,
       "wbit": false,
       "description": "Equipment 确认 Process Program 下载",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F5 - Process Program Request",
@@ -854,7 +969,8 @@
       "function": 5,
       "wbit": true,
       "description": "Host 请求 Equipment 上载 Process Program",
-      "itemXml": "<A>RECIPE01</A>"
+      "itemXml": "<A>RECIPE01</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F6 - Process Program Request Reply",
@@ -862,7 +978,8 @@
       "function": 6,
       "wbit": false,
       "description": "Equipment 回复上载的 Process Program 内容",
-      "itemXml": "<L><A>RECIPE01</A><B>48656C6C6F</B></L>"
+      "itemXml": "<L><A>RECIPE01</A><B>48656C6C6F</B><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F25 - Formatted Process Program Send",
@@ -870,7 +987,8 @@
       "function": 25,
       "wbit": true,
       "description": "Host 发送格式化 Process Program (结构化数据)",
-      "itemXml": "<L><A>RECIPE01</A><L><L><A>Temperature</A><A>25.0</A></L><L><A>Pressure</A><A>101.3</A></L><L><A>Time</A><A>60</A></L></L></L>"
+      "itemXml": "<L><A>RECIPE01</A><L><L><A>Temperature</A><A>25.0</A><A><L><A>Pressure</A><A>101.3</A><A><L><A>Time</A><A>60</A><A></L></L></A></L></L></L></A></L></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F26 - Formatted Process Program Send Acknowledge",
@@ -878,7 +996,8 @@
       "function": 26,
       "wbit": false,
       "description": "Equipment 确认格式化 Process Program",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F7 - Delete Process Program Request",
@@ -886,7 +1005,8 @@
       "function": 7,
       "wbit": true,
       "description": "Host 请求删除指定 Process Program",
-      "itemXml": "<L><A>RECIPE01</A></L>"
+      "itemXml": "<L><A>RECIPE01</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F8 - Delete Process Program Acknowledge",
@@ -894,7 +1014,8 @@
       "function": 8,
       "wbit": false,
       "description": "Equipment 确认删除 Process Program",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F9 - Current EPPD Request",
@@ -902,7 +1023,8 @@
       "function": 9,
       "wbit": true,
       "description": "Host 请求当前 Process Program 数据目录",
-      "itemXml": ""
+      "itemXml": "<L><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F10 - Current EPPD Reply",
@@ -910,7 +1032,8 @@
       "function": 10,
       "wbit": false,
       "description": "Equipment 回复当前 Process Program 列表",
-      "itemXml": "<L><A>RECIPE01</A><A>RECIPE02</A></L>"
+      "itemXml": "<L><A>RECIPE01</A><A>RECIPE02</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F11 - Formatted Process Program Request",
@@ -918,7 +1041,8 @@
       "function": 11,
       "wbit": true,
       "description": "Host 请求格式化 Process Program",
-      "itemXml": "<A>RECIPE01</A>"
+      "itemXml": "<A>RECIPE01</A>",
+      "fieldMetadata": null
     },
     {
       "name": "S7F12 - Formatted Process Program Reply",
@@ -926,7 +1050,8 @@
       "function": 12,
       "wbit": false,
       "description": "Equipment 回复格式化 Process Program",
-      "itemXml": "<L><A>RECIPE01</A><L><L><A>Temperature</A><A>25.0</A></L><L><A>Pressure</A><A>101.3</A></L></L></L>"
+      "itemXml": "<L><A>RECIPE01</A><L><L><A>Temperature</A><A>25.0</A><A><L><A>Pressure</A><A>101.3</A><A></L></L></A><A></L></L></A></L></L></L></A></L></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S9F1 - Unrecognized Device ID",
@@ -934,7 +1059,8 @@
       "function": 1,
       "wbit": false,
       "description": "无法识别的 Device ID (S-Type 错误)",
-      "itemXml": "<B>00000001</B>"
+      "itemXml": "<B>00000001</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S9F3 - Unrecognized Stream Type",
@@ -942,7 +1068,8 @@
       "function": 3,
       "wbit": false,
       "description": "无法识别的 Stream 类型",
-      "itemXml": "<B>00000001</B>"
+      "itemXml": "<B>00000001</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S9F5 - Unrecognized Function Type",
@@ -950,7 +1077,8 @@
       "function": 5,
       "wbit": false,
       "description": "无法识别的 Function 类型",
-      "itemXml": "<B>00000001</B>"
+      "itemXml": "<B>00000001</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S9F7 - Illegal Data",
@@ -958,7 +1086,8 @@
       "function": 7,
       "wbit": false,
       "description": "非法数据格式",
-      "itemXml": "<B>00000001</B>"
+      "itemXml": "<B>00000001</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S9F9 - Transaction Timer Timeout (T3)",
@@ -966,7 +1095,8 @@
       "function": 9,
       "wbit": false,
       "description": "事务超时 (T3 Timeout)",
-      "itemXml": "<B>00000001</B>"
+      "itemXml": "<B>00000001</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S9F11 - Data Too Long",
@@ -974,7 +1104,8 @@
       "function": 11,
       "wbit": false,
       "description": "数据超过允许长度",
-      "itemXml": "<B>00000001</B>"
+      "itemXml": "<B>00000001</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S9F13 - Conversation Timeout",
@@ -982,7 +1113,8 @@
       "function": 13,
       "wbit": false,
       "description": "会话超时",
-      "itemXml": "<B>00000001</B>"
+      "itemXml": "<B>00000001</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S10F1 - Terminal Request",
@@ -990,7 +1122,8 @@
       "function": 1,
       "wbit": true,
       "description": "Host 发送终端消息到 Equipment",
-      "itemXml": "<L><U1>0</U1><A>Hello from EAP Simulator!</A></L>"
+      "itemXml": "<L><U1>0</U1><A>Hello from EAP Simulator!</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S10F2 - Terminal Request Acknowledge",
@@ -998,7 +1131,8 @@
       "function": 2,
       "wbit": false,
       "description": "Equipment 确认终端消息接收",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S10F3 - Terminal Display Single",
@@ -1006,7 +1140,8 @@
       "function": 3,
       "wbit": true,
       "description": "Equipment 在终端显示单行消息",
-      "itemXml": "<L><U1>0</U1><A>EQUIPMENT READY</A></L>"
+      "itemXml": "<L><U1>0</U1><A>EQUIPMENT READY</A><A></A><A></A><A></A></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S10F4 - Terminal Display Single Acknowledge",
@@ -1014,7 +1149,8 @@
       "function": 4,
       "wbit": false,
       "description": "Host 确认终端单行消息",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     },
     {
       "name": "S10F5 - Terminal Display Multi",
@@ -1022,7 +1158,8 @@
       "function": 5,
       "wbit": true,
       "description": "Equipment 在终端显示多行消息",
-      "itemXml": "<L><U1>0</U1><L><A>Line 1: Equipment Status</A><A>Line 2: Temperature = 25C</A><A>Line 3: All Systems Normal</A></L></L>"
+      "itemXml": "<L><U1>0</U1><L><A>Line 1: Equipment Status</A><A>Line 2: Temperature = 25C</A><A>Line 3: All Systems Normal</A><A></L></A><A></L></A><A></L></A></L></L>",
+      "fieldMetadata": null
     },
     {
       "name": "S10F6 - Terminal Display Multi Acknowledge",
@@ -1030,7 +1167,8 @@
       "function": 6,
       "wbit": false,
       "description": "Host 确认终端多行消息",
-      "itemXml": "<B>00</B>"
+      "itemXml": "<B>00</B>",
+      "fieldMetadata": null
     }
   ]
 }

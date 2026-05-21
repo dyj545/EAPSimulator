@@ -115,16 +115,23 @@ public partial class MessageEditorViewModel : ObservableObject
         try
         {
             var templateFile = new SecsMessageTemplateFile();
+            int metaCount = 0;
             foreach (var msgVm in AllMessages)
             {
-                templateFile.Messages.Add(msgVm.ToTemplate());
+                var t = msgVm.ToTemplate();
+                if (t.FieldMetadata != null && t.FieldMetadata.Count > 0)
+                    metaCount++;
+                templateFile.Messages.Add(t);
             }
             var json = Newtonsoft.Json.JsonConvert.SerializeObject(templateFile, Newtonsoft.Json.Formatting.Indented);
             File.WriteAllText(path, json);
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                StatusMessage = $"[AutoSave] {AllMessages.Count} msgs, {metaCount} with metadata → {Path.GetFileName(path)}");
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently fail for auto-save
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                StatusMessage = $"[AutoSave] FAILED: {ex.Message}");
         }
     }
 
@@ -826,6 +833,12 @@ public partial class SecsMessageViewModel : ObservableObject
 
     public string DisplayText => $"S{Stream}F{Function}{(WBit ? "W" : "")} - {Name}";
 
+    /// <summary>
+    /// Cached field metadata from the template, keyed by tree path.
+    /// Used to enrich log Detail display with alias/description.
+    /// </summary>
+    public Dictionary<string, FieldMetadata>? FieldMetadataCache { get; set; }
+
     partial void OnStreamChanged(byte value) => OnPropertyChanged(nameof(DisplayText));
     partial void OnFunctionChanged(byte value) => OnPropertyChanged(nameof(DisplayText));
     partial void OnWBitChanged(bool value) => OnPropertyChanged(nameof(DisplayText));
@@ -871,6 +884,7 @@ public partial class SecsMessageViewModel : ObservableObject
             ApplyFieldMetadata(vm.RootItem, "", template.FieldMetadata);
         }
 
+        vm.FieldMetadataCache = template.FieldMetadata;
         return vm;
     }
 
@@ -927,7 +941,10 @@ public partial class SecsMessageViewModel : ObservableObject
             var metadata = new Dictionary<string, FieldMetadata>();
             CollectFieldMetadata(RootItem, "", metadata);
             if (metadata.Count > 0)
+            {
                 template.FieldMetadata = metadata;
+                System.Diagnostics.Debug.WriteLine($"[ToTemplate] {Name}: collected {metadata.Count} field metadata entries");
+            }
         }
 
         return template;
@@ -936,9 +953,10 @@ public partial class SecsMessageViewModel : ObservableObject
     private static void CollectFieldMetadata(SecsItemViewModel item, string path, Dictionary<string, FieldMetadata> metadata)
     {
         // Only save metadata if the item has at least one non-empty field
-        if (!string.IsNullOrEmpty(item.Alias) || !string.IsNullOrEmpty(item.Description) ||
+        bool hasMeta = !string.IsNullOrEmpty(item.Alias) || !string.IsNullOrEmpty(item.Description) ||
             !string.IsNullOrEmpty(item.Format) || !string.IsNullOrEmpty(item.Nlb) ||
-            !string.IsNullOrEmpty(item.DefaultValue) || item.ValueMappings.Count > 0)
+            !string.IsNullOrEmpty(item.DefaultValue) || item.ValueMappings.Count > 0;
+        if (hasMeta)
         {
             var meta = new FieldMetadata
             {
@@ -953,6 +971,7 @@ public partial class SecsMessageViewModel : ObservableObject
                 meta.ValueMappings = item.ValueMappings.ToDictionary(m => m.Value, m => m.DisplayText);
             }
             metadata[path] = meta;
+            System.Diagnostics.Debug.WriteLine($"[CollectFieldMetadata] path={path} alias={item.Alias} desc={item.Description}");
         }
 
         // Recurse into children

@@ -115,11 +115,16 @@ public partial class MainViewModel : ObservableObject
 
     private void LoadDefaultTemplateFile()
     {
-        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "secs_message_templates.json");
-        if (!File.Exists(templatePath))
-        {
-            templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "secs_message_templates.json");
-        }
+        // Prefer project root over bin directory to avoid divergent copies
+        var basePath = AppDomain.CurrentDomain.BaseDirectory;
+        var projectRootPath = Path.GetFullPath(Path.Combine(basePath, "..", "..", "..", "..", "..", "secs_message_templates.json"));
+        var binPath = Path.Combine(basePath, "secs_message_templates.json");
+
+        LogSystem($"[TemplatePath] BaseDir: {basePath}");
+        LogSystem($"[TemplatePath] ProjectRoot: {projectRootPath} exists={File.Exists(projectRootPath)}");
+        LogSystem($"[TemplatePath] BinPath: {binPath} exists={File.Exists(binPath)}");
+
+        var templatePath = File.Exists(projectRootPath) ? projectRootPath : binPath;
 
         if (File.Exists(templatePath))
         {
@@ -398,7 +403,7 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
-    private static string FormatSecsDetail(DateTime timestamp, string direction, uint sysBytes,
+    private string FormatSecsDetail(DateTime timestamp, string direction, uint sysBytes,
         byte stream, byte function, bool wBit, SecsItem? rootItem)
     {
         var sb = new System.Text.StringBuilder();
@@ -412,10 +417,17 @@ public partial class MainViewModel : ObservableObject
         var wbitStr = wBit ? " W" : "";
         sb.AppendLine($"S{stream}F{function}{wbitStr}");
 
+        // Look up field metadata from templates
+        Dictionary<string, FieldMetadata>? fieldMeta = null;
+        var matched = MessageEditor.AllMessages
+            .FirstOrDefault(m => m.Stream == stream && m.Function == function);
+        if (matched?.FieldMetadataCache != null)
+            fieldMeta = matched.FieldMetadataCache;
+
         // Tree
         if (rootItem != null)
         {
-            AppendSecsItem(sb, rootItem, 0);
+            AppendSecsItem(sb, rootItem, 0, "", fieldMeta);
             sb.AppendLine(">.");
         }
         else
@@ -427,17 +439,22 @@ public partial class MainViewModel : ObservableObject
         return sb.ToString();
     }
 
-    private static void AppendSecsItem(System.Text.StringBuilder sb, SecsItem item, int indent)
+    private static void AppendSecsItem(System.Text.StringBuilder sb, SecsItem item, int indent,
+        string path, Dictionary<string, FieldMetadata>? metadata)
     {
         var indentStr = new string('\t', indent);
 
         if (item is SecsList list)
         {
             var lengthBytes = list.Items.Length <= 0xFF ? 1 : (list.Items.Length <= 0xFFFF ? 2 : 3);
-            sb.AppendLine($"{indentStr}<L [{list.Items.Length}/{lengthBytes}]>");
+            var suffix = BuildMetaSuffix(path, null, metadata);
+            sb.AppendLine($"{indentStr}<L [{list.Items.Length}/{lengthBytes}]>{suffix}");
 
-            foreach (var child in list.Items)
-                AppendSecsItem(sb, child, indent + 1);
+            for (int i = 0; i < list.Items.Length; i++)
+            {
+                var childPath = string.IsNullOrEmpty(path) ? i.ToString() : $"{path}/{i}";
+                AppendSecsItem(sb, list.Items[i], indent + 1, childPath, metadata);
+            }
 
             sb.AppendLine($"{indentStr}>");
         }
@@ -447,8 +464,9 @@ public partial class MainViewModel : ObservableObject
             var formatAbbrev = GetSecsFormatAbbrev(item.Format);
             int byteLength = GetSecsByteLength(item);
             var lengthBytes = byteLength <= 0xFF ? 1 : (byteLength <= 0xFFFF ? 2 : 3);
+            var suffix = BuildMetaSuffix(path, valueStr, metadata);
 
-            sb.AppendLine($"{indentStr}<{formatAbbrev} [{byteLength}/{lengthBytes}] {valueStr}>");
+            sb.AppendLine($"{indentStr}<{formatAbbrev} [{byteLength}/{lengthBytes}] {valueStr}>{suffix}");
         }
     }
 
@@ -499,6 +517,33 @@ public partial class MainViewModel : ObservableObject
         SecsF8 f8 => f8.Value.Length == 1 ? f8.Value[0].ToString() : $"[{string.Join(", ", f8.Value)}]",
         _ => item.ToString()
     };
+
+    private static string BuildMetaSuffix(string path, string? valueStr,
+        Dictionary<string, FieldMetadata>? metadata)
+    {
+        if (metadata == null || string.IsNullOrEmpty(path))
+            return string.Empty;
+
+        if (!metadata.TryGetValue(path, out var meta))
+            return string.Empty;
+
+        var parts = new List<string>();
+
+        if (!string.IsNullOrEmpty(meta.Alias))
+            parts.Add(meta.Alias);
+
+        if (meta.ValueMappings != null && !string.IsNullOrEmpty(valueStr))
+        {
+            var raw = valueStr.Trim('\'', '"');
+            if (meta.ValueMappings.TryGetValue(raw, out var mapped))
+                parts.Add($"= {mapped}");
+        }
+
+        if (!string.IsNullOrEmpty(meta.Description) && meta.Description.Length <= 40)
+            parts.Add($"({meta.Description})");
+
+        return parts.Count > 0 ? $" -- {string.Join(" ", parts)}" : string.Empty;
+    }
 
     private void OnProtocolStateChanged(object? sender, ProtocolStateEventArgs e)
     {

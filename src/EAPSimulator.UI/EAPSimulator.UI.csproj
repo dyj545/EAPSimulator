@@ -28,7 +28,7 @@
 
   <ItemGroup>
     <Content Include="..\..\secs_message_templates.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <Link>secs_message_templates.json</Link>
     </Content>
     <Content Include="..\..\secs_gem_passive.json">
@@ -56,7 +56,7 @@
       <Link>custom_protocol_alternating.json</Link>
     </Content>
     <Content Include="..\..\auto_reply_rules.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <Link>auto_reply_rules.json</Link>
     </Content>
   </ItemGroup>
