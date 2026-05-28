@@ -5,6 +5,76 @@
              xmlns:converters="using:EAPSimulator.UI.Converters"
              FontSize="12">
 
+    <UserControl.Styles>
+        <Style Selector="TreeViewItem">
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="TreeViewItem:selected">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="Button.action-btn">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.action-btn:pointerover">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.Resources>
+        <!-- Tree style color resources (dynamically updated from code-behind) -->
+        <SolidColorBrush x:Key="TreeTypeNameColor" Color="#569CD6"/>
+        <SolidColorBrush x:Key="TreeValueColor" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="TreeAliasColor" Color="#9CDCFE"/>
+        <SolidColorBrush x:Key="TreeListInfoColor" Color="#B5CEA8"/>
+        <SolidColorBrush x:Key="TreeGroupColor" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="TreePairTitleColor" Color="#C586C0"/>
+        <SolidColorBrush x:Key="TreePairDescColor" Color="#DCDCAA"/>
+        <SolidColorBrush x:Key="TreeStreamFuncColor" Color="#B5CEA8"/>
+        <SolidColorBrush x:Key="TreeStreamFuncPrefixColor" Color="#569CD6"/>
+        <SolidColorBrush x:Key="TreeWBitColor" Color="#FF9800"/>
+        <SolidColorBrush x:Key="TreeMessageNameColor" Color="#DCDCAA"/>
+        <SolidColorBrush x:Key="TreeSelectedColor" Color="#FFFFFF"/>
+
+        <ContextMenu x:Key="AutoReplyItemContextMenu">
+            <MenuItem Header="编辑字段..." Click="OnEditField" FontWeight="SemiBold">
+                <MenuItem.Icon><Path Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" Width="16" Height="16" Stretch="Uniform" Fill="#9CDCFE"/></MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="添加子节点" Click="OnAddChild">
+                <MenuItem.Icon><Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="16" Height="16" Stretch="Uniform" Fill="#6A9955"/></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="添加同级节点" Click="OnAddSibling">
+                <MenuItem.Icon><Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="16" Height="16" Stretch="Uniform" Fill="#6A9955"/></MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="复制节点" Click="OnCopyItem">
+                <MenuItem.Icon><Path Data="M19,21H8V7H19M19,5H8C6.9,5 6,5.9 6,7V21C6,22.1 6.9,23 8,23H19C20.1,23 21,22.1 21,21V7C21,5.9 20.1,5 19,5M16,1H4C2.9,1 2,1.9 2,3V17H4V3H16V1Z" Width="16" Height="16" Stretch="Uniform" Fill="#569CD6"/></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="删除节点" Click="OnDeleteItem">
+                <MenuItem.Icon><Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z" Width="16" Height="16" Stretch="Uniform" Fill="#F44747"/></MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="上移" Click="OnMoveUp">
+                <MenuItem.Icon><Path Data="M12,3L21,14H15V21H9V14H3Z" Width="16" Height="16" Stretch="Uniform" Fill="#888"/></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="下移" Click="OnMoveDown">
+                <MenuItem.Icon><Path Data="M12,21L3,10H9V3H15V10H21Z" Width="16" Height="16" Stretch="Uniform" Fill="#888"/></MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+    </UserControl.Resources>
+
     <DockPanel>
         <!-- Top: Tab switcher (Quick Reply / Scenario) + Toolbar -->
         <Border DockPanel.Dock="Top" Padding="4,2" Background="#2D2D2D">
@@ -118,19 +188,7 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Reply Template Picker -->
-                                    <Border Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
-                                        <StackPanel>
-                                            <TextBlock Text="回复模板 (从消息编辑器中选择)" FontSize="11"
-                                                       FontWeight="SemiBold" Foreground="#4CAF50" Margin="0,0,0,6"/>
-                                            <ComboBox ItemsSource="{Binding DataContext.TemplateNames, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                      SelectedItem="{Binding ReplyTemplateName, Mode=OneWay}"
-                                                      SelectionChanged="OnReplyTemplateSelectionChanged"
-                                                      Padding="4,2" FontSize="12"/>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <!-- Conditions -->
+                                    <!-- Conditions (must be before Reply Template so conditions are matched before reply) -->
                                     <Border Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
                                         <StackPanel>
                                             <DockPanel Margin="0,0,0,6">
@@ -144,40 +202,118 @@
                                             <ItemsControl ItemsSource="{Binding Conditions}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
-                                                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                            <TextBlock Text="字段:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                            <ComboBox ItemsSource="{Binding TemplateFields}"
-                                                                      SelectedItem="{Binding SelectedFieldOption}"
-                                                                      MinWidth="180" MaxWidth="300"
-                                                                      Padding="3,1" FontSize="11"
-                                                                      Margin="0,0,4,0"
-                                                                      VerticalContentAlignment="Center"
-                                                                      PlaceholderText="(选择字段或直接输入路径)">
-                                                                <ComboBox.ItemTemplate>
-                                                                    <DataTemplate DataType="{x:Type vm:FieldOption}">
-                                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
-                                                                    </DataTemplate>
-                                                                </ComboBox.ItemTemplate>
-                                                            </ComboBox>
-                                                            <TextBox Text="{Binding Path}"
-                                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                                     VerticalContentAlignment="Center"
-                                                                     ToolTip.Tip="手动输入路径，如 1/0"/>
-                                                            <ComboBox ItemsSource="{Binding Operators}"
-                                                                      SelectedItem="{Binding Operator}"
-                                                                      Width="55" Padding="3,1" FontSize="11"
-                                                                      Margin="4,0" VerticalContentAlignment="Center"/>
-                                                            <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                            <TextBox Text="{Binding Value}"
-                                                                     Width="80" Padding="3,1" FontFamily="Microsoft YaHei" FontSize="11"
-                                                                     Margin="0,0,4,0" VerticalContentAlignment="Center"/>
-                                                            <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                    CommandParameter="{Binding}"
-                                                                    Padding="4,0" FontSize="11"/>
+                                                        <StackPanel Margin="0,2">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="字段:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <ComboBox ItemsSource="{Binding TemplateFields}"
+                                                                          SelectedItem="{Binding SelectedFieldOption}"
+                                                                          MinWidth="180" MaxWidth="300"
+                                                                          Padding="3,1" FontSize="11"
+                                                                          Margin="0,0,4,0"
+                                                                          VerticalContentAlignment="Center"
+                                                                          PlaceholderText="(选择字段或直接输入路径)">
+                                                                    <ComboBox.ItemTemplate>
+                                                                        <DataTemplate DataType="{x:Type vm:FieldOption}">
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
+                                                                                <TextBlock Text="{Binding Alias}" FontSize="11" Foreground="#9CDCFE" Margin="4,0,0,0"
+                                                                                           IsVisible="{Binding Alias, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                                            </StackPanel>
+                                                                        </DataTemplate>
+                                                                    </ComboBox.ItemTemplate>
+                                                                </ComboBox>
+                                                                <TextBox Text="{Binding Path}"
+                                                                         Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                                         VerticalContentAlignment="Center"
+                                                                         ToolTip.Tip="手动输入路径，如 1/0"/>
+                                                                <ComboBox ItemsSource="{Binding Operators}"
+                                                                          SelectedItem="{Binding Operator}"
+                                                                          Width="55" Padding="3,1" FontSize="11"
+                                                                          Margin="4,0" VerticalContentAlignment="Center"/>
+                                                                <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <TextBox Text="{Binding Value}"
+                                                                         Width="80" Padding="3,1" FontFamily="Microsoft YaHei" FontSize="11"
+                                                                         Margin="0,0,4,0" VerticalContentAlignment="Center"/>
+                                                                <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                        CommandParameter="{Binding}"
+                                                                        Padding="4,0" FontSize="11"/>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding SelectedFieldOption.Description}"
+                                                                       FontSize="10" Foreground="#B5CEA8" Opacity="0.8"
+                                                                       Margin="24,1,0,0"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       IsVisible="{Binding SelectedFieldOption.Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Reply Template Picker -->
+                                    <Border Background="#252525" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="回复模板 (从消息编辑器中选择)" FontSize="11"
+                                                       FontWeight="SemiBold" Foreground="#4CAF50" Margin="0,0,0,6"/>
+                                            <ComboBox ItemsSource="{Binding DataContext.TemplateNames, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                      SelectedItem="{Binding ReplyTemplateName, Mode=OneWay}"
+                                                      SelectionChanged="OnReplyTemplateSelectionChanged"
+                                                      Padding="4,2" FontSize="12"/>
+                                            <!-- 消息体展示 -->
+                                            <Border Background="#1E1E1E" CornerRadius="4" Margin="0,6,0,0" Padding="6"
+                                                    IsVisible="{Binding DataContext.DisplayedMessage, Converter={x:Static ObjectConverters.IsNotNull}, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Top" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="#4CAF50" Margin="0,0,0,4"
+                                                               Text="{Binding DataContext.DisplayedMessage.DisplayText, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                                    <TreeView x:Name="QuickReplyMessageTreeView"
+                                                              ItemsSource="{Binding DataContext.DisplayedMessage.RootItem.Children, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                              MaxHeight="300" BorderThickness="0" Background="Transparent"
+                                                              ContextRequested="OnTreeViewContextRequested">
+                                                        <TreeView.Styles>
+                                                            <Style Selector="TreeViewItem">
+                                                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                                            </Style>
+                                                        </TreeView.Styles>
+                                                        <TreeView.DataTemplates>
+                                                            <TreeDataTemplate DataType="{x:Type vm:SecsItemViewModel}"
+                                                                              ItemsSource="{Binding Children}">
+                                                                <Border Background="Transparent" Margin="-4,-2,-4,-2"
+                                                                        DoubleTapped="OnItemDoubleTapped"
+                                                                        ContextMenu="{StaticResource AutoReplyItemContextMenu}">
+                                                                    <StackPanel Orientation="Horizontal" Margin="5,2" VerticalAlignment="Center"
+                                                                                ToolTip.Tip="{Binding ToolTipText}">
+                                                                        <TextBlock Text="{Binding DisplayTypeName}" FontSize="12"
+                                                                                   Foreground="{DynamicResource TreeTypeNameColor}" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                                                   FontFamily="Microsoft YaHei"/>
+                                                                        <TextBlock Text="{Binding DisplayAlias}" FontSize="12"
+                                                                                   Foreground="{DynamicResource TreeAliasColor}" VerticalAlignment="Center"
+                                                                                   FontFamily="Microsoft YaHei"
+                                                                                   IsVisible="{Binding HasAlias}"/>
+                                                                        <TextBlock Text="{Binding DisplayValue}" FontSize="12"
+                                                                                   Foreground="{DynamicResource TreeValueColor}" VerticalAlignment="Center"
+                                                                                   FontFamily="Microsoft YaHei"
+                                                                                   IsVisible="{Binding HasValue}"/>
+                                                                        <StackPanel Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                            <Button Classes="action-btn" Foreground="#569CD6" ToolTip.Tip="添加子节点(List)"
+                                                                                    Command="{Binding AddChildCommand}" CommandParameter="A"
+                                                                                    IsVisible="{Binding IsList}">
+                                                                                <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                                                                                      Width="12" Height="12" Stretch="Uniform" Fill="#569CD6"/>
+                                                                            </Button>
+                                                                            <Button Classes="action-btn" Foreground="#F44747" ToolTip.Tip="删除"
+                                                                                    Command="{Binding DeleteThisCommand}">
+                                                                                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z"
+                                                                                      Width="12" Height="12" Stretch="Uniform" Fill="#F44747"/>
+                                                                            </Button>
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </TreeDataTemplate>
+                                                        </TreeView.DataTemplates>
+                                                    </TreeView>
+                                                </DockPanel>
+                                            </Border>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -323,36 +459,47 @@
                             <ItemsControl ItemsSource="{Binding SelectedStep.Conditions}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
-                                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                                            <TextBlock Text="字段:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                            <ComboBox ItemsSource="{Binding TemplateFields}"
-                                                      SelectedItem="{Binding SelectedFieldOption}"
-                                                      MinWidth="180" MaxWidth="300"
-                                                      Padding="3,1" FontSize="11"
-                                                      Margin="0,0,4,0"
-                                                      VerticalContentAlignment="Center"
-                                                      PlaceholderText="(选择字段或直接输入路径)">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate DataType="{x:Type vm:FieldOption}">
-                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
-                                                    </DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
-                                            <TextBox Text="{Binding Path}"
-                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                     VerticalContentAlignment="Center"
-                                                     ToolTip.Tip="手动输入路径，如 1/0"/>
-                                            <ComboBox ItemsSource="{Binding Operators}"
-                                                      SelectedItem="{Binding Operator}"
-                                                      Width="55" Padding="3,1" FontSize="11"
-                                                      Margin="4,0" VerticalContentAlignment="Center"/>
-                                            <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                            <TextBox Text="{Binding Value}"
-                                                     Width="80" Padding="3,1" FontFamily="Microsoft YaHei" FontSize="11"
-                                                     Margin="0,0,4,0" VerticalContentAlignment="Center"/>
-                                            <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}"
-                                                    Padding="4,0" FontSize="11"/>
+                                        <StackPanel Margin="0,2">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="字段:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                <ComboBox ItemsSource="{Binding TemplateFields}"
+                                                          SelectedItem="{Binding SelectedFieldOption}"
+                                                          MinWidth="180" MaxWidth="300"
+                                                          Padding="3,1" FontSize="11"
+                                                          Margin="0,0,4,0"
+                                                          VerticalContentAlignment="Center"
+                                                          PlaceholderText="(选择字段或直接输入路径)">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:FieldOption}">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
+                                                                <TextBlock Text="{Binding Alias}" FontSize="11" Foreground="#9CDCFE" Margin="4,0,0,0"
+                                                                           IsVisible="{Binding Alias, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBox Text="{Binding Path}"
+                                                         Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                         VerticalContentAlignment="Center"
+                                                         ToolTip.Tip="手动输入路径，如 1/0"/>
+                                                <ComboBox ItemsSource="{Binding Operators}"
+                                                          SelectedItem="{Binding Operator}"
+                                                          Width="55" Padding="3,1" FontSize="11"
+                                                          Margin="4,0" VerticalContentAlignment="Center"/>
+                                                <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                <TextBox Text="{Binding Value}"
+                                                         Width="80" Padding="3,1" FontFamily="Microsoft YaHei" FontSize="11"
+                                                         Margin="0,0,4,0" VerticalContentAlignment="Center"/>
+                                                <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Padding="4,0" FontSize="11"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding SelectedFieldOption.Description}"
+                                                       FontSize="10" Foreground="#B5CEA8" Opacity="0.8"
+                                                       Margin="24,1,0,0"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding SelectedFieldOption.Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -363,13 +510,67 @@
                                 <StackPanel>
                                     <TextBlock Text="回复动作:" FontSize="11" FontWeight="SemiBold"
                                                Foreground="#4CAF50" Margin="0,0,0,4"/>
-                                    <TextBlock Text="发送模板 (输入关键字模糊搜索):" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="发送模板:" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <ComboBox x:Name="ActionTemplateCombo"
-                                              ItemsSource="{Binding DataContext.FilteredActionTemplates, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                              SelectedItem="{Binding SelectedStep.ActionTemplateName}"
-                                              Padding="4,2" FontSize="12"
-                                              DropDownOpened="OnActionTemplateDropDownOpened"
-                                              DropDownClosed="OnActionTemplateDropDownClosed"/>
+                                              ItemsSource="{Binding DataContext.TemplateNames, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                              SelectedItem="{Binding SelectedStep.ActionTemplateName, Mode=OneWay}"
+                                              SelectionChanged="OnActionTemplateSelectionChanged"
+                                              Padding="4,2" FontSize="12"/>
+                                    <!-- 消息体展示 -->
+                                    <Border Background="#1E1E1E" CornerRadius="4" Margin="0,6,0,0" Padding="6"
+                                            IsVisible="{Binding DataContext.DisplayedMessage, Converter={x:Static ObjectConverters.IsNotNull}, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Top" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="#4CAF50" Margin="0,0,0,4"
+                                                       Text="{Binding DataContext.DisplayedMessage.DisplayText, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                            <TreeView x:Name="ScenarioMessageTreeView"
+                                                      ItemsSource="{Binding DataContext.DisplayedMessage.RootItem.Children, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                      MaxHeight="300" BorderThickness="0" Background="Transparent"
+                                                      ContextRequested="OnTreeViewContextRequested">
+                                                <TreeView.Styles>
+                                                    <Style Selector="TreeViewItem">
+                                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                                    </Style>
+                                                </TreeView.Styles>
+                                                <TreeView.DataTemplates>
+                                                    <TreeDataTemplate DataType="{x:Type vm:SecsItemViewModel}"
+                                                                      ItemsSource="{Binding Children}">
+                                                        <Border Background="Transparent" Margin="-4,-2,-4,-2"
+                                                                DoubleTapped="OnItemDoubleTapped"
+                                                                ContextMenu="{StaticResource AutoReplyItemContextMenu}">
+                                                            <StackPanel Orientation="Horizontal" Margin="5,2" VerticalAlignment="Center"
+                                                                        ToolTip.Tip="{Binding ToolTipText}">
+                                                                <TextBlock Text="{Binding DisplayTypeName}" FontSize="12"
+                                                                           Foreground="{DynamicResource TreeTypeNameColor}" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                                           FontFamily="Microsoft YaHei"/>
+                                                                <TextBlock Text="{Binding DisplayAlias}" FontSize="12"
+                                                                           Foreground="{DynamicResource TreeAliasColor}" VerticalAlignment="Center"
+                                                                           FontFamily="Microsoft YaHei"
+                                                                           IsVisible="{Binding HasAlias}"/>
+                                                                <TextBlock Text="{Binding DisplayValue}" FontSize="12"
+                                                                           Foreground="{DynamicResource TreeValueColor}" VerticalAlignment="Center"
+                                                                           FontFamily="Microsoft YaHei"
+                                                                           IsVisible="{Binding HasValue}"/>
+                                                                <StackPanel Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                    <Button Classes="action-btn" Foreground="#569CD6" ToolTip.Tip="添加子节点(List)"
+                                                                            Command="{Binding AddChildCommand}" CommandParameter="A"
+                                                                            IsVisible="{Binding IsList}">
+                                                                        <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                                                                              Width="12" Height="12" Stretch="Uniform" Fill="#569CD6"/>
+                                                                    </Button>
+                                                                    <Button Classes="action-btn" Foreground="#F44747" ToolTip.Tip="删除"
+                                                                            Command="{Binding DeleteThisCommand}">
+                                                                        <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12Z"
+                                                                              Width="12" Height="12" Stretch="Uniform" Fill="#F44747"/>
+                                                                    </Button>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </TreeDataTemplate>
+                                                </TreeView.DataTemplates>
+                                            </TreeView>
+                                        </DockPanel>
+                                    </Border>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

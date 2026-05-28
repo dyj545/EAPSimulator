@@ -74,6 +74,13 @@ public class SecsMessageTemplate
             while (pos < xml.Length && char.IsWhiteSpace(xml[pos])) pos++;
             if (pos >= xml.Length || xml[pos] != '<') { end = pos; return items; }
 
+            // Check for closing tag (e.g. </L>) — return to let parent handle it
+            if (pos + 1 < xml.Length && xml[pos + 1] == '/')
+            {
+                end = pos;
+                return items;
+            }
+
             // Find tag name
             var tagStart = pos + 1;
             var tagEnd = xml.IndexOf('>', tagStart);
@@ -98,19 +105,35 @@ public class SecsMessageTemplate
                 if (closeIdx < 0) closeIdx = xml.IndexOf($"</{tagName.ToLower()}>", pos, StringComparison.OrdinalIgnoreCase);
                 if (closeIdx < 0) closeIdx = xml.IndexOf($"</{tagName.Substring(0, 1)}{tagName.Substring(1).ToLower()}>", pos, StringComparison.OrdinalIgnoreCase);
 
-                string valueStr;
                 if (closeIdx >= 0)
                 {
-                    valueStr = xml.Substring(pos, closeIdx - pos).Trim();
+                    var valueStr = xml.Substring(pos, closeIdx - pos).Trim();
+                    // If value contains nested XML tags (e.g. <A><L>...</L></A>),
+                    // treat inner content as list items instead of plain text
+                    if (valueStr.Length > 0 && valueStr[0] == '<')
+                    {
+                        var innerItems = ParseItems(valueStr, 0, out _);
+                        if (innerItems.Count > 0)
+                        {
+                            items.Add(innerItems.Count == 1 ? innerItems[0] : SecsItem.L(innerItems.ToArray()));
+                        }
+                        else
+                        {
+                            items.Add(ParseValueItem(tagName, valueStr));
+                        }
+                    }
+                    else
+                    {
+                        items.Add(ParseValueItem(tagName, valueStr));
+                    }
                     pos = closeIdx + closeTag.Length;
                 }
                 else
                 {
-                    valueStr = xml.Substring(pos).Trim();
+                    var valueStr = xml.Substring(pos).Trim();
+                    items.Add(ParseValueItem(tagName, valueStr));
                     pos = xml.Length;
                 }
-
-                items.Add(ParseValueItem(tagName, valueStr));
             }
         }
 

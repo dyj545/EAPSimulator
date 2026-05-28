@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using EAPSimulator.UI.ViewModels;
 
@@ -9,6 +10,16 @@ public partial class FieldEditDialog : Window
 {
     private readonly SecsItemViewModel _item = null!;
     private readonly ObservableCollection<ValueMappingEntry> _mappings = null!;
+
+    // ─── 原始值快照（用于修改检测） ───
+    private readonly string _origTypeName = "";
+    private readonly string _origAlias = "";
+    private readonly string _origDescription = "";
+    private readonly string _origValueText = "";
+    private readonly string _origFormat = "";
+    private readonly string _origNlb = "";
+    private readonly string _origDefaultValue = "";
+    private readonly List<ValueMappingEntry> _origMappings = [];
 
     public bool IsConfirmed { get; private set; }
 
@@ -35,6 +46,120 @@ public partial class FieldEditDialog : Window
         MappingList.ItemsSource = _mappings;
         UpdateMappingEmptyState();
         UpdatePreview();
+
+        // 保存原始值快照
+        _origTypeName = item.TypeName;
+        _origAlias = item.Alias;
+        _origDescription = item.Description;
+        _origValueText = item.ValueText;
+        _origFormat = item.Format;
+        _origNlb = item.Nlb;
+        _origDefaultValue = item.DefaultValue;
+        _origMappings = item.ValueMappings.Select(m => m.Clone()).ToList();
+    }
+
+    private bool HasChanges()
+    {
+        if (TypeNameCombo.SelectedItem as string != _origTypeName) return true;
+        if ((AliasBox.Text ?? "") != _origAlias) return true;
+        if ((DescriptionBox.Text ?? "") != _origDescription) return true;
+        if ((ValueText.Text ?? "") != _origValueText) return true;
+        if ((FormatBox.Text ?? "") != _origFormat) return true;
+        if ((NlbBox.Text ?? "") != _origNlb) return true;
+        if ((DefaultValueBox.Text ?? "") != _origDefaultValue) return true;
+        if (_mappings.Count != _origMappings.Count) return true;
+        for (int i = 0; i < _mappings.Count; i++)
+        {
+            if (_mappings[i].Value != _origMappings[i].Value ||
+                _mappings[i].DisplayText != _origMappings[i].DisplayText)
+                return true;
+        }
+        return false;
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            if (HasChanges())
+                _ = PromptSaveAndClose();
+            else
+                Close(false);
+            return;
+        }
+        base.OnKeyDown(e);
+    }
+
+    private async Task PromptSaveAndClose()
+    {
+        var result = await ShowSavePrompt();
+        if (result == true)
+            OnOkClick(null!, new RoutedEventArgs());
+        else if (result == false)
+            Close(false);
+    }
+
+    private async Task<bool?> ShowSavePrompt()
+    {
+        var tcs = new TaskCompletionSource<bool?>();
+
+        var dialog = new Window
+        {
+            Title = "保存修改",
+            Width = 340, Height = 150,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Content = new DockPanel
+            {
+                Margin = new Avalonia.Thickness(16),
+                Children =
+                {
+                    new StackPanel
+                    {
+                        Orientation = Avalonia.Layout.Orientation.Horizontal,
+                        Spacing = 8,
+                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                        [DockPanel.DockProperty] = Dock.Bottom,
+                        Children =
+                        {
+                            new Button
+                            {
+                                Content = "保存", Width = 72, Padding = new Avalonia.Thickness(4),
+                                Classes = { "accent" },
+                            },
+                            new Button
+                            {
+                                Content = "不保存", Width = 72, Padding = new Avalonia.Thickness(4),
+                            },
+                            new Button
+                            {
+                                Content = "取消", Width = 72, Padding = new Avalonia.Thickness(4),
+                            }
+                        }
+                    },
+                    new TextBlock
+                    {
+                        Text = "检测到修改，是否保存？",
+                        VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    }
+                }
+            }
+        };
+
+        var buttons = ((StackPanel)((DockPanel)dialog.Content!).Children[0]).Children;
+        ((Button)buttons[0]).Click += (_, _) => { tcs.TrySetResult(true); dialog.Close(); };
+        ((Button)buttons[1]).Click += (_, _) => { tcs.TrySetResult(false); dialog.Close(); };
+        ((Button)buttons[2]).Click += (_, _) => { tcs.TrySetResult(null); dialog.Close(); };
+        dialog.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) { e.Handled = true; tcs.TrySetResult(null); dialog.Close(); }
+        };
+        dialog.Closed += (_, _) => tcs.TrySetResult(null);
+
+        await dialog.ShowDialog(this);
+        return await tcs.Task;
     }
 
     private void OnOkClick(object? sender, RoutedEventArgs e)

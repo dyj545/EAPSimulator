@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(dotnet build *)",
+      "Bash(python fix_templates.py)",
+      "Bash(taskkill /F /IM EAPSimulator.UI.exe)",
+      "Bash(python add_field_metadata.py)",
+      "Bash(python -c ' *)"
     ]
   }
 }

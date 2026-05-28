@@ -37,6 +37,18 @@ public partial class AutoReplyViewModel : ObservableObject
     /// </summary>
     private List<SecsMessageTemplate> _allTemplates = [];
 
+    /// <summary>
+    /// All message ViewModels from MessageEditor — shared reference for inline editing.
+    /// </summary>
+    private ObservableCollection<SecsMessageViewModel>? _allMessages;
+
+    /// <summary>
+    /// Currently displayed message body for the selected template.
+    /// Shared reference with MessageEditorViewModel.AllMessages — edits sync automatically.
+    /// </summary>
+    [ObservableProperty]
+    private SecsMessageViewModel? _displayedMessage;
+
     [ObservableProperty]
     private QuickReplyRuleViewModel? _selectedQuickReply;
 
@@ -279,6 +291,21 @@ public partial class AutoReplyViewModel : ObservableObject
             FilteredActionTemplates.Add(name);
     }
 
+    public void SetAllMessages(ObservableCollection<SecsMessageViewModel> messages)
+    {
+        _allMessages = messages;
+    }
+
+    public void UpdateDisplayedMessage(string? templateName)
+    {
+        if (_allMessages == null || string.IsNullOrEmpty(templateName))
+        {
+            DisplayedMessage = null;
+            return;
+        }
+        DisplayedMessage = _allMessages.FirstOrDefault(m => m.Name == templateName);
+    }
+
     public SecsMessageTemplate? FindTemplateByName(string name)
     {
         return _allTemplates.FirstOrDefault(t => t.Name == name);
@@ -301,11 +328,32 @@ public partial class AutoReplyViewModel : ObservableObject
         try
         {
             var msg = tpl.BuildMessage();
-            if (msg.RootItem != null)
-                CollectFieldOptions(msg.RootItem, "", tpl.FieldMetadata, result);
+            if (msg.RootItem == null) return result;
+
+            // Root is always a LIST in SECS-II. Enumerate its children as selectable fields.
+            if (msg.RootItem.Format == SecsFormat.List)
+            {
+                var rootChildren = GetListItems(msg.RootItem);
+                for (int i = 0; i < rootChildren.Length; i++)
+                {
+                    CollectFieldOptions(rootChildren[i], i.ToString(), tpl.FieldMetadata, result);
+                }
+            }
         }
         catch { }
         return result;
+    }
+
+    /// <summary>
+    /// Get child items from a SecsList via reflection, avoiding direct cast issues.
+    /// </summary>
+    private static SecsItem[] GetListItems(SecsItem item)
+    {
+        if (item is SecsList list) return list.Items;
+        // Fallback: use reflection
+        var prop = item.GetType().GetProperty("Items");
+        if (prop?.GetValue(item) is SecsItem[] items) return items;
+        return [];
     }
 
     private static void CollectFieldOptions(SecsItem item, string path,
@@ -313,6 +361,7 @@ public partial class AutoReplyViewModel : ObservableObject
     {
         var meta = metadata != null && metadata.TryGetValue(path, out var m) ? m : null;
         var alias = meta?.Alias;
+        var description = meta?.Description;
         var typeName = item.Format switch
         {
             SecsFormat.List => "L",
@@ -325,17 +374,28 @@ public partial class AutoReplyViewModel : ObservableObject
             _ => "?"
         };
 
-        var display = !string.IsNullOrEmpty(alias)
-            ? $"{path} {alias} ({typeName})"
-            : $"{path} ({typeName})";
-        result.Add(new FieldOption { Path = path, DisplayName = display });
+        var display = string.IsNullOrEmpty(alias)
+            ? $"{path} ({typeName})"
+            : $"{path} ({typeName}) {alias}";
+        if (!string.IsNullOrEmpty(description))
+            display += $" - {description}";
 
-        if (item is SecsList list)
+        result.Add(new FieldOption
         {
-            for (int i = 0; i < list.Items.Length; i++)
+            Path = path,
+            DisplayName = display,
+            Alias = alias,
+            Description = description
+        });
+
+        // Recurse into LIST children
+        if (item.Format == SecsFormat.List)
+        {
+            var children = GetListItems(item);
+            for (int i = 0; i < children.Length; i++)
             {
-                var childPath = string.IsNullOrEmpty(path) ? i.ToString() : $"{path}/{i}";
-                CollectFieldOptions(list.Items[i], childPath, metadata, result);
+                var childPath = $"{path}/{i}";
+                CollectFieldOptions(children[i], childPath, metadata, result);
             }
         }
     }
@@ -599,6 +659,15 @@ public class FieldOption
 {
     public required string Path { get; init; }
     public required string DisplayName { get; init; }
+    public string? Alias { get; init; }
+    public string? Description { get; init; }
+
+    /// <summary>
+    /// Display format: "2/0/1 (A) 别名"
+    /// </summary>
+    public string DisplayWithAlias => !string.IsNullOrEmpty(Alias)
+        ? $"{DisplayName} {Alias}"
+        : DisplayName;
 }
 
 // ─── Scenario ViewModel ───

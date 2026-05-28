@@ -36,6 +36,20 @@
     </UserControl.Styles>
 
     <UserControl.Resources>
+        <!-- Tree style color resources (dynamically updated from code-behind) -->
+        <SolidColorBrush x:Key="TreeTypeNameColor" Color="#569CD6"/>
+        <SolidColorBrush x:Key="TreeValueColor" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="TreeAliasColor" Color="#9CDCFE"/>
+        <SolidColorBrush x:Key="TreeListInfoColor" Color="#B5CEA8"/>
+        <SolidColorBrush x:Key="TreeGroupColor" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="TreePairTitleColor" Color="#C586C0"/>
+        <SolidColorBrush x:Key="TreePairDescColor" Color="#DCDCAA"/>
+        <SolidColorBrush x:Key="TreeStreamFuncColor" Color="#B5CEA8"/>
+        <SolidColorBrush x:Key="TreeStreamFuncPrefixColor" Color="#569CD6"/>
+        <SolidColorBrush x:Key="TreeWBitColor" Color="#FF9800"/>
+        <SolidColorBrush x:Key="TreeMessageNameColor" Color="#DCDCAA"/>
+        <SolidColorBrush x:Key="TreeSelectedColor" Color="#FFFFFF"/>
+
         <!-- ===== Vector icon paths (Material Design, 24x24) ===== -->
         <!-- Plus: M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z -->
         <!-- Copy: M19,21H8V7H19M19,5H8C6.9,5 6,5.9 6,7V21C6,22.1 6.9,23 8,23H19C20.1,23 21,22.1 21,21V7C21,5.9 20.1,5 19,5M16,1H4C2.9,1 2,1.9 2,3V17H4V3H16V1Z -->
@@ -126,6 +140,168 @@
                             Padding="8,2" FontSize="11" Margin="0,0,4,0"/>
                     <Button Content="&#x1F4CB; 复制" Click="OnToolbarDuplicateClick"
                             Padding="8,2" FontSize="11"/>
+                    <Border Width="1" Opacity="0.2" Background="Gray" Margin="4,2" Height="16"/>
+                    <Button x:Name="StyleSettingsBtn" Content="&#x2699;" ToolTip.Tip="树样式设置"
+                            Padding="5,1" FontSize="13">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Width="340" MaxHeight="560" KeyDown="OnStyleFlyoutKeyDown">
+                                    <TextBlock Text="树样式设置" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                                    <ScrollViewer MaxHeight="500">
+                                        <StackPanel DataContext="{Binding #StyleSettingsBtn.Tag}">
+                                            <!-- Preset Styles -->
+                                            <TextBlock Text="预制样式" FontWeight="SemiBold" FontSize="11" Foreground="#569CD6" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <ComboBox x:Name="PresetStyleCombo" ItemsSource="{Binding PresetStyleNames}"
+                                                          Width="160" FontSize="11"/>
+                                                <Button Content="应用" Click="OnApplyPresetClick"
+                                                        Classes="accent" Padding="8,2" FontSize="11" Margin="6,0,0,0"/>
+                                            </StackPanel>
+
+                                            <!-- Font -->
+                                            <TextBlock Text="字体" FontWeight="SemiBold" FontSize="11" Foreground="#569CD6" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBlock Text="字体:" VerticalAlignment="Center" Width="60"/>
+                                                <ComboBox ItemsSource="{Binding FontFamilies}" SelectedItem="{Binding FontFamily}"
+                                                          Width="140" FontSize="11"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <TextBlock Text="大小:" VerticalAlignment="Center" Width="60"/>
+                                                <ComboBox ItemsSource="{Binding FontSizes}" SelectedItem="{Binding FontSize}"
+                                                          Width="80" FontSize="11"/>
+                                            </StackPanel>
+
+                                            <!-- Colors -->
+                                            <TextBlock Text="颜色" FontWeight="SemiBold" FontSize="11" Foreground="#569CD6" Margin="0,0,0,4"/>
+                                            <TextBlock Text="点击色块可选择预制颜色" FontSize="10" Opacity="0.5" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="类型名:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding TypeNameColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchTypeNameColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding TypeNameColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="TypeNameColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="值:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding ValueColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchValueColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding ValueColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="ValueColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="别名:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding AliasColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchAliasColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding AliasColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="AliasColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="列表信息:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding ListInfoColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchListInfoColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding ListInfoColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="ListInfoColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="分组:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding GroupColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchGroupColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding GroupColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="GroupColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="消息标题:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding PairTitleColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchPairTitleColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding PairTitleColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="PairTitleColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="描述:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding PairDescColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchPairDescColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding PairDescColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="PairDescColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="S/F值:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding StreamFuncColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchStreamFuncColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding StreamFuncColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="StreamFuncColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="S/F前缀:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding StreamFuncPrefixColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchStreamFuncPrefixColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding StreamFuncPrefixColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="StreamFuncPrefixColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="W标记:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding WbitColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchWbitColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding WbitColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="WbitColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="消息名:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding MessageNameColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchMessageNameColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding MessageNameColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="MessageNameColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <TextBlock Text="选中:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Text="{Binding SelectedColor}" Width="80" FontSize="11" FontFamily="Consolas" Padding="3,1"/>
+                                                <Border x:Name="SwatchSelectedColor" Width="20" Height="20" Margin="6,0,0,0" CornerRadius="3"
+                                                        Background="{Binding SelectedColor}" BorderBrush="#555" BorderThickness="1"
+                                                        VerticalAlignment="Center" Cursor="Hand" Tag="SelectedColor"
+                                                        PointerPressed="OnColorSwatchPressed"/>
+                                            </StackPanel>
+
+                                            <!-- Font Weights -->
+                                            <TextBlock Text="字重" FontWeight="SemiBold" FontSize="11" Foreground="#569CD6" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="分组:" VerticalAlignment="Center" Width="70"/>
+                                                <ComboBox ItemsSource="{Binding FontWeights}" SelectedItem="{Binding GroupFontWeight}"
+                                                          Width="100" FontSize="11"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="消息标题:" VerticalAlignment="Center" Width="70"/>
+                                                <ComboBox ItemsSource="{Binding FontWeights}" SelectedItem="{Binding PairTitleFontWeight}"
+                                                          Width="100" FontSize="11"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <TextBlock Text="W标记:" VerticalAlignment="Center" Width="70"/>
+                                                <ComboBox ItemsSource="{Binding FontWeights}" SelectedItem="{Binding WbitFontWeight}"
+                                                          Width="100" FontSize="11"/>
+                                            </StackPanel>
+
+                                            <!-- Buttons -->
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <Button Content="保存" Command="{Binding SaveCommand}"
+                                                        Classes="accent" Padding="10,3" FontSize="11" Margin="0,0,8,0"/>
+                                                <Button Content="恢复默认" Command="{Binding ResetDefaultsCommand}"
+                                                        Padding="10,3" FontSize="11"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
                 </WrapPanel>
             </DockPanel>
         </Border>
@@ -155,9 +331,9 @@
                 <!-- Level 1: Group -->
                 <TreeDataTemplate DataType="{x:Type vm:MessageGroupViewModel}"
                                   ItemsSource="{Binding Pairs}">
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="{Binding DisplayText}" FontSize="13" FontWeight="Bold"
-                                   Foreground="#E0E0E0"/>
+                                   Foreground="{DynamicResource TreeGroupColor}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </TreeDataTemplate>
 
@@ -165,10 +341,10 @@
                 <TreeDataTemplate DataType="{x:Type vm:MessagePairViewModel}"
                                   ItemsSource="{Binding Messages}">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="#C586C0"
+                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TreePairTitleColor}"
                                    VerticalAlignment="Center"/>
                         <TextBlock Text="  —  " Opacity="0.3" VerticalAlignment="Center" FontSize="12"/>
-                        <TextBox Text="{Binding Description}" FontSize="12" Foreground="#DCDCAA"
+                        <TextBox Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TreePairDescColor}"
                                  Background="Transparent" BorderThickness="0" Padding="0" MinWidth="60"
                                  VerticalAlignment="Center" VerticalContentAlignment="Center" Height="22"/>
                         <StackPanel Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center">
@@ -191,17 +367,17 @@
                                   ItemsSource="{Binding RootItem.Children}">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                 ContextMenu="{StaticResource MessageContextMenu}">
-                        <TextBlock FontFamily="Consolas,monospace" FontSize="12" VerticalAlignment="Center" Margin="0,0,2,0">
-                            <Run Text="S" Foreground="#569CD6"/><Run Text="{Binding Stream, Mode=OneWay}" Foreground="#B5CEA8"/>
-                            <Run Text="F" Foreground="#569CD6"/><Run Text="{Binding Function, Mode=OneWay}" Foreground="#B5CEA8"/>
+                        <TextBlock FontFamily="Microsoft YaHei" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0">
+                            <Run Text="S" Foreground="{DynamicResource TreeStreamFuncPrefixColor}"/><Run Text="{Binding Stream, Mode=OneWay}" Foreground="{DynamicResource TreeStreamFuncColor}"/>
+                            <Run Text="F" Foreground="{DynamicResource TreeStreamFuncPrefixColor}"/><Run Text="{Binding Function, Mode=OneWay}" Foreground="{DynamicResource TreeStreamFuncColor}"/>
                         </TextBlock>
                         <CheckBox IsChecked="{Binding WBit}" VerticalAlignment="Center" Margin="2,0,0,0"
                                   Padding="0" MinWidth="0" MinHeight="0" HorizontalAlignment="Left"
                                   ToolTip.Tip="W-Bit: Request/Inform">
                             <TextBlock Text="W" FontFamily="Consolas,monospace" FontSize="12" FontWeight="Bold"
-                                       Foreground="#FF9800" VerticalAlignment="Center"/>
+                                       Foreground="{DynamicResource TreeWBitColor}" VerticalAlignment="Center"/>
                         </CheckBox>
-                        <TextBox Text="{Binding Name}" FontSize="12" Foreground="#DCDCAA"
+                        <TextBox Text="{Binding Name}" FontSize="12" Foreground="{DynamicResource TreeMessageNameColor}"
                                  Background="Transparent" BorderThickness="0"
                                  Margin="0" Padding="2,0" MinWidth="80"
                                  VerticalAlignment="Center" VerticalContentAlignment="Center" Height="22"
@@ -232,11 +408,22 @@
                     <Border Background="Transparent" Margin="-4,-2,-4,-2"
                             DoubleTapped="OnItemDoubleTapped"
                             ContextMenu="{StaticResource ItemContextMenu}">
-                        <StackPanel Orientation="Horizontal" Margin="5,2" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding DisplayText}" FontSize="12" Foreground="#E0E0E0"
-                                       Margin="0,0,4,0" VerticalAlignment="Center"
+                        <StackPanel Orientation="Horizontal" Margin="5,2" VerticalAlignment="Center"
+                                    ToolTip.Tip="{Binding ToolTipText}">
+                            <!-- Type name -->
+                            <TextBlock Text="{Binding DisplayTypeName}" FontSize="12"
+                                       Foreground="{DynamicResource TreeTypeNameColor}" Margin="0,0,4,0" VerticalAlignment="Center"
+                                       FontFamily="Microsoft YaHei"/>
+                            <!-- Alias (if present) -->
+                            <TextBlock Text="{Binding DisplayAlias}" FontSize="12"
+                                       Foreground="{DynamicResource TreeAliasColor}" VerticalAlignment="Center"
                                        FontFamily="Microsoft YaHei"
-                                       ToolTip.Tip="{Binding ToolTipText}"/>
+                                       IsVisible="{Binding HasAlias}"/>
+                            <!-- Value -->
+                            <TextBlock Text="{Binding DisplayValue}" FontSize="12"
+                                       Foreground="{DynamicResource TreeValueColor}" VerticalAlignment="Center"
+                                       FontFamily="Microsoft YaHei"
+                                       IsVisible="{Binding HasValue}"/>
                             <StackPanel Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center">
                                 <Button Classes="action-btn" Foreground="#569CD6" ToolTip.Tip="添加子节点(List)"
                                         Command="{Binding AddChildCommand}" CommandParameter="A"

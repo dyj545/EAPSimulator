@@ -133,6 +133,7 @@ public partial class MainViewModel : ObservableObject
 
             // Pass templates to AutoReply module for template picker
             AutoReply.SetTemplates(MessageEditor.AllMessages.Select(m => m.ToTemplate()));
+            AutoReply.SetAllMessages(MessageEditor.AllMessages);
             AutoReply.LoadDefault();
         }
         else

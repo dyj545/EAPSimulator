@@ -1,10 +1,13 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using EAPSimulator.UI.ViewModels;
 using Avalonia.Threading;
+using Avalonia.Media;
 
 namespace EAPSimulator.UI.Views;
 
@@ -14,6 +17,8 @@ public partial class MessageEditorView : UserControl
     private Avalonia.Point _dragStartPoint;
     private bool _dragStarted;
     private TreeViewItem? _dropTargetTvi;
+    private TreeStyleViewModel? _styleVm;
+    private Popup? _colorPopup;
 
     public MessageEditorView()
     {
@@ -23,6 +28,12 @@ public partial class MessageEditorView : UserControl
             if (DataContext is MessageEditorViewModel vm)
                 vm.ExpandSelectedRequested += ExpandSelectedNode;
         };
+
+        // Initialize tree style
+        _styleVm = new TreeStyleViewModel(TreeStyleConfig.Instance);
+        _styleVm.StyleChanged += ApplyTreeStyles;
+        StyleSettingsBtn.Tag = _styleVm;
+        ApplyTreeStyles();
 
         // 键盘快捷键
         this.AddHandler(KeyDownEvent, OnTreeViewKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -234,6 +245,10 @@ public partial class MessageEditorView : UserControl
         var buttons = ((StackPanel)((DockPanel)dialog.Content).Children[0]).Children;
         ((Button)buttons[0]).Click += (_, _) => { confirmed = true; dialog.Close(); };
         ((Button)buttons[1]).Click += (_, _) => dialog.Close();
+        dialog.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) { e.Handled = true; dialog.Close(); }
+        };
 
         await dialog.ShowDialog(owner);
         return confirmed;
@@ -547,9 +562,7 @@ public partial class MessageEditorView : UserControl
         var item = ctrl.DataContext as SecsItemViewModel;
         if (item == null) return;
 
-        // Clear drag state — the second PointerPressed of the double-click
-        // already set _dragSource; without clearing it, mouse movement
-        // inside the modal dialog would be interpreted as a drag gesture.
+        // 清除拖拽状态
         _dragSource = null;
         _dragStarted = false;
         if (_dropTargetTvi != null)
@@ -559,6 +572,23 @@ public partial class MessageEditorView : UserControl
         }
         DragPreview.IsVisible = false;
 
+        // LIST 节点：双击切换展开/折叠
+        if (item.IsList)
+        {
+            e.Handled = true;
+            var tvi = FindTreeViewItemForData(MessageTreeView, item);
+            item.IsExpanded = !item.IsExpanded;
+            if (tvi != null)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    tvi.IsExpanded = item.IsExpanded;
+                }, Avalonia.Threading.DispatcherPriority.Loaded);
+            }
+            return;
+        }
+
+        // 非 LIST 节点：双击弹出字段编辑
         var owner = FindOwnerWindow();
         if (owner == null) return;
         await item.EditFieldAsync(owner);
@@ -571,5 +601,234 @@ public partial class MessageEditorView : UserControl
         var owner = FindOwnerWindow();
         if (owner == null) return;
         await item.EditFieldAsync(owner);
+    }
+
+    // ===== Tree Style =====
+
+    private void ApplyTreeStyles()
+    {
+        if (_styleVm == null) return;
+        var config = TreeStyleConfig.Instance;
+
+        // Update color resources (DynamicResource bindings in DataTemplates will refresh)
+        this.Resources["TreeTypeNameColor"] = new SolidColorBrush(Color.Parse(config.TypeNameColor));
+        this.Resources["TreeValueColor"] = new SolidColorBrush(Color.Parse(config.ValueColor));
+        this.Resources["TreeAliasColor"] = new SolidColorBrush(Color.Parse(config.AliasColor));
+        this.Resources["TreeListInfoColor"] = new SolidColorBrush(Color.Parse(config.ListInfoColor));
+        this.Resources["TreeGroupColor"] = new SolidColorBrush(Color.Parse(config.GroupColor));
+        this.Resources["TreePairTitleColor"] = new SolidColorBrush(Color.Parse(config.PairTitleColor));
+        this.Resources["TreePairDescColor"] = new SolidColorBrush(Color.Parse(config.PairDescColor));
+        this.Resources["TreeStreamFuncColor"] = new SolidColorBrush(Color.Parse(config.StreamFuncColor));
+        this.Resources["TreeStreamFuncPrefixColor"] = new SolidColorBrush(Color.Parse(config.StreamFuncPrefixColor));
+        this.Resources["TreeWBitColor"] = new SolidColorBrush(Color.Parse(config.WBitColor));
+        this.Resources["TreeMessageNameColor"] = new SolidColorBrush(Color.Parse(config.MessageNameColor));
+        this.Resources["TreeSelectedColor"] = new SolidColorBrush(Color.Parse(config.SelectedColor));
+
+        // Update TreeView font properties directly
+        MessageTreeView.FontFamily = new FontFamily(config.FontFamily);
+        MessageTreeView.FontSize = config.FontSize;
+        MessageTreeView.Foreground = new SolidColorBrush(Color.Parse(config.ValueColor));
+    }
+
+    // ===== Color Picker =====
+
+    private void OnColorSwatchPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Border swatch || _styleVm == null) return;
+        var propertyName = swatch.Tag as string;
+        if (string.IsNullOrEmpty(propertyName)) return;
+
+        // Get current color from ViewModel
+        var currentColor = propertyName switch
+        {
+            "TypeNameColor" => _styleVm.TypeNameColor,
+            "ValueColor" => _styleVm.ValueColor,
+            "AliasColor" => _styleVm.AliasColor,
+            "ListInfoColor" => _styleVm.ListInfoColor,
+            "GroupColor" => _styleVm.GroupColor,
+            "PairTitleColor" => _styleVm.PairTitleColor,
+            "PairDescColor" => _styleVm.PairDescColor,
+            "StreamFuncColor" => _styleVm.StreamFuncColor,
+            "StreamFuncPrefixColor" => _styleVm.StreamFuncPrefixColor,
+            "WbitColor" => _styleVm.WbitColor,
+            "MessageNameColor" => _styleVm.MessageNameColor,
+            "SelectedColor" => _styleVm.SelectedColor,
+            _ => "#FFFFFF"
+        };
+
+        // Close any existing popup
+        CloseColorPopup();
+
+        // Build color swatches grid
+        var panel = new StackPanel { Margin = new Avalonia.Thickness(8) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"选择 {propertyName}",
+            FontWeight = FontWeight.SemiBold,
+            FontSize = 11,
+            Margin = new Avalonia.Thickness(0, 0, 0, 6)
+        });
+
+        var colors = TreeStyleViewModel.PresetColors;
+        int cols = 10;
+        int rows = (colors.Length + cols - 1) / cols;
+
+        for (int r = 0; r < rows; r++)
+        {
+            var row = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Margin = new Avalonia.Thickness(0, 0, 0, 2)
+            };
+
+            for (int c = 0; c < cols; c++)
+            {
+                int idx = r * cols + c;
+                if (idx >= colors.Length) break;
+
+                var colorHex = colors[idx];
+                var isSelected = string.Equals(colorHex, currentColor, StringComparison.OrdinalIgnoreCase);
+
+                var cell = new Border
+                {
+                    Width = 22,
+                    Height = 22,
+                    Margin = new Avalonia.Thickness(1),
+                    CornerRadius = new Avalonia.CornerRadius(3),
+                    Background = new SolidColorBrush(Color.Parse(colorHex)),
+                    BorderBrush = isSelected ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.Parse("#333333")),
+                    BorderThickness = new Avalonia.Thickness(isSelected ? 2 : 1),
+                    Cursor = new Cursor(StandardCursorType.Hand),
+                    Tag = colorHex,
+                };
+                ToolTip.SetTip(cell, colorHex);
+
+                cell.PointerPressed += OnColorCellPressed;
+                row.Children.Add(cell);
+            }
+
+            panel.Children.Add(row);
+        }
+
+        // Current color display
+        var currentRow = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Margin = new Avalonia.Thickness(0, 6, 0, 0)
+        };
+        currentRow.Children.Add(new TextBlock
+        {
+            Text = "当前: ",
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            FontSize = 11
+        });
+        currentRow.Children.Add(new Border
+        {
+            Width = 16,
+            Height = 16,
+            CornerRadius = new Avalonia.CornerRadius(2),
+            Background = new SolidColorBrush(Color.Parse(currentColor)),
+            BorderBrush = new SolidColorBrush(Color.Parse("#555555")),
+            BorderThickness = new Avalonia.Thickness(1),
+            Margin = new Avalonia.Thickness(4, 0, 4, 0),
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+        });
+        currentRow.Children.Add(new TextBlock
+        {
+            Text = currentColor,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            FontSize = 11,
+            FontFamily = new FontFamily("Consolas")
+        });
+        panel.Children.Add(currentRow);
+
+        // Create popup
+        _colorPopup = new Popup
+        {
+            PlacementTarget = swatch,
+            Placement = PlacementMode.RightEdgeAlignedTop,
+            IsLightDismissEnabled = true,
+            WindowManagerAddShadowHint = false,
+            Child = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#2D2D2D")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#555555")),
+                BorderThickness = new Avalonia.Thickness(1),
+                CornerRadius = new Avalonia.CornerRadius(6),
+                Padding = new Avalonia.Thickness(4),
+                Child = panel
+            }
+        };
+
+        _colorPopup.Closed += (_, _) => _colorPopup = null;
+
+        // Store property name and VM reference for the handler
+        _colorPopup.Tag = (propertyName, _styleVm);
+
+        // Add to visual tree and open
+        swatch.Resources["ActiveColorPopup"] = _colorPopup;
+        _colorPopup.PlacementTarget = swatch;
+        _colorPopup.IsOpen = true;
+    }
+
+    private void OnColorCellPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Border cell) return;
+        var colorHex = cell.Tag as string;
+        if (string.IsNullOrEmpty(colorHex)) return;
+
+        // Find the popup and get the property name
+        var parent = cell.GetVisualParent();
+        while (parent is not Popup && parent != null)
+            parent = parent.GetVisualParent();
+
+        if (parent is not Popup popup) return;
+        if (popup.Tag is not (string propertyName, TreeStyleViewModel vm)) return;
+
+        // Set color on ViewModel
+        switch (propertyName)
+        {
+            case "TypeNameColor": vm.TypeNameColor = colorHex; break;
+            case "ValueColor": vm.ValueColor = colorHex; break;
+            case "AliasColor": vm.AliasColor = colorHex; break;
+            case "ListInfoColor": vm.ListInfoColor = colorHex; break;
+            case "GroupColor": vm.GroupColor = colorHex; break;
+            case "PairTitleColor": vm.PairTitleColor = colorHex; break;
+            case "PairDescColor": vm.PairDescColor = colorHex; break;
+            case "StreamFuncColor": vm.StreamFuncColor = colorHex; break;
+            case "StreamFuncPrefixColor": vm.StreamFuncPrefixColor = colorHex; break;
+            case "WbitColor": vm.WbitColor = colorHex; break;
+            case "MessageNameColor": vm.MessageNameColor = colorHex; break;
+            case "SelectedColor": vm.SelectedColor = colorHex; break;
+        }
+
+        popup.IsOpen = false;
+    }
+
+    private void CloseColorPopup()
+    {
+        if (_colorPopup != null)
+        {
+            _colorPopup.IsOpen = false;
+            _colorPopup = null;
+        }
+    }
+
+    // ===== Preset Style =====
+
+    private void OnApplyPresetClick(object? sender, RoutedEventArgs e)
+    {
+        if (_styleVm == null) return;
+        var selected = PresetStyleCombo.SelectedItem as string;
+        if (string.IsNullOrEmpty(selected)) return;
+        _styleVm.ApplyPresetCommand.Execute(selected);
+    }
+
+    private void OnStyleFlyoutKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape) return;
+        e.Handled = true;
+        _styleVm?.SaveCommand.Execute(null);
+        StyleSettingsBtn.Flyout?.Hide();
     }
 }

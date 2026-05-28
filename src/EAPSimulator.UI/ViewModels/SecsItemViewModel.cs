@@ -83,7 +83,7 @@ public partial class SecsItemViewModel : ObservableObject
 
     partial void OnAliasChanged(string value)
     {
-        OnPropertyChanged(nameof(DisplayText));
+        RefreshDisplayParts();
         OnPropertyChanged(nameof(ToolTipText));
     }
 
@@ -91,6 +91,40 @@ public partial class SecsItemViewModel : ObservableObject
     partial void OnFormatChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
     partial void OnNlbChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
     partial void OnDefaultValueChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
+
+    partial void OnValueTextChanged(string value) => RefreshDisplayParts();
+
+    /// <summary>
+    /// Display text parts for styled rendering in XAML.
+    /// </summary>
+    public string DisplayTypeName => IsList ? "L" : TypeName;
+    public string DisplaySeparator => IsList ? " " : (string.IsNullOrEmpty(Alias) ? " " : " ");
+    public string DisplayAlias => IsList ? Alias : Alias;
+    public string DisplayValue
+    {
+        get
+        {
+            if (IsList) return string.IsNullOrEmpty(Alias) ? $"[{Children.Count}]" : "";
+            var mapped = ValueMappings.FirstOrDefault(m => m.Value == ValueText);
+            var suffix = mapped != null ? $" = {mapped.DisplayText}" : "";
+            if (!string.IsNullOrEmpty(Alias))
+                return $": {ValueText}{suffix}";
+            return $"{ValueText}{suffix}";
+        }
+    }
+    public bool HasAlias => !string.IsNullOrEmpty(Alias);
+    public bool HasValue => !IsList || string.IsNullOrEmpty(Alias);
+
+    private void RefreshDisplayParts()
+    {
+        OnPropertyChanged(nameof(DisplayText));
+        OnPropertyChanged(nameof(DisplayTypeName));
+        OnPropertyChanged(nameof(DisplaySeparator));
+        OnPropertyChanged(nameof(DisplayAlias));
+        OnPropertyChanged(nameof(DisplayValue));
+        OnPropertyChanged(nameof(HasAlias));
+        OnPropertyChanged(nameof(HasValue));
+    }
 
     public SecsItemViewModel? Parent { get; set; }
     public ObservableCollection<SecsItemViewModel> Children { get; } = new();
@@ -103,21 +137,20 @@ public partial class SecsItemViewModel : ObservableObject
     partial void OnTypeNameChanged(string value)
     {
         OnPropertyChanged(nameof(IsList));
-        OnPropertyChanged(nameof(DisplayText));
+        RefreshDisplayParts();
         if (value == "L")
             ValueText = "";
         else if (string.IsNullOrEmpty(ValueText))
             ValueText = "0";
     }
 
-    partial void OnValueTextChanged(string value)
-    {
-        OnPropertyChanged(nameof(DisplayText));
-    }
-
     public SecsItemViewModel()
     {
-        Children.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsList));
+        Children.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsList));
+            RefreshDisplayParts();
+        };
         ValueMappings.CollectionChanged += (_, _) => OnPropertyChanged(nameof(DisplayText));
     }
 
