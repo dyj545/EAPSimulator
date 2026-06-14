@@ -97,23 +97,29 @@ public class HsmsTransport : ITransport
         // Accept loop: if someone connects to us first
         var acceptTask = Task.Run(async () =>
         {
+            HsmsConnection? conn = null;
             try
             {
                 var client = await _listener.AcceptTcpClientAsync(linkedCts.Token);
                 _logger.LogInformation("HSMS Alternating: accepted inbound connection from {Remote}",
                     client.Client.RemoteEndPoint);
 
-                var conn = new HsmsConnection(
+                conn = new HsmsConnection(
                     _logger, _settings.DeviceId,
                     _settings.T3Timeout, _settings.T5Timeout, _settings.T6Timeout,
                     _settings.T7Timeout, _settings.T8Timeout);
                 WireConnectionEvents(conn);
                 conn.AttachTcpClient(client);
-                connectionTcs.TrySetResult(conn);
+
+                // If the outbound path won, our conn becomes orphaned — shut it down so
+                // the receive loop, timers and TcpClient don't leak.
+                if (!connectionTcs.TrySetResult(conn))
+                    conn.CloseConnection();
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) { conn?.CloseConnection(); }
             catch (Exception ex)
             {
+                conn?.CloseConnection();
                 _logger.LogDebug(ex, "HSMS Alternating: accept failed");
             }
         });
@@ -121,13 +127,14 @@ public class HsmsTransport : ITransport
         // Outbound connect attempt: wait 1s then try to connect to remote
         var outboundTask = Task.Run(async () =>
         {
+            HsmsConnection? conn = null;
             try
             {
                 await Task.Delay(1000, linkedCts.Token);
                 _logger.LogInformation("HSMS Alternating: attempting outbound to {RemoteHost}:{RemotePort}",
                     _settings.RemoteHost, _settings.RemotePort);
 
-                var conn = new HsmsConnection(
+                conn = new HsmsConnection(
                     _logger, _settings.DeviceId,
                     _settings.T3Timeout, _settings.T5Timeout, _settings.T6Timeout,
                     _settings.T7Timeout, _settings.T8Timeout);
@@ -135,11 +142,16 @@ public class HsmsTransport : ITransport
                 _logger.LogInformation("HSMS Alternating: outbound connected, sending Select");
                 await conn.SendSelectAsync(linkedCts.Token);
                 WireConnectionEvents(conn);
-                connectionTcs.TrySetResult(conn);
+
+                // If the inbound path won, our conn becomes orphaned — shut it down so
+                // the receive loop, timers and TcpClient don't leak.
+                if (!connectionTcs.TrySetResult(conn))
+                    conn.CloseConnection();
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) { conn?.CloseConnection(); }
             catch (Exception ex)
             {
+                conn?.CloseConnection();
                 _logger.LogDebug(ex, "HSMS Alternating: outbound connect failed");
             }
         });
@@ -163,6 +175,17 @@ public class HsmsTransport : ITransport
                 _logger.LogInformation("HSMS Passive: accepted connection from {Remote}",
                     client.Client.RemoteEndPoint);
 
+                // If a prior connection still exists (peer reconnected before T7/T8 fired),
+                // close it before accepting the new one — otherwise the old HsmsConnection's
+                // receive loop / timers / sockets leak and HsmsTransport receives events
+                // from BOTH connections.
+                var prev = Interlocked.Exchange(ref _connection, null);
+                if (prev != null)
+                {
+                    _logger.LogWarning("HSMS Passive: closing prior connection before accepting new one");
+                    prev.CloseConnection();
+                }
+
                 var conn = new HsmsConnection(
                     _logger, _settings.DeviceId,
                     _settings.T3Timeout, _settings.T5Timeout, _settings.T6Timeout,
@@ -173,9 +196,15 @@ public class HsmsTransport : ITransport
                 _connection = conn;
             }
             catch (OperationCanceledException) { break; }
+            catch (ObjectDisposedException) { break; }                       // listener stopped
+            catch (SocketException ex)
+                when (ex.SocketErrorCode == SocketError.OperationAborted) { break; }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "HSMS Passive: accept error");
+                // Avoid a tight error loop if accept keeps failing for some other reason.
+                try { await Task.Delay(500, ct); }
+                catch (OperationCanceledException) { break; }
             }
         }
     }

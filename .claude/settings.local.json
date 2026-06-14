@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(dotnet build *)",
+      "Bash(timeout 6 dotnet run --project src/EAPSimulator.UI/EAPSimulator.UI.csproj --no-build)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebSearch",
+      "Bash(git add *)"
     ]
   }
 }

@@ -125,6 +125,15 @@ public class MessageRouter
                 _logger.LogInformation("Scenario matched for S{S}F{F}", request.Stream, request.Function);
                 return scenarioReply;
             }
+            // If a running scenario consumed this inbound message into its inbox, suppress
+            // the built-in handler — otherwise the script's Reply step and the built-in
+            // handler would both reply to the same W-bit request.
+            if (_scenarioEngine.IsRunning && _scenarioEngine.ConsumedLast)
+            {
+                _logger.LogDebug("Scenario consumed S{S}F{F}; suppressing built-in handler",
+                    request.Stream, request.Function);
+                return null;
+            }
         }
 
         // Priority 3: Built-in handlers

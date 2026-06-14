@@ -1,3 +1,5 @@
+using System.Threading.Channels;
+using EAPSimulator.Core.Protocols;
 using EAPSimulator.Core.Protocols.SecsGem.Gem;
 using EAPSimulator.Core.Protocols.SecsGem.Handlers;
 using EAPSimulator.Core.Protocols.SecsGem.SecsII;
@@ -6,209 +8,336 @@ using Microsoft.Extensions.Logging;
 namespace EAPSimulator.Core.Protocols.SecsGem.AutoReply;
 
 /// <summary>
-/// Manages scenario execution: tracks active scenario state, matches triggers,
-/// and produces reply messages.
+/// Famate-style scenario interpreter. Drives a script of heterogeneous steps
+/// (Send/Receive/Reply/Delay/Log) and lets the user run/stop/single-step.
+/// Implements <see cref="ISecsMessageHandler"/> so an active Receive step can
+/// consume an inbound message off the router pipeline.
 /// </summary>
 public class ScenarioEngine : ISecsMessageHandler
 {
     private readonly ILogger _logger;
-    private readonly List<ScenarioDefinition> _scenarios;
     private readonly Func<string, SecsMessageTemplate?> _templateLookup;
+    private readonly Func<SecsMessage, CancellationToken, Task>? _send;
+    private readonly ProtocolRole _currentRole;
 
-    // Track which scenario is active and which step we're on
-    private ScenarioDefinition? _activeScenario;
-    private int _currentStepIndex;
+    private readonly object _lock = new();
+    private CancellationTokenSource? _runCts;
+    private Task? _runTask;
+
+    // Current Receive step waits on this channel; the router pushes inbound messages in.
+    private Channel<SecsMessage>? _inbox;
+
+    // Last-received message — used by a subsequent Reply step.
+    private SecsMessage? _lastReceived;
+
+    public event Action<ScenarioDefinition, int, ScenarioStep>? StepStarted;
+    public event Action<ScenarioDefinition, int, ScenarioStep, string>? StepCompleted; // status text
+    public event Action<ScenarioDefinition, string>? ScenarioFinished; // status text
+    public event Action<string>? Log;
+
+    public bool IsRunning => _runTask is { IsCompleted: false };
+    public ScenarioDefinition? RunningScenario { get; private set; }
+    public int CurrentStepIndex { get; private set; }
+
+    /// <summary>
+    /// Set by <see cref="HandleAsync"/> when an inbound message was forwarded into the running
+    /// scenario's inbox. The router checks this to decide whether to suppress built-in handlers
+    /// for that message — otherwise a W-bit request gets answered twice (once by the script's
+    /// Reply step, once by the built-in handler).
+    /// </summary>
+    public bool ConsumedLast { get; private set; }
 
     public ScenarioEngine(
         ILogger logger,
-        IEnumerable<ScenarioDefinition> scenarios,
-        Func<string, SecsMessageTemplate?> templateLookup)
+        Func<string, SecsMessageTemplate?> templateLookup,
+        Func<SecsMessage, CancellationToken, Task>? send = null,
+        ProtocolRole currentRole = ProtocolRole.Equipment)
     {
         _logger = logger;
-        _scenarios = scenarios.Where(s => s.Enabled).ToList();
         _templateLookup = templateLookup;
+        _send = send;
+        _currentRole = currentRole;
     }
 
     /// <summary>
-    /// Try to match an incoming message against any scenario.
-    /// Returns a reply message if matched, null otherwise.
+    /// Start running the scenario from step 0. Returns immediately; observe events for progress.
+    /// Refuses to run if the scenario's <see cref="ScenarioDefinition.Role"/> doesn't match
+    /// the simulator's current role — Send/Receive get reversed across roles, so loading the
+    /// wrong file by mistake is the typical pain point this guard catches.
     /// </summary>
-    public Task<SecsMessage?> HandleAsync(SecsMessage request, EquipmentModel model, ProtocolRole role, CancellationToken ct)
+    public void Start(ScenarioDefinition scenario)
     {
-        // If a scenario is active, try to match the current step
-        if (_activeScenario != null)
+        lock (_lock)
         {
-            var step = _activeScenario.Steps[_currentStepIndex];
-            if (MatchesStep(step, request))
+            if (!RoleAllows(scenario.Role, _currentRole))
             {
-                _logger.LogInformation("Scenario '{Name}' step {Step} matched: S{S}F{F}",
-                    _activeScenario.Name, _currentStepIndex, request.Stream, request.Function);
-                return AdvanceScenario(request);
+                var msg = $"Scenario '{scenario.Name}' authored for {scenario.Role}, " +
+                          $"but this simulator runs as {_currentRole}. Refusing to start.";
+                _logger.LogWarning("{Msg}", msg);
+                Log?.Invoke($"⚠ {msg}");
+                ScenarioFinished?.Invoke(scenario, "RoleMismatch");
+                return;
             }
-        }
 
-        // Try to start a new scenario from step 0
-        foreach (var scenario in _scenarios)
-        {
-            if (scenario.Steps.Count == 0) continue;
-            var firstStep = scenario.Steps[0];
-            if (MatchesStep(firstStep, request))
+            if (IsRunning)
             {
-                _activeScenario = scenario;
-                _currentStepIndex = 0;
-                _logger.LogInformation("Scenario '{Name}' started at step 0: S{S}F{F}",
-                    scenario.Name, request.Stream, request.Function);
-                return AdvanceScenario(request);
+                _logger.LogWarning("Cannot start '{Name}': '{Cur}' is already running",
+                    scenario.Name, RunningScenario?.Name);
+                return;
             }
+            _runCts = new CancellationTokenSource();
+            RunningScenario = scenario;
+            CurrentStepIndex = 0;
+            _lastReceived = null;
+            _inbox = Channel.CreateUnbounded<SecsMessage>();
+            var ct = _runCts.Token;
+            _runTask = Task.Run(() => RunLoopAsync(scenario, ct), ct);
         }
-
-        return Task.FromResult<SecsMessage?>(null);
     }
 
-    private Task<SecsMessage?> AdvanceScenario(SecsMessage request)
+    public void Stop()
     {
-        var step = _activeScenario!.Steps[_currentStepIndex];
-        SecsMessage? reply = null;
-
-        // Build reply from the step's action template
-        if (!string.IsNullOrEmpty(step.ActionTemplateName))
+        lock (_lock)
         {
-            var template = _templateLookup(step.ActionTemplateName);
-            if (template != null)
-            {
-                reply = template.BuildMessage();
-                reply.SystemBytes = request.SystemBytes;
-                reply.WBit = false;
-            }
-            else
-            {
-                _logger.LogWarning("Scenario '{Name}' step {Step}: template '{Template}' not found",
-                    _activeScenario.Name, _currentStepIndex, step.ActionTemplateName);
-            }
+            _runCts?.Cancel();
         }
-
-        // Advance to next step
-        _currentStepIndex++;
-        if (_currentStepIndex >= _activeScenario.Steps.Count)
-        {
-            if (_activeScenario.Loop)
-            {
-                _currentStepIndex = 0;
-                _logger.LogInformation("Scenario '{Name}' looping back to step 0", _activeScenario.Name);
-            }
-            else
-            {
-                _logger.LogInformation("Scenario '{Name}' completed", _activeScenario.Name);
-                _activeScenario = null;
-                _currentStepIndex = 0;
-            }
-        }
-
-        return Task.FromResult(reply);
     }
 
-    private bool MatchesStep(ScenarioStep step, SecsMessage msg)
+    /// <summary>
+    /// Match a scenario's authored role against the simulator's current protocol role.
+    /// <see cref="ScenarioRole.Any"/> matches both sides.
+    /// </summary>
+    public static bool RoleAllows(ScenarioRole authored, ProtocolRole current) => authored switch
     {
-        if (step.Stream != 0 && step.Stream != msg.Stream) return false;
-        if (step.Function != 0 && step.Function != msg.Function) return false;
-
-        // Check field conditions
-        foreach (var cond in step.Conditions)
-        {
-            if (!MatchesCondition(cond, msg.RootItem))
-                return false;
-        }
-
-        return true;
-    }
-
-    private bool MatchesCondition(FieldCondition condition, SecsItem? rootItem)
-    {
-        if (rootItem == null || string.IsNullOrEmpty(condition.Path))
-            return string.IsNullOrEmpty(condition.Value);
-
-        var item = NavigatePath(rootItem, condition.Path);
-        if (item == null) return false;
-
-        var itemValue = GetItemValueString(item);
-        return EvaluateCondition(itemValue, condition.Operator, condition.Value);
-    }
-
-    internal static bool EvaluateCondition(string itemValue, string op, string expected)
-    {
-        return op switch
-        {
-            "==" => string.Equals(itemValue, expected, StringComparison.OrdinalIgnoreCase),
-            "!=" => !string.Equals(itemValue, expected, StringComparison.OrdinalIgnoreCase),
-            "contains" => itemValue.Contains(expected, StringComparison.OrdinalIgnoreCase),
-            ">" or "<" or ">=" or "<=" =>
-                double.TryParse(itemValue, out var a) && double.TryParse(expected, out var b)
-                    ? EvaluateNumeric(a, op, b)
-                    : string.Compare(itemValue, expected, StringComparison.OrdinalIgnoreCase) switch
-                    {
-                        < 0 => op is "<" or "<=",
-                        0 => op is ">=" or "<=",
-                        > 0 => op is ">" or ">=",
-                    },
-            _ => string.Equals(itemValue, expected, StringComparison.OrdinalIgnoreCase),
-        };
-    }
-
-    private static bool EvaluateNumeric(double a, string op, double b) => op switch
-    {
-        ">" => a > b,
-        "<" => a < b,
-        ">=" => a >= b,
-        "<=" => a <= b,
+        ScenarioRole.Any => true,
+        ScenarioRole.Host => current == ProtocolRole.Host,
+        ScenarioRole.Equipment => current == ProtocolRole.Equipment,
         _ => false,
     };
 
-    /// <summary>
-    /// Navigate a SECS item tree by path. "0/1/2" means root (if list) -> item[0] -> item[1] -> item[2].
-    /// For non-list root, "0" means the root itself.
-    /// </summary>
-    private static SecsItem? NavigatePath(SecsItem root, string path)
+    private async Task RunLoopAsync(ScenarioDefinition scenario, CancellationToken ct)
     {
-        var parts = path.Split('/');
-        SecsItem? current = root;
-
-        foreach (var part in parts)
+        try
         {
-            if (!int.TryParse(part, out var index))
-                return null;
-
-            if (current is SecsList list)
+            // Build label → step-index map. Earlier definition wins on duplicates; warn the rest.
+            var labelIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (int i = 0; i < scenario.Steps.Count; i++)
             {
-                if (index < 0 || index >= list.Items.Length)
-                    return null;
-                current = list.Items[index];
+                var lbl = scenario.Steps[i].Label;
+                if (string.IsNullOrEmpty(lbl)) continue;
+                if (!labelIndex.TryAdd(lbl, i))
+                    _logger.LogWarning("Scenario '{Name}' duplicate label '{Lbl}' at step {I}; first wins",
+                        scenario.Name, lbl, i);
             }
-            else
+
+            do
             {
-                // Non-list item: index 0 means "this item"
-                if (index != 0) return null;
-                // current stays the same
+                int pc = 0;
+                while (pc < scenario.Steps.Count)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    CurrentStepIndex = pc;
+                    var step = scenario.Steps[pc];
+                    StepStarted?.Invoke(scenario, pc, step);
+                    EmitLog($"Scenario '{scenario.Name}' step {pc}: {step.DisplayText}");
+
+                    // Branch is the only step that can change PC; everything else falls through to pc+1.
+                    if (step.Kind == ScenarioStepKind.Branch)
+                    {
+                        var (status, nextPc) = ExecuteBranch(step, pc, labelIndex);
+                        StepCompleted?.Invoke(scenario, pc, step, status);
+                        pc = nextPc;
+                    }
+                    else
+                    {
+                        var status = await ExecuteStepAsync(step, ct).ConfigureAwait(false);
+                        StepCompleted?.Invoke(scenario, pc, step, status);
+                        pc++;
+                    }
+                }
+            } while (scenario.Loop && !ct.IsCancellationRequested);
+
+            ScenarioFinished?.Invoke(scenario, "Completed");
+            EmitLog($"Scenario '{scenario.Name}' completed");
+        }
+        catch (OperationCanceledException)
+        {
+            ScenarioFinished?.Invoke(scenario, "Stopped");
+            EmitLog($"Scenario '{scenario.Name}' stopped");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Scenario '{Name}' failed", scenario.Name);
+            ScenarioFinished?.Invoke(scenario, $"Failed: {ex.Message}");
+            EmitLog($"Scenario '{scenario.Name}' FAILED: {ex.Message}");
+        }
+        finally
+        {
+            lock (_lock)
+            {
+                RunningScenario = null;
+                _inbox?.Writer.TryComplete();
+                _inbox = null;
             }
         }
-
-        return current;
     }
 
-    private static string GetItemValueString(SecsItem item) => item switch
+    private (string status, int nextPc) ExecuteBranch(
+        ScenarioStep step, int pc, Dictionary<string, int> labelIndex)
     {
-        SecsAscii a => a.Value,
-        SecsBinary b => string.Join(" ", b.Value.Select(bt => $"{bt:X2}")),
-        SecsBoolean bo => bo.Value ? "1" : "0",
-        SecsU1 u1 => u1.Value.Length == 1 ? u1.Value[0].ToString() : $"[{string.Join(",", u1.Value)}]",
-        SecsU2 u2 => u2.Value.Length == 1 ? u2.Value[0].ToString() : $"[{string.Join(",", u2.Value)}]",
-        SecsU4 u4 => u4.Value.Length == 1 ? u4.Value[0].ToString() : $"[{string.Join(",", u4.Value)}]",
-        SecsU8 u8 => u8.Value.Length == 1 ? u8.Value[0].ToString() : $"[{string.Join(",", u8.Value)}]",
-        SecsI1 i1 => i1.Value.Length == 1 ? i1.Value[0].ToString() : $"[{string.Join(",", i1.Value)}]",
-        SecsI2 i2 => i2.Value.Length == 1 ? i2.Value[0].ToString() : $"[{string.Join(",", i2.Value)}]",
-        SecsI4 i4 => i4.Value.Length == 1 ? i4.Value[0].ToString() : $"[{string.Join(",", i4.Value)}]",
-        SecsI8 i8 => i8.Value.Length == 1 ? i8.Value[0].ToString() : $"[{string.Join(",", i8.Value)}]",
-        SecsF4 f4 => f4.Value.Length == 1 ? f4.Value[0].ToString() : $"[{string.Join(",", f4.Value)}]",
-        SecsF8 f8 => f8.Value.Length == 1 ? f8.Value[0].ToString() : $"[{string.Join(",", f8.Value)}]",
-        _ => item.ToString() ?? ""
-    };
+        // Cases evaluated in order against the most recently captured Receive message.
+        // Conditions with empty path on a null lastReceived match (degenerate "always").
+        for (int ci = 0; ci < step.Cases.Count; ci++)
+        {
+            var c = step.Cases[ci];
+            bool ok = true;
+            foreach (var cond in c.Conditions)
+            {
+                if (!MatchUtil.MatchesCondition(cond, _lastReceived?.RootItem))
+                {
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok) continue;
+
+            if (string.IsNullOrEmpty(c.TargetLabel))
+                return ($"case {ci} matched, no target → fall through", pc + 1);
+            if (!labelIndex.TryGetValue(c.TargetLabel, out var target))
+                throw new InvalidOperationException(
+                    $"Branch step references unknown label '{c.TargetLabel}'.");
+            return ($"case {ci} matched → goto {c.TargetLabel} (step {target})", target);
+        }
+
+        if (!string.IsNullOrEmpty(step.DefaultLabel))
+        {
+            if (!labelIndex.TryGetValue(step.DefaultLabel, out var target))
+                throw new InvalidOperationException(
+                    $"Branch step references unknown default label '{step.DefaultLabel}'.");
+            return ($"no case matched → goto {step.DefaultLabel} (step {target})", target);
+        }
+
+        return ("no case matched → fall through", pc + 1);
+    }
+
+    private async Task<string> ExecuteStepAsync(ScenarioStep step, CancellationToken ct)
+    {
+        switch (step.Kind)
+        {
+            case ScenarioStepKind.Send:
+                return await ExecuteSendAsync(step, ct).ConfigureAwait(false);
+            case ScenarioStepKind.Receive:
+                return await ExecuteReceiveAsync(step, ct).ConfigureAwait(false);
+            case ScenarioStepKind.Reply:
+                return await ExecuteReplyAsync(step, ct).ConfigureAwait(false);
+            case ScenarioStepKind.Delay:
+                await Task.Delay(Math.Max(0, step.DelayMs), ct).ConfigureAwait(false);
+                return $"Slept {step.DelayMs} ms";
+            case ScenarioStepKind.Log:
+                EmitLog(step.Message);
+                return "logged";
+            case ScenarioStepKind.Branch:
+                // Should never reach here — Branch is handled in RunLoopAsync directly so it can change PC.
+                throw new InvalidOperationException("Branch step must be handled by RunLoopAsync");
+            default:
+                return $"unknown kind {step.Kind}";
+        }
+    }
+
+    private async Task<string> ExecuteSendAsync(ScenarioStep step, CancellationToken ct)
+    {
+        if (_send == null)
+            throw new InvalidOperationException("ScenarioEngine has no send delegate; cannot execute Send step.");
+        var tpl = _templateLookup(step.TemplateName)
+            ?? throw new InvalidOperationException($"Template '{step.TemplateName}' not found for Send step.");
+        var msg = tpl.BuildMessage();
+        await _send(msg, ct).ConfigureAwait(false);
+        return $"sent S{msg.Stream}F{msg.Function}";
+    }
+
+    private async Task<string> ExecuteReceiveAsync(ScenarioStep step, CancellationToken ct)
+    {
+        var inbox = _inbox ?? throw new InvalidOperationException("Inbox not initialized.");
+
+        var timeout = step.TimeoutMs <= 0 ? Timeout.InfiniteTimeSpan : TimeSpan.FromMilliseconds(step.TimeoutMs);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (timeout != Timeout.InfiniteTimeSpan)
+            timeoutCts.CancelAfter(timeout);
+
+        try
+        {
+            while (await inbox.Reader.WaitToReadAsync(timeoutCts.Token).ConfigureAwait(false))
+            {
+                while (inbox.Reader.TryRead(out var candidate))
+                {
+                    if (MatchesReceiveStep(step, candidate))
+                    {
+                        _lastReceived = candidate;
+                        return $"matched S{candidate.Stream}F{candidate.Function}";
+                    }
+                    // Non-matching messages fall through silently — they'll be handled by other handlers
+                    // because we only consume from the inbox; the router pushes a copy.
+                }
+            }
+            return "channel closed";
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // Timeout (the linked CTS, not the run CTS).
+            return step.OnTimeout switch
+            {
+                ReceiveTimeoutAction.Skip => "timeout — skipped",
+                ReceiveTimeoutAction.Continue => "timeout — continue",
+                _ => throw new TimeoutException($"Receive step timed out after {step.TimeoutMs} ms"),
+            };
+        }
+    }
+
+    private async Task<string> ExecuteReplyAsync(ScenarioStep step, CancellationToken ct)
+    {
+        if (_send == null)
+            throw new InvalidOperationException("ScenarioEngine has no send delegate; cannot execute Reply step.");
+        if (_lastReceived == null)
+            throw new InvalidOperationException("Reply step requires a preceding Receive that captured a message.");
+        var tpl = _templateLookup(step.TemplateName)
+            ?? throw new InvalidOperationException($"Template '{step.TemplateName}' not found for Reply step.");
+        var reply = tpl.BuildMessage();
+        reply.SystemBytes = _lastReceived.SystemBytes;
+        reply.WBit = false;
+        await _send(reply, ct).ConfigureAwait(false);
+        return $"replied S{reply.Stream}F{reply.Function}";
+    }
+
+    private static bool MatchesReceiveStep(ScenarioStep step, SecsMessage msg)
+    {
+        if (step.Stream != 0 && step.Stream != msg.Stream) return false;
+        if (step.Function != 0 && step.Function != msg.Function) return false;
+        foreach (var cond in step.Conditions)
+        {
+            if (!MatchUtil.MatchesCondition(cond, msg.RootItem)) return false;
+        }
+        return true;
+    }
+
+    private void EmitLog(string text)
+    {
+        Log?.Invoke(text);
+        _logger.LogInformation("{Text}", text);
+    }
+
+    // ─── ISecsMessageHandler — runs on the router pipeline ───
+
+    /// <summary>
+    /// Forward inbound messages to the running scenario's Receive step (if any).
+    /// Always returns null (no synchronous reply); when the message is forwarded into the
+    /// inbox, <see cref="ConsumedLast"/> is set so the router knows to suppress built-in
+    /// handlers for this message — otherwise a W-bit request gets answered twice (once by
+    /// the script's Reply step, once by the built-in handler).
+    /// </summary>
+    public Task<SecsMessage?> HandleAsync(SecsMessage request, EquipmentModel model, ProtocolRole role, CancellationToken ct)
+    {
+        var inbox = _inbox;
+        ConsumedLast = inbox != null && inbox.Writer.TryWrite(request);
+        return Task.FromResult<SecsMessage?>(null);
+    }
 }

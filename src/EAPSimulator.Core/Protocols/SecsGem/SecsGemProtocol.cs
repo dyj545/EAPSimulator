@@ -68,7 +68,9 @@ public class SecsGemProtocol : IProtocol
             // Route to handler and send reply if W-bit is set
             if (secsMsg.WBit)
             {
-                var reply = await _router.RouteAsync(secsMsg, _equipmentModel, _role, _cts?.Token ?? CancellationToken.None);
+                // Snapshot the cts token: _cts may be replaced/disposed concurrently by Stop.
+                var token = _cts?.Token ?? CancellationToken.None;
+                var reply = await _router.RouteAsync(secsMsg, _equipmentModel, _role, token);
                 if (reply != null)
                 {
                     reply.SystemBytes = secsMsg.SystemBytes;
@@ -96,7 +98,8 @@ public class SecsGemProtocol : IProtocol
                 // Send S1F13 to establish GEM communication
                 try
                 {
-                    await SendEstablishCommunicationAsync(_cts?.Token ?? CancellationToken.None);
+                    var token = _cts?.Token ?? CancellationToken.None;
+                    await SendEstablishCommunicationAsync(token);
                 }
                 catch (Exception ex)
                 {
@@ -142,9 +145,16 @@ public class SecsGemProtocol : IProtocol
 
     public async Task StopAsync(CancellationToken ct)
     {
-        await _transport.DisconnectAsync();
+        // Swap out the cts before disconnecting; senders that snapshot _cts.Token will see
+        // a cancelled token rather than risk an ObjectDisposedException after we dispose it.
+        var cts = _cts;
+        _cts = null;
+        try { cts?.Cancel(); } catch (ObjectDisposedException) { }
+
+        try { await _transport.DisconnectAsync(); }
+        finally { cts?.Dispose(); }
+
         ChangeState(ProtocolState.Disconnected);
-        _cts?.Cancel();
     }
 
     public async Task SendAsync(ProtocolMessage message, CancellationToken ct)

@@ -31,6 +31,7 @@ public class HsmsSettings
 
     [System.Obsolete("Use ConnectionMode instead")]
     [System.Text.Json.Serialization.JsonIgnore]
+    [Newtonsoft.Json.JsonIgnore]
     public bool IsActive
     {
         get => ConnectionMode == ConnectionMode.Active;
@@ -39,6 +40,7 @@ public class HsmsSettings
 
     [System.Obsolete("Use LocalHost/RemoteHost instead")]
     [System.Text.Json.Serialization.JsonIgnore]
+    [Newtonsoft.Json.JsonIgnore]
     public string Host
     {
         get => ConnectionMode == ConnectionMode.Active ? RemoteHost : LocalHost;
@@ -53,6 +55,7 @@ public class HsmsSettings
 
     [System.Obsolete("Use LocalPort/RemotePort instead")]
     [System.Text.Json.Serialization.JsonIgnore]
+    [Newtonsoft.Json.JsonIgnore]
     public int Port
     {
         get => ConnectionMode == ConnectionMode.Active ? RemotePort : LocalPort;

@@ -17,7 +17,6 @@ public partial class AutoReplyView : UserControl
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         SetupNullVisibility();
-        SetupActionTemplateFiltering();
     }
 
     private void SetupNullVisibility()
@@ -67,21 +66,7 @@ public partial class AutoReplyView : UserControl
 
     private void SetupActionTemplateFiltering()
     {
-        var cb = this.FindControl<ComboBox>("ActionTemplateCombo");
-        if (cb == null) return;
-
-        // Avalonia: observe SelectedItem via PropertyChanged
-        cb.PropertyChanged += (_, e) =>
-        {
-            if (e.Property != ComboBox.SelectedItemProperty) return;
-            var vm = ViewModel;
-            if (vm == null) return;
-            if (e.NewValue is string text)
-            {
-                vm.UpdateActionTemplateFilter(text);
-                cb.IsDropDownOpen = !string.IsNullOrEmpty(text) && vm.FilteredActionTemplates.Count > 0;
-            }
-        };
+        // Removed: the new scenario UI uses simple template ComboBoxes per step kind, no fuzzy search.
     }
 
     private void OnQuickReplyTabClick(object? sender, RoutedEventArgs e)
@@ -118,11 +103,7 @@ public partial class AutoReplyView : UserControl
 
     private void OnActionTemplateDropDownOpened(object? sender, EventArgs e)
     {
-        if (sender is ComboBox cb)
-        {
-            // Reset filter to show all templates when dropdown opens
-            ViewModel?.ResetActionTemplateFilter();
-        }
+        // Stub kept for any leftover bindings; no-op.
     }
 
     private void OnActionTemplateDropDownClosed(object? sender, EventArgs e)
