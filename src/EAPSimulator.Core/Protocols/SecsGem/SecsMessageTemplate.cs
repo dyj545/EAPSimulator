@@ -74,6 +74,12 @@ public class SecsMessageTemplate
             while (pos < xml.Length && char.IsWhiteSpace(xml[pos])) pos++;
             if (pos >= xml.Length || xml[pos] != '<') { end = pos; return items; }
 
+            // Stop at closing tag — let caller consume it via SkipClosingTag.
+            // Without this, "<L></L>" recurses into the L body, sees "</L>" as a
+            // tag named "/L", falls through ParseValueItem's switch default, and
+            // synthesizes a phantom empty A item.
+            if (pos + 1 < xml.Length && xml[pos + 1] == '/') { end = pos; return items; }
+
             // Find tag name
             var tagStart = pos + 1;
             var tagEnd = xml.IndexOf('>', tagStart);
