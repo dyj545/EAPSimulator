@@ -1,0 +1,125 @@
+<UserControl x:Class="EAPSimulator.Wpf.Views.StatusPanelView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:material="clr-namespace:MahApps.Metro.IconPacks;assembly=MahApps.Metro.IconPacks.Material"
+             xmlns:vm="clr-namespace:EAPSimulator.Wpf.ViewModels"
+             Foreground="#E0E0E0"
+             FontFamily="Microsoft YaHei" FontSize="12">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="12">
+            <!-- ═══ Title ═══ -->
+            <TextBlock Text="Status Panel" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+            <Border Height="1" Background="#444" Margin="0,0,0,8"/>
+
+            <!-- ═══ Connection State ═══ -->
+            <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4" Background="#252525">
+                <StackPanel Orientation="Horizontal">
+                    <material:PackIconMaterial Kind="Circle" Width="12" Height="12"
+                             Foreground="{Binding ConnectionColor, FallbackValue=#F44747}"
+                             Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ConnectionStatus, FallbackValue=未连接}"
+                               FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ═══ GEM State ═══ -->
+            <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4" Background="#252525">
+                <StackPanel>
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="GEM State: " Foreground="#808080" Grid.Column="0"/>
+                        <TextBlock Text="{Binding EquipmentStatus, FallbackValue=Offline}"
+                                   FontWeight="SemiBold" Grid.Column="1"/>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Local" Click="OnSwitchToLocal"
+                                FontSize="11" Padding="8,3"
+                                Background="#4CAF50" Foreground="White" Margin="0,0,4,0"/>
+                        <Button Content="Remote" Click="OnSwitchToRemote"
+                                FontSize="11" Padding="8,3"
+                                Background="#2196F3" Foreground="White" Margin="0,0,4,0"/>
+                        <Button Content="Offline" Click="OnSwitchToOffline"
+                                FontSize="11" Padding="8,3"
+                                Background="#FF9800" Foreground="White"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ═══ Protocol / Role ═══ -->
+            <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4" Background="#252525">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Protocol: " Foreground="#808080"/>
+                        <TextBlock Text="{Binding ProtocolType, FallbackValue=SECS/GEM}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Role: " Foreground="#808080"/>
+                        <TextBlock Text="{Binding Role, FallbackValue=Active}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="消息数: " Foreground="#808080"/>
+                        <TextBlock Text="{Binding MessageCount}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="最后消息: " Foreground="#808080"/>
+                        <TextBlock Text="{Binding LastMessageTime, FallbackValue=-}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Height="1" Background="#444" Margin="0,4"/>
+
+            <!-- ═══ Status Variables ═══ -->
+            <TextBlock Text="Status Variables" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <DataGrid ItemsSource="{Binding StatusVariables}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      MaxHeight="200" FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="SVID" Binding="{Binding Svid}" Width="50"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="70"/>
+                    <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="50"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <Border Height="1" Background="#444" Margin="0,4"/>
+
+            <!-- ═══ Alarms ═══ -->
+            <TextBlock Text="Alarms" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <DataGrid ItemsSource="{Binding Alarms}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      MaxHeight="150" FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ALID" Binding="{Binding Alid}" Width="50"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                    <DataGridTemplateColumn Header="Status" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Status}" FontWeight="Bold"
+                                           Foreground="{Binding StatusColor}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <Border Height="1" Background="#444" Margin="0,4"/>
+
+            <!-- ═══ Collection Events ═══ -->
+            <TextBlock Text="Collection Events" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <DataGrid ItemsSource="{Binding CollectionEvents}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      MaxHeight="150" FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="CEID" Binding="{Binding Ceid}" Width="50"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                    <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="60"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,13 @@
+{
+  "baseConfig": "server_config_base.json",
+  "secsGem": {
+    "deviceId": 1,
+    "localPort": 5001
+  },
+  "files": {
+    "autoReplyRules": "configs/eq1_auto_reply_rules.json"
+  },
+  "logging": {
+    "filePath": "logs/eq1-.log"
+  }
+}

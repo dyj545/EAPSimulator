@@ -6,7 +6,16 @@
       "Bash(python fix_templates.py)",
       "Bash(taskkill /F /IM EAPSimulator.UI.exe)",
       "Bash(python add_field_metadata.py)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(dotnet restore *)",
+      "Bash(dotnet list *)",
+      "Bash(ls -la \"D:\\\\C Sharp\\\\AutoFileBackup\")",
+      "Read(//d/C Sharp/AutoFileBackup/**)"
+    ],
+    "additionalDirectories": [
+      "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\Views",
+      "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\ViewModels",
+      "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\Resources"
     ]
   }
 }

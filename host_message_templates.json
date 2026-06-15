@@ -1,0 +1,338 @@
+{
+  "Templates": [
+    {
+      "Name": "EquipmentStatusReport",
+      "Description": "设备状态上报到 MES",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
+        { "Name": "Status", "Type": "ASCII", "DefaultValue": "IDLE", "Description": "设备状态 (IDLE/RUNNING/DOWN)", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "当前配方名称", "Required": false },
+        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      ]
+    },
+    {
+      "Name": "ProcessStartReport",
+      "Description": "工艺开始上报",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
+        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": false },
+        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      ]
+    },
+    {
+      "Name": "ProcessEndReport",
+      "Description": "工艺结束上报",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
+        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": false },
+        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "工艺结果 (OK/NG)", "Required": true },
+        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      ]
+    },
+    {
+      "Name": "AlarmReport",
+      "Description": "报警上报",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
+        { "Name": "AlarmId", "Type": "I4", "DefaultValue": "0", "Description": "报警 ID", "Required": true },
+        { "Name": "AlarmText", "Type": "ASCII", "DefaultValue": "", "Description": "报警描述", "Required": true },
+        { "Name": "Severity", "Type": "ASCII", "DefaultValue": "Warning", "Description": "严重程度 (Info/Warning/Critical)", "Required": true },
+        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      ]
+    },
+    {
+      "Name": "RecipeDownloadCommand",
+      "Description": "MES 下发配方命令",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
+        { "Name": "RecipeBody", "Type": "ASCII", "DefaultValue": "", "Description": "配方内容", "Required": true }
+      ]
+    },
+    {
+      "Name": "RemoteCommand",
+      "Description": "MES 远程控制命令",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
+        { "Name": "Command", "Type": "ASCII", "DefaultValue": "", "Description": "命令名称 (START/STOP/ABORT/RESET)", "Required": true },
+        { "Name": "Params", "Type": "ASCII", "DefaultValue": "", "Description": "命令参数", "Required": false }
+      ]
+    },
+    {
+      "Name": "EAPDA_EQUIPMENT_STATE",
+      "Description": "EAP 向 DA 上报设备状态",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "State", "Type": "ASCII", "DefaultValue": "IDLE", "Description": "设备状态", "Required": true },
+        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPDA_EQMODE_OR",
+      "Description": "EAP 向 DA 上报设备模式",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "Mode", "Type": "ASCII", "DefaultValue": "REMOTE", "Description": "设备模式 (LOCAL/REMOTE)", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPDA_MAP_COUNT_REQ",
+      "Description": "EAP 向 DA 请求 Map 数量",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      ]
+    },
+    {
+      "Name": "DAEAP_MAP_COUNT_REP",
+      "Description": "DA 回复 Map 数量",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
+        { "Name": "MapCount", "Type": "I4", "DefaultValue": "1", "Description": "Map 数量", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPDA_MAP_INFO_REQ",
+      "Description": "EAP 向 DA 请求 Map 信息",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
+        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true }
+      ]
+    },
+    {
+      "Name": "DAEAP_MAP_INFO_REP",
+      "Description": "DA 回复 Map 信息",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true },
+        { "Name": "MapData", "Type": "ASCII", "DefaultValue": "", "Description": "Map 数据", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPDA_MAP_DOWNLOAD_REQ",
+      "Description": "EAP 向 DA 请求下载 Map",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true }
+      ]
+    },
+    {
+      "Name": "DAEAP_MAP_DOWNLOAD_REP",
+      "Description": "DA 回复 Map 下载结果",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true },
+        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "下载结果 (OK/NG)", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPDA_MAP_UPLOAD_REQ",
+      "Description": "EAP 向 DA 请求上传 Map",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true }
+      ]
+    },
+    {
+      "Name": "DAEAP_MAP_UPLOAD_REP",
+      "Description": "DA 回复 Map 上传结果",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true },
+        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "上传结果 (OK/NG)", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPDA_RECIPE_BODY_CHECK_REQ",
+      "Description": "EAP 向 DA 请求配方检查",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      ]
+    },
+    {
+      "Name": "DAEAP_RECIPE_BODY_CHECK_REP",
+      "Description": "DA 回复配方检查结果",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
+        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "检查结果 (OK/NG)", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPDA_RECIPE_BODY_VERIFY_REQ",
+      "Description": "EAP 向 DA 请求配方验证",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPMES_WAFER_LOAD_VERIFY_REQ",
+      "Description": "EAP 向 MES 请求晶圆装载验证",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_WAFER_LOAD_VERIFY_SUCC",
+      "Description": "MES 回复晶圆装载验证成功",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_WAFER_LOAD_VERIFY_FAIL",
+      "Description": "MES 回复晶圆装载验证失败",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": true },
+        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPMES_RECIPE_CHECK_REQ",
+      "Description": "EAP 向 MES 请求配方检查",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_RECIPE_CHECK_SUCC",
+      "Description": "MES 回复配方检查成功",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_RECIPE_CHECK_FAIL",
+      "Description": "MES 回复配方检查失败",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
+        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPMES_START_CMD_REQ",
+      "Description": "EAP 向 MES 请求启动命令",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_START_CMD_SUCC",
+      "Description": "MES 回复启动命令成功",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_START_CMD_FAIL",
+      "Description": "MES 回复启动命令失败",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPMES_LOT_END",
+      "Description": "EAP 向 MES 通知 Lot 结束",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
+        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "结果", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_LOT_END_SUCC",
+      "Description": "MES 确认 Lot 结束成功",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_LOT_END_FAIL",
+      "Description": "MES 确认 Lot 结束失败",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
+        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      ]
+    },
+    {
+      "Name": "EAPMES_LOT_START_REQ",
+      "Description": "EAP 向 MES 请求 Lot 开始",
+      "Direction": "Send",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
+        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_LOT_START_SUCC",
+      "Description": "MES 回复 Lot 开始成功",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      ]
+    },
+    {
+      "Name": "MESEAP_LOT_START_FAIL",
+      "Description": "MES 回复 Lot 开始失败",
+      "Direction": "Receive",
+      "Fields": [
+        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
+        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
+        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      ]
+    }
+  ]
+}

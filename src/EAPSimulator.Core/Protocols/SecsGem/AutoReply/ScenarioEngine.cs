@@ -14,19 +14,55 @@ public class ScenarioEngine : ISecsMessageHandler
     private readonly ILogger _logger;
     private readonly List<ScenarioDefinition> _scenarios;
     private readonly Func<string, SecsMessageTemplate?> _templateLookup;
+    private readonly Action<string, string>? _stateAlterHandler;
 
     // Track which scenario is active and which step we're on
     private ScenarioDefinition? _activeScenario;
     private int _currentStepIndex;
 
+    /// <summary>Raised when a scenario triggers a Host message action.</summary>
+    public event EventHandler<HostActionEventArgs>? HostActionTriggered;
+
+    /// <summary>Raised when a scenario triggers a state alteration.</summary>
+    public event EventHandler<StateAlterEventArgs>? StateAlterTriggered;
+
     public ScenarioEngine(
         ILogger logger,
         IEnumerable<ScenarioDefinition> scenarios,
-        Func<string, SecsMessageTemplate?> templateLookup)
+        Func<string, SecsMessageTemplate?> templateLookup,
+        Action<string, string>? stateAlterHandler = null)
     {
         _logger = logger;
         _scenarios = scenarios.Where(s => s.Enabled).ToList();
         _templateLookup = templateLookup;
+        _stateAlterHandler = stateAlterHandler;
+    }
+
+    /// <summary>
+    /// Invoke the state alter handler and raise the StateAlterTriggered event.
+    /// </summary>
+    public void AlterState(string variableName, string newValue)
+    {
+        _stateAlterHandler?.Invoke(variableName, newValue);
+        StateAlterTriggered?.Invoke(this, new StateAlterEventArgs(variableName, newValue));
+    }
+
+    /// <summary>
+    /// Raise the HostActionTriggered event.
+    /// </summary>
+    public void TriggerHostAction(string hostMessageName)
+    {
+        HostActionTriggered?.Invoke(this, new HostActionEventArgs(hostMessageName));
+    }
+
+    /// <summary>
+    /// Handle a Host/MES message, forwarding it through scenario matching.
+    /// Currently a stub — host message scenario matching is not yet implemented.
+    /// </summary>
+    public void HandleHostMessage(string messageName, Dictionary<string, string> fields)
+    {
+        _logger.LogDebug("Host message '{Name}' received with {Count} fields", messageName, fields.Count);
+        // TODO: Implement host message scenario matching
     }
 
     /// <summary>

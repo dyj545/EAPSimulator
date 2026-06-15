@@ -1,0 +1,19 @@
+{
+  "baseConfig": "server_config_base.json",
+  "secsGem": {
+    "deviceId": 2,
+    "localPort": 5002
+  },
+  "host": {
+    "enabled": true,
+    "transportType": "RabbitMQ",
+    "rabbitMqHost": "mes-prod.internal",
+    "rabbitMqQueue": "eq2.mes.queue"
+  },
+  "files": {
+    "autoReplyRules": "configs/eq2_auto_reply_rules.json"
+  },
+  "logging": {
+    "filePath": "logs/eq2-.log"
+  }
+}

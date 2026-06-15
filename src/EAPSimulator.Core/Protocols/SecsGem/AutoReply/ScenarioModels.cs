@@ -39,7 +39,19 @@ public class FieldCondition
 public class ScenarioStep
 {
     /// <summary>
-    /// Stream number to match (0 = any).
+    /// Unique node identifier for flow design.
+    /// </summary>
+    [JsonProperty("nodeId")]
+    public string NodeId { get; set; } = Guid.NewGuid().ToString("N")[..8];
+
+    /// <summary>
+    /// Type of trigger for this step.
+    /// </summary>
+    [JsonProperty("triggerType")]
+    public TriggerType TriggerType { get; set; } = TriggerType.SecsMessage;
+
+    /// <summary>
+    /// Stream number to match (0 = any). Used when TriggerType is SecsMessage.
     /// </summary>
     [JsonProperty("stream")]
     public byte Stream { get; set; }
@@ -51,10 +63,64 @@ public class ScenarioStep
     public byte Function { get; set; }
 
     /// <summary>
+    /// Host message name to match. Used when TriggerType is HostMessage.
+    /// </summary>
+    [JsonProperty("hostTriggerName")]
+    public string HostTriggerName { get; set; } = "";
+
+    /// <summary>
+    /// Equipment state variable name to watch. Used when TriggerType is EquipmentState.
+    /// </summary>
+    [JsonProperty("stateVariableName")]
+    public string StateVariableName { get; set; } = "";
+
+    /// <summary>
+    /// Source field for data mapping. Used when TriggerType is Mapper.
+    /// </summary>
+    [JsonProperty("mapperSourceField")]
+    public string MapperSourceField { get; set; } = "";
+
+    /// <summary>
+    /// Target variable for data mapping.
+    /// </summary>
+    [JsonProperty("mapperVariable")]
+    public string MapperVariable { get; set; } = "";
+
+    /// <summary>
+    /// Variable name for judgement evaluation. Used when TriggerType is Judgement.
+    /// </summary>
+    [JsonProperty("judgementVariable")]
+    public string JudgementVariable { get; set; } = "";
+
+    /// <summary>
+    /// Operator for judgement: ==, !=, >, <, >=, <=, contains.
+    /// </summary>
+    [JsonProperty("judgementOperator")]
+    public string JudgementOperator { get; set; } = "==";
+
+    /// <summary>
+    /// Expected value for judgement.
+    /// </summary>
+    [JsonProperty("judgementValue")]
+    public string JudgementValue { get; set; } = "";
+
+    /// <summary>
+    /// Target step index to jump to when judgement is true. -1 = continue to next step.
+    /// </summary>
+    [JsonProperty("judgementTargetStep")]
+    public int JudgementTargetStep { get; set; } = -1;
+
+    /// <summary>
     /// Additional field conditions that must ALL match.
     /// </summary>
     [JsonProperty("conditions")]
     public List<FieldCondition> Conditions { get; set; } = [];
+
+    /// <summary>
+    /// Type of action to perform.
+    /// </summary>
+    [JsonProperty("actionType")]
+    public ActionType ActionType { get; set; } = ActionType.SecsReply;
 
     /// <summary>
     /// Display name of the template to send when triggered. Empty = wait for next trigger.
@@ -67,6 +133,30 @@ public class ScenarioStep
 
     [JsonProperty("actionFunction")]
     public byte ActionFunction { get; set; }
+
+    /// <summary>
+    /// Host message name to send. Used when ActionType is HostMessage.
+    /// </summary>
+    [JsonProperty("hostActionName")]
+    public string HostActionName { get; set; } = "";
+
+    /// <summary>
+    /// Target variable name for state alteration. Used when ActionType is StateAlterer.
+    /// </summary>
+    [JsonProperty("stateAlterTarget")]
+    public string StateAlterTarget { get; set; } = "";
+
+    /// <summary>
+    /// Value to set for state alteration.
+    /// </summary>
+    [JsonProperty("stateAlterValue")]
+    public string StateAlterValue { get; set; } = "";
+
+    /// <summary>
+    /// Whether this step was initiated by a Host message.
+    /// </summary>
+    [JsonProperty("hostInitiated")]
+    public bool HostInitiated { get; set; }
 
     [JsonIgnore]
     public string TriggerDisplay
@@ -108,4 +198,55 @@ public class ScenarioDefinition
 
     [JsonProperty("steps")]
     public List<ScenarioStep> Steps { get; set; } = [];
+}
+
+/// <summary>
+/// Types of triggers that can activate a scenario step.
+/// </summary>
+public enum TriggerType
+{
+    SecsMessage = 0,
+    HostMessage = 1,
+    EquipmentState = 2,
+    Mapper = 3,
+    Judgement = 4,
+}
+
+/// <summary>
+/// Types of actions that a scenario step can perform.
+/// </summary>
+public enum ActionType
+{
+    SecsReply = 0,
+    HostMessage = 1,
+    StateAlterer = 2,
+    Mapper = 3,
+}
+
+/// <summary>
+/// Event args for host action triggered by a scenario.
+/// </summary>
+public class HostActionEventArgs : EventArgs
+{
+    public string HostMessageName { get; }
+
+    public HostActionEventArgs(string hostMessageName)
+    {
+        HostMessageName = hostMessageName;
+    }
+}
+
+/// <summary>
+/// Event args for state alter action triggered by a scenario.
+/// </summary>
+public class StateAlterEventArgs : EventArgs
+{
+    public string VariableName { get; }
+    public string NewValue { get; }
+
+    public StateAlterEventArgs(string variableName, string newValue)
+    {
+        VariableName = variableName;
+        NewValue = newValue;
+    }
 }

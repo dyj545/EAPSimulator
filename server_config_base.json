@@ -1,0 +1,57 @@
+{
+  "secsGem": {
+    "connectionMode": "Passive",
+    "remoteHost": "127.0.0.1",
+    "remotePort": 5000,
+    "localHost": "0.0.0.0",
+    "localPort": 5000,
+    "deviceId": 1,
+    "acceptCommunication": true,
+    "t3Timeout": 45000,
+    "t5Timeout": 10000,
+    "t6Timeout": 5000,
+    "t7Timeout": 10000,
+    "t8Timeout": 5000
+  },
+  "host": {
+    "enabled": false,
+    "transportType": "Tcp",
+    "isActiveMode": true,
+    "remoteHost": "127.0.0.1",
+    "remotePort": 5000,
+    "localHost": "0.0.0.0",
+    "localPort": 5000,
+    "httpUrl": "",
+    "httpHeaders": {},
+    "brokerUri": "tcp://localhost:61616",
+    "queueName": "eap.mes.queue",
+    "responseQueueName": "eap.response.queue",
+    "username": null,
+    "password": null,
+    "rabbitMqHost": "localhost",
+    "rabbitMqPort": 5672,
+    "rabbitMqExchange": "eap.exchange",
+    "rabbitMqRoutingKey": "eap.mes",
+    "rabbitMqQueue": "eap.mes.queue",
+    "kafkaBootstrapServers": "localhost:9092",
+    "kafkaTopic": "eap-mes-topic",
+    "kafkaGroupId": "eap-group",
+    "grpcEndpoint": "https://localhost:5001",
+    "mqttBroker": "localhost",
+    "mqttPort": 1883,
+    "mqttTopic": "eap/mes/messages",
+    "mqttClientId": null
+  },
+  "files": {
+    "secsMessageTemplates": "secs_message_templates.json",
+    "hostMessageTemplates": "host_message_templates.json",
+    "autoReplyRules": "auto_reply_rules.json"
+  },
+  "logging": {
+    "console": true,
+    "file": true,
+    "filePath": "logs/eap-server-.log",
+    "rollingInterval": "Day",
+    "minimumLevel": "Information"
+  }
+}

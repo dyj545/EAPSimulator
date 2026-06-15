@@ -1,0 +1,100 @@
+<UserControl x:Class="EAPSimulator.Wpf.Views.FlowDesigner.ScenarioFlowView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:material="clr-namespace:MahApps.Metro.IconPacks;assembly=MahApps.Metro.IconPacks.Material"
+             xmlns:canvas="clr-namespace:EAPSimulator.Wpf.Controls"
+             xmlns:flowVm="clr-namespace:EAPSimulator.Wpf.ViewModels.FlowCanvas"
+             Foreground="{DynamicResource TextPrimaryBrush}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="320"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══ CENTER: Flow Canvas ═══ -->
+        <Border Grid.Column="0" Background="{DynamicResource CanvasBackgroundBrush}">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <canvas:SwimlaneCanvas x:Name="FlowCanvas" ViewModel="{Binding FlowCanvas}"
+                                       MinWidth="800" MinHeight="600"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- ═══ RIGHT SPLITTER ═══ -->
+        <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                      Background="{DynamicResource BorderBrush}" ResizeBehavior="PreviousAndNext"
+                      Cursor="SizeWE"/>
+
+        <!-- ═══ RIGHT: Property Panel ═══ -->
+        <DockPanel Grid.Column="2" Background="{DynamicResource BackgroundMediumBrush}">
+            <Border DockPanel.Dock="Top" Background="{DynamicResource BackgroundLightBrush}" Padding="6,4">
+                <TextBlock Text="属性面板" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+            </Border>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8,8">
+                    <!-- Empty state -->
+                    <Border Background="{DynamicResource CanvasBackgroundBrush}" CornerRadius="4" Padding="16,12"
+                            Margin="0,0,0,8">
+                        <StackPanel>
+                            <material:PackIconMaterial Kind="ClipboardOutline" Width="28" Height="28" HorizontalAlignment="Center"/>
+                            <TextBlock Text="选择节点以编辑步骤属性"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"
+                                       HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Undo/Redo -->
+                    <Border Background="{DynamicResource CanvasBackgroundBrush}" CornerRadius="4" Padding="12,8"
+                            Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="操作历史" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Padding="0"
+                                        Command="{Binding FlowCanvas.UndoCommand}"
+                                        IsEnabled="{Binding FlowCanvas.UndoRedo.CanUndo}" Margin="0,0,8,0" Width="60" Height="22">
+                                    <StackPanel Orientation="Horizontal">
+                                        <material:PackIconMaterial Kind="Undo" Width="12" Height="12" Margin="0,0,2,0"/>
+                                        <TextBlock Text="撤销" Foreground="#E0E0E0" FontSize="10" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Padding="0"
+                                        Command="{Binding FlowCanvas.RedoCommand}"
+                                        IsEnabled="{Binding FlowCanvas.UndoRedo.CanRedo}" Width="60" Height="22">
+                                    <StackPanel Orientation="Horizontal">
+                                        <material:PackIconMaterial Kind="Redo" Width="12" Height="12" Margin="0,0,2,0"/>
+                                        <TextBlock Text="重做" Foreground="#E0E0E0" FontSize="10" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- View controls -->
+                    <Border Background="{DynamicResource CanvasBackgroundBrush}" CornerRadius="4" Padding="12,8"
+                            Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="视图控制" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="缩放:" VerticalAlignment="Center" Margin="0,0,6,0"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{Binding FlowCanvas.Zoom, StringFormat={}{0:P0}}"
+                                           VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <Button Content="复位" Width="40" Height="22" Padding="0"
+                                        Command="{Binding FlowCanvas.ResetViewCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Grid>
+</UserControl>
