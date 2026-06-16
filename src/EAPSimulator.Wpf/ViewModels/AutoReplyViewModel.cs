@@ -293,28 +293,15 @@ public partial class ScenarioStepViewModel : ObservableObject
 
     public ScenarioStep ToModel()
     {
+        // WPF UI is legacy; Avalonia UI (EAPSimulator.UI) is canonical.
+        // Persist authored fields as a Receive step so the Famate-style engine can at least
+        // load it. Round-tripping the legacy trigger/action graph isn't supported here.
         return new ScenarioStep
         {
-            NodeId = NodeId,
-            TriggerType = TriggerType,
+            Kind = ScenarioStepKind.Receive,
+            TemplateName = ActionTemplateName,
             Stream = Stream,
             Function = Function,
-            HostTriggerName = HostTriggerName,
-            StateVariableName = StateVariableName,
-            MapperSourceField = MapperSourceField,
-            MapperVariable = MapperVariable,
-            JudgementVariable = JudgementVariable,
-            JudgementOperator = JudgementOperator,
-            JudgementValue = JudgementValue,
-            JudgementTargetStep = JudgementTargetStep,
-            ActionType = ActionType,
-            ActionTemplateName = ActionTemplateName,
-            ActionStream = ActionStream,
-            ActionFunction = ActionFunction,
-            HostActionName = HostActionName,
-            StateAlterTarget = StateAlterTarget,
-            StateAlterValue = StateAlterValue,
-            HostInitiated = HostInitiated,
         };
     }
 
@@ -322,27 +309,10 @@ public partial class ScenarioStepViewModel : ObservableObject
     {
         var vm = new ScenarioStepViewModel
         {
-            NodeId = step.NodeId,
             Stream = step.Stream,
             Function = step.Function,
-            HostTriggerName = step.HostTriggerName,
-            StateVariableName = step.StateVariableName,
-            MapperSourceField = step.MapperSourceField,
-            MapperVariable = step.MapperVariable,
-            JudgementVariable = step.JudgementVariable,
-            JudgementOperator = step.JudgementOperator,
-            JudgementValue = step.JudgementValue,
-            JudgementTargetStep = step.JudgementTargetStep,
-            ActionTemplateName = step.ActionTemplateName,
-            ActionStream = step.ActionStream,
-            ActionFunction = step.ActionFunction,
-            HostActionName = step.HostActionName,
-            StateAlterTarget = step.StateAlterTarget,
-            StateAlterValue = step.StateAlterValue,
-            HostInitiated = step.HostInitiated,
+            ActionTemplateName = step.TemplateName,
         };
-        vm.TriggerType = step.TriggerType;
-        vm.ActionType = step.ActionType;
         vm.UpdateDisplayText();
         return vm;
     }

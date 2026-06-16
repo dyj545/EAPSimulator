@@ -67,6 +67,38 @@ public partial class AutoReplyViewModel : ObservableObject
     [ObservableProperty]
     private bool _showScenarios;
 
+    [ObservableProperty]
+    private string _runStatus = "";
+
+    /// <summary>
+    /// Tracks which side of the link this simulator runs as. Set by MainViewModel from
+    /// <see cref="ConfigViewModel.ConnectionMode"/>; used to default new scenarios' Role
+    /// and to filter AutoStart scenarios so an EAP-side script doesn't fire on the
+    /// equipment side and vice-versa.
+    /// </summary>
+    [ObservableProperty]
+    private EAPSimulator.Core.Protocols.ProtocolRole _currentRole = EAPSimulator.Core.Protocols.ProtocolRole.Equipment;
+
+    /// <summary>The currently active scenario engine, set by ApplyToRouter when protocol starts.</summary>
+    private ScenarioEngine? _activeEngine;
+
+    [RelayCommand]
+    private void RunScenario()
+    {
+        if (SelectedScenario == null) { RunStatus = "未选择场景"; return; }
+        if (_activeEngine == null) { RunStatus = "请先连接协议(Run 需要发送通道)"; return; }
+        var def = SelectedScenario.ToModel();
+        _activeEngine.Start(def);
+        RunStatus = $"运行中: {def.Name}";
+    }
+
+    [RelayCommand]
+    private void StopScenario()
+    {
+        _activeEngine?.Stop();
+        RunStatus = "已请求停止";
+    }
+
     // ─── Quick Reply Commands ───
 
     [RelayCommand]
@@ -99,7 +131,18 @@ public partial class AutoReplyViewModel : ObservableObject
     [RelayCommand]
     private void AddScenario()
     {
-        var scenario = new ScenarioViewModel { Name = "New Scenario", Description = "", Enabled = true };
+        // Default Role to whatever side this simulator currently runs as — saves the user
+        // from picking it manually each time and prevents the "wrong-side" mistake by default.
+        var defaultRole = CurrentRole == EAPSimulator.Core.Protocols.ProtocolRole.Host
+            ? ScenarioRole.Host
+            : ScenarioRole.Equipment;
+        var scenario = new ScenarioViewModel
+        {
+            Name = "New Scenario",
+            Description = "",
+            Enabled = true,
+            Role = defaultRole,
+        };
         Scenarios.Add(scenario);
         SelectedScenario = scenario;
     }
@@ -114,18 +157,88 @@ public partial class AutoReplyViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void AddStep()
+    private void AddStep(string? kindName)
     {
         if (SelectedScenario == null) return;
-        var step = new ScenarioStepViewModel
+        var kind = ScenarioStepKind.Receive;
+        if (!string.IsNullOrEmpty(kindName) && Enum.TryParse<ScenarioStepKind>(kindName, true, out var k))
+            kind = k;
+        var step = new ScenarioStepViewModel { Kind = kind };
+        // Sensible per-kind defaults
+        switch (kind)
         {
-            Stream = 0,
-            Function = 0,
-            ActionTemplateName = "",
-        };
+            case ScenarioStepKind.Send:
+                step.TemplateName = TemplateNames.FirstOrDefault() ?? "";
+                break;
+            case ScenarioStepKind.Receive:
+                step.TimeoutMs = 30_000;
+                break;
+            case ScenarioStepKind.Reply:
+                step.TemplateName = TemplateNames.FirstOrDefault() ?? "";
+                break;
+            case ScenarioStepKind.Delay:
+                step.DelayMs = 1_000;
+                break;
+            case ScenarioStepKind.Log:
+                step.Message = "";
+                break;
+            case ScenarioStepKind.Branch:
+                // Seed with one empty case so the user can start filling immediately.
+                step.Cases.Add(new BranchCaseViewModel());
+                break;
+        }
         step.UpdateDisplayText();
         SelectedScenario.Steps.Add(step);
         SelectedStep = step;
+    }
+
+    [RelayCommand]
+    private void AddBranchCase()
+    {
+        if (SelectedStep == null || SelectedStep.Kind != ScenarioStepKind.Branch) return;
+        SelectedStep.Cases.Add(new BranchCaseViewModel());
+        SelectedStep.UpdateDisplayText();
+    }
+
+    [RelayCommand]
+    private void DeleteBranchCase(BranchCaseViewModel? c)
+    {
+        if (SelectedStep == null || c == null) return;
+        SelectedStep.Cases.Remove(c);
+        SelectedStep.UpdateDisplayText();
+    }
+
+    [RelayCommand]
+    private void AddBranchCaseCondition(BranchCaseViewModel? c)
+    {
+        if (c == null) return;
+        var cond = new FieldConditionViewModel { Path = "1/0", Value = "0" };
+        // Try to seed template fields from the most recent Receive step before this Branch.
+        if (SelectedScenario != null && SelectedStep != null)
+        {
+            var idx = SelectedScenario.Steps.IndexOf(SelectedStep);
+            for (int i = idx - 1; i >= 0; i--)
+            {
+                var s = SelectedScenario.Steps[i];
+                if (s.Kind == ScenarioStepKind.Receive && !string.IsNullOrEmpty(s.TemplateName))
+                {
+                    var fields = ExtractTemplateFields(s.TemplateName);
+                    foreach (var f in fields) cond.TemplateFields.Add(f);
+                    break;
+                }
+            }
+        }
+        c.Conditions.Add(cond);
+        SelectedStep?.UpdateDisplayText();
+    }
+
+    [RelayCommand]
+    private void DeleteBranchCaseCondition(FieldConditionViewModel? cond)
+    {
+        if (cond == null || SelectedStep == null) return;
+        foreach (var bc in SelectedStep.Cases)
+            if (bc.Conditions.Remove(cond)) break;
+        SelectedStep.UpdateDisplayText();
     }
 
     [RelayCommand]
@@ -160,15 +273,18 @@ public partial class AutoReplyViewModel : ObservableObject
     {
         var cond = new FieldConditionViewModel { Path = "1/0", Value = "0" };
 
-        // If a scenario step is selected, add to it
+        // If a scenario step is selected, add to it (template comes from the step's TemplateName,
+        // for Receive steps that's the template hint; for others conditions don't really apply but
+        // we still allow them).
         if (SelectedStep != null)
         {
-            if (!string.IsNullOrEmpty(SelectedStep.TriggerTemplateName))
+            if (!string.IsNullOrEmpty(SelectedStep.TemplateName))
             {
-                var fields = ExtractTemplateFields(SelectedStep.TriggerTemplateName);
+                var fields = ExtractTemplateFields(SelectedStep.TemplateName);
                 foreach (var f in fields) cond.TemplateFields.Add(f);
             }
             SelectedStep.Conditions.Add(cond);
+            SelectedStep.UpdateDisplayText();
             return;
         }
         // Otherwise, if a quick reply rule is selected, add to it
@@ -192,6 +308,7 @@ public partial class AutoReplyViewModel : ObservableObject
         if (SelectedStep != null)
         {
             SelectedStep.Conditions.Remove(cond);
+            SelectedStep.UpdateDisplayText();
             return;
         }
         // Otherwise try removing from quick reply rule
@@ -453,9 +570,11 @@ public partial class AutoReplyViewModel : ObservableObject
 
     /// <summary>
     /// Apply quick-reply rules and scenarios to the router.
-    /// Call this after protocol starts.
+    /// Call this after protocol starts. <paramref name="send"/> is invoked by Send/Reply
+    /// scenario steps; pass the protocol's SendSecsMessageAsync.
     /// </summary>
-    public void ApplyToRouter(MessageRouter router, Microsoft.Extensions.Logging.ILogger logger)
+    public void ApplyToRouter(MessageRouter router, Microsoft.Extensions.Logging.ILogger logger,
+        Func<SecsMessage, CancellationToken, Task>? send = null)
     {
         router.ClearQuickReplyRules();
 
@@ -468,25 +587,30 @@ public partial class AutoReplyViewModel : ObservableObject
                 router.RegisterQuickReplyRule(rule, template);
         }
 
-        // Register scenario engine
-        var scenarioDefs = Scenarios.Where(s => s.Enabled).Select(s => s.ToModel()).ToList();
-        if (scenarioDefs.Count > 0)
-        {
-            var engine = new ScenarioEngine(logger, scenarioDefs, FindTemplateByName);
-            router.SetScenarioEngine(engine);
-        }
-        else
-        {
-            router.SetScenarioEngine(null);
-        }
+        // Build a single engine for all scenarios; each Run picks one.
+        // Pass CurrentRole so the engine refuses to run cross-role scripts (e.g. an EAP-side
+        // scenario loaded on the equipment-side simulator).
+        var engine = new ScenarioEngine(logger, FindTemplateByName, send, CurrentRole);
+        engine.Log += text =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => StatusMessage = text);
+        engine.ScenarioFinished += (sc, status) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => RunStatus = $"{sc.Name}: {status}");
+        router.SetScenarioEngine(engine);
+        _activeEngine = engine;
+
+        // Auto-start scenarios — but only those whose authored Role matches this side.
+        foreach (var scVm in Scenarios.Where(s => s.Enabled && s.AutoStart
+                                                  && ScenarioEngine.RoleAllows(s.Role, CurrentRole)))
+            engine.Start(scVm.ToModel());
     }
 
     /// <summary>
     /// Hot-reload: re-register all rules on a running router.
     /// </summary>
-    public void HotReloadToRouter(MessageRouter router, Microsoft.Extensions.Logging.ILogger logger)
+    public void HotReloadToRouter(MessageRouter router, Microsoft.Extensions.Logging.ILogger logger,
+        Func<SecsMessage, CancellationToken, Task>? send = null)
     {
-        ApplyToRouter(router, logger);
+        ApplyToRouter(router, logger, send);
     }
 
     partial void OnSelectedQuickReplyChanged(QuickReplyRuleViewModel? value)
@@ -686,7 +810,86 @@ public partial class ScenarioViewModel : ObservableObject
     [ObservableProperty]
     private bool _loop;
 
+    [ObservableProperty]
+    private bool _autoStart;
+
+    /// <summary>
+    /// Which side of the link this scenario is authored for. Drives the role badge in the
+    /// list and is checked when ScenarioEngine.Start is called.
+    /// </summary>
+    [ObservableProperty]
+    private ScenarioRole _role = ScenarioRole.Any;
+
+    /// <summary>String adapter for binding <see cref="Role"/> to a ComboBox of strings.</summary>
+    public string RoleName
+    {
+        get => Role.ToString();
+        set { if (Enum.TryParse<ScenarioRole>(value, true, out var r)) Role = r; }
+    }
+    public string[] RoleNames => Enum.GetNames<ScenarioRole>();
+
+    /// <summary>Short tag shown in the scenario list (e.g. "EAP", "EQP", "ANY").</summary>
+    public string RoleBadge => Role switch
+    {
+        ScenarioRole.Host => "EAP",
+        ScenarioRole.Equipment => "EQP",
+        _ => "ANY",
+    };
+
+    /// <summary>Foreground colour for the role badge (kept in VM so axaml can bind directly).</summary>
+    public string RoleBadgeColor => Role switch
+    {
+        ScenarioRole.Host => "#89B4FA",        // blue
+        ScenarioRole.Equipment => "#A6E3A1",   // green
+        _ => "#888888",                        // gray
+    };
+
+    partial void OnRoleChanged(ScenarioRole value)
+    {
+        OnPropertyChanged(nameof(RoleName));
+        OnPropertyChanged(nameof(RoleBadge));
+        OnPropertyChanged(nameof(RoleBadgeColor));
+    }
+
     public ObservableCollection<ScenarioStepViewModel> Steps { get; } = [];
+
+    public ScenarioViewModel()
+    {
+        Steps.CollectionChanged += (_, args) =>
+        {
+            if (args.NewItems != null)
+                foreach (ScenarioStepViewModel s in args.NewItems)
+                    s.PropertyChanged += OnStepPropertyChanged;
+            if (args.OldItems != null)
+                foreach (ScenarioStepViewModel s in args.OldItems)
+                    s.PropertyChanged -= OnStepPropertyChanged;
+            RefreshAvailableLabels();
+        };
+    }
+
+    private void OnStepPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ScenarioStepViewModel.Label))
+            RefreshAvailableLabels();
+    }
+
+    /// <summary>
+    /// Push the current set of non-empty labels to every step's AvailableLabels list.
+    /// Branch case rows bind their target-label ComboBox to that list.
+    /// </summary>
+    public void RefreshAvailableLabels()
+    {
+        var labels = Steps
+            .Select(s => s.Label)
+            .Where(l => !string.IsNullOrEmpty(l))
+            .Distinct()
+            .ToList();
+        foreach (var s in Steps)
+        {
+            s.AvailableLabels.Clear();
+            foreach (var l in labels) s.AvailableLabels.Add(l);
+        }
+    }
 
     public ScenarioDefinition ToModel()
     {
@@ -694,8 +897,10 @@ public partial class ScenarioViewModel : ObservableObject
         {
             Name = Name,
             Description = Description,
+            Role = Role,
             Enabled = Enabled,
             Loop = Loop,
+            AutoStart = AutoStart,
             Steps = Steps.Select(s => s.ToModel()).ToList(),
         };
     }
@@ -706,19 +911,39 @@ public partial class ScenarioViewModel : ObservableObject
         {
             Name = def.Name,
             Description = def.Description,
+            Role = def.Role,
             Enabled = def.Enabled,
             Loop = def.Loop,
+            AutoStart = def.AutoStart,
         };
         foreach (var step in def.Steps)
             vm.Steps.Add(ScenarioStepViewModel.FromModel(step));
+        vm.RefreshAvailableLabels();
         return vm;
     }
 }
 
 // ─── Scenario Step ViewModel ───
 
+/// <summary>
+/// Single step VM. Holds every kind's fields; the UI shows only those relevant to <see cref="Kind"/>.
+/// </summary>
 public partial class ScenarioStepViewModel : ObservableObject
 {
+    [ObservableProperty]
+    private ScenarioStepKind _kind = ScenarioStepKind.Receive;
+
+    [ObservableProperty]
+    private string _label = "";
+
+    // Send / Reply
+    [ObservableProperty]
+    private string _templateName = "";
+
+    [ObservableProperty]
+    private bool _waitReply;
+
+    // Receive
     [ObservableProperty]
     private byte _stream;
 
@@ -726,67 +951,159 @@ public partial class ScenarioStepViewModel : ObservableObject
     private byte _function;
 
     [ObservableProperty]
-    private string _triggerTemplateName = "";
+    private int _timeoutMs = 30_000;
 
     [ObservableProperty]
-    private string _actionTemplateName = "";
-
-    [ObservableProperty]
-    private byte _actionStream;
-
-    [ObservableProperty]
-    private byte _actionFunction;
-
-    [ObservableProperty]
-    private string _displayText = "";
+    private ReceiveTimeoutAction _onTimeout = ReceiveTimeoutAction.Fail;
 
     public ObservableCollection<FieldConditionViewModel> Conditions { get; } = [];
 
-    partial void OnStreamChanged(byte value) => UpdateDisplayText();
-    partial void OnFunctionChanged(byte value) => UpdateDisplayText();
-    partial void OnActionTemplateNameChanged(string value) => UpdateDisplayText();
+    // Delay
+    [ObservableProperty]
+    private int _delayMs = 1_000;
 
-    partial void OnTriggerTemplateNameChanged(string value)
+    // Log
+    [ObservableProperty]
+    private string _message = "";
+
+    // Display
+    [ObservableProperty]
+    private string _displayText = "";
+
+    // Kind-driven visibility flags for the editor (so axaml can use a single ContentControl
+    // with simple {Binding IsXxxKind} → IsVisible bindings rather than a DataTemplateSelector).
+    public bool IsSendKind => Kind == ScenarioStepKind.Send;
+    public bool IsReceiveKind => Kind == ScenarioStepKind.Receive;
+    public bool IsReplyKind => Kind == ScenarioStepKind.Reply;
+    public bool IsDelayKind => Kind == ScenarioStepKind.Delay;
+    public bool IsLogKind => Kind == ScenarioStepKind.Log;
+    public bool IsBranchKind => Kind == ScenarioStepKind.Branch;
+    public bool UsesTemplate => IsSendKind || IsReplyKind;
+
+    /// <summary>Branch cases (used only when Kind == Branch).</summary>
+    public ObservableCollection<BranchCaseViewModel> Cases { get; } = [];
+
+    [ObservableProperty]
+    private string _defaultLabel = "";
+
+    /// <summary>Set by the parent ScenarioViewModel so each case row can pick a target label from the same scenario.</summary>
+    public ObservableCollection<string> AvailableLabels { get; } = [];
+
+    public string[] KindNames => Enum.GetNames<ScenarioStepKind>();
+    public string[] OnTimeoutNames => Enum.GetNames<ReceiveTimeoutAction>();
+
+    /// <summary>String adapter for binding <see cref="Kind"/> to a ComboBox of strings.</summary>
+    public string KindName
     {
-        if (!string.IsNullOrEmpty(value))
+        get => Kind.ToString();
+        set
         {
-            var parent = FindParentAutoReplyVm();
-            var tpl = parent?.FindTemplateByName(value);
-            if (tpl != null)
-            {
-                Stream = tpl.Stream;
-                Function = tpl.Function;
-            }
-            parent?.PopulateTemplateFields(Conditions, value);
+            if (Enum.TryParse<ScenarioStepKind>(value, true, out var k))
+                Kind = k;
         }
     }
 
-    private AutoReplyViewModel? FindParentAutoReplyVm()
+    /// <summary>String adapter for binding <see cref="OnTimeout"/> to a ComboBox of strings.</summary>
+    public string OnTimeoutName
     {
-        // Walk up via the static reference set by AutoReplyViewModel
-        return AutoReplyViewModel.Instance;
+        get => OnTimeout.ToString();
+        set
+        {
+            if (Enum.TryParse<ReceiveTimeoutAction>(value, true, out var ot))
+                OnTimeout = ot;
+        }
+    }
+
+    partial void OnKindChanged(ScenarioStepKind value)
+    {
+        OnPropertyChanged(nameof(IsSendKind));
+        OnPropertyChanged(nameof(IsReceiveKind));
+        OnPropertyChanged(nameof(IsReplyKind));
+        OnPropertyChanged(nameof(IsDelayKind));
+        OnPropertyChanged(nameof(IsLogKind));
+        OnPropertyChanged(nameof(IsBranchKind));
+        OnPropertyChanged(nameof(UsesTemplate));
+        OnPropertyChanged(nameof(KindName));
+        UpdateDisplayText();
+    }
+
+    partial void OnOnTimeoutChanged(ReceiveTimeoutAction value)
+        => OnPropertyChanged(nameof(OnTimeoutName));
+
+    partial void OnStreamChanged(byte value) => UpdateDisplayText();
+    partial void OnFunctionChanged(byte value) => UpdateDisplayText();
+    partial void OnDelayMsChanged(int value) => UpdateDisplayText();
+    partial void OnMessageChanged(string value) => UpdateDisplayText();
+    partial void OnLabelChanged(string value) => UpdateDisplayText();
+
+    partial void OnTemplateNameChanged(string value)
+    {
+        UpdateDisplayText();
+        if (string.IsNullOrEmpty(value)) return;
+
+        var parent = AutoReplyViewModel.Instance;
+        var tpl = parent?.FindTemplateByName(value);
+        if (tpl != null && Kind == ScenarioStepKind.Receive)
+        {
+            // For a Receive step using a template as a shape hint, copy S/F.
+            Stream = tpl.Stream;
+            Function = tpl.Function;
+        }
+        // Populate condition field options from the template body so the user
+        // can pick paths via the dropdown.
+        if (Kind == ScenarioStepKind.Receive && parent != null)
+            parent.PopulateTemplateFields(Conditions, value);
     }
 
     public void UpdateDisplayText()
     {
-        var condStr = Conditions.Count > 0
-            ? " where " + string.Join(" & ", Conditions.Select(c => $"[{c.Path}] {c.Operator} {c.Value}"))
-            : "";
-        var action = !string.IsNullOrEmpty(ActionTemplateName) ? ActionTemplateName : "(未设置)";
-        var trigger = Stream == 0 && Function == 0 ? "(未设置)" : $"S{Stream}F{Function}";
-        DisplayText = $"{trigger}{condStr} → {action}";
+        var label = string.IsNullOrEmpty(Label) ? "" : $" — {Label}";
+        DisplayText = Kind switch
+        {
+            ScenarioStepKind.Send => $"▶ Send {(string.IsNullOrEmpty(TemplateName) ? "(未设置)" : TemplateName)}{label}",
+            ScenarioStepKind.Receive => BuildReceiveDisplay() + label,
+            ScenarioStepKind.Reply => $"↩ Reply {(string.IsNullOrEmpty(TemplateName) ? "(未设置)" : TemplateName)}{label}",
+            ScenarioStepKind.Delay => $"⏱ Delay {DelayMs} ms{label}",
+            ScenarioStepKind.Log => $"📝 Log {Message}{label}",
+            ScenarioStepKind.Branch => BuildBranchDisplay() + label,
+            _ => $"? {Kind}{label}",
+        };
+    }
+
+    private string BuildReceiveDisplay()
+    {
+        var sf = Stream == 0 && Function == 0 ? "any" : $"S{Stream}F{Function}";
+        if (Conditions.Count == 0) return $"◀ Recv {sf}";
+        var conds = string.Join(" & ", Conditions.Select(c => $"[{c.Path}] {c.Operator} {c.Value}"));
+        return $"◀ Recv {sf} where {conds}";
+    }
+
+    private string BuildBranchDisplay()
+    {
+        if (Cases.Count == 0)
+            return string.IsNullOrEmpty(DefaultLabel) ? "⑂ Branch (无规则)" : $"⑂ Goto → {DefaultLabel}";
+        var parts = Cases.Select(c => $"{c.Summary}→{c.TargetLabel}").ToList();
+        if (!string.IsNullOrEmpty(DefaultLabel)) parts.Add($"else→{DefaultLabel}");
+        return $"⑂ Branch {{ {string.Join(", ", parts)} }}";
     }
 
     public ScenarioStep ToModel()
     {
         return new ScenarioStep
         {
+            Kind = Kind,
+            Label = Label,
+            TemplateName = TemplateName,
+            WaitReply = WaitReply,
             Stream = Stream,
             Function = Function,
             Conditions = Conditions.Select(c => c.ToModel()).ToList(),
-            ActionTemplateName = ActionTemplateName,
-            ActionStream = ActionStream,
-            ActionFunction = ActionFunction,
+            TimeoutMs = TimeoutMs,
+            OnTimeout = OnTimeout,
+            DelayMs = DelayMs,
+            Message = Message,
+            Cases = Cases.Select(c => c.ToModel()).ToList(),
+            DefaultLabel = DefaultLabel,
         };
     }
 
@@ -794,15 +1111,52 @@ public partial class ScenarioStepViewModel : ObservableObject
     {
         var vm = new ScenarioStepViewModel
         {
+            Kind = step.Kind,
+            Label = step.Label,
+            TemplateName = step.TemplateName,
+            WaitReply = step.WaitReply,
             Stream = step.Stream,
             Function = step.Function,
-            ActionTemplateName = step.ActionTemplateName,
-            ActionStream = step.ActionStream,
-            ActionFunction = step.ActionFunction,
+            TimeoutMs = step.TimeoutMs,
+            OnTimeout = step.OnTimeout,
+            DelayMs = step.DelayMs,
+            Message = step.Message,
+            DefaultLabel = step.DefaultLabel,
         };
         foreach (var cond in step.Conditions.Select(FieldConditionViewModel.FromModel))
             vm.Conditions.Add(cond);
+        foreach (var c in step.Cases)
+            vm.Cases.Add(BranchCaseViewModel.FromModel(c));
         vm.UpdateDisplayText();
+        return vm;
+    }
+}
+
+/// <summary>
+/// One case row in a Branch step. Holds conditions + target label.
+/// </summary>
+public partial class BranchCaseViewModel : ObservableObject
+{
+    public ObservableCollection<FieldConditionViewModel> Conditions { get; } = [];
+
+    [ObservableProperty]
+    private string _targetLabel = "";
+
+    public string Summary => Conditions.Count == 0
+        ? "always"
+        : string.Join(" & ", Conditions.Select(c => $"[{c.Path}] {c.Operator} {c.Value}"));
+
+    public BranchCase ToModel() => new()
+    {
+        Conditions = Conditions.Select(c => c.ToModel()).ToList(),
+        TargetLabel = TargetLabel,
+    };
+
+    public static BranchCaseViewModel FromModel(BranchCase c)
+    {
+        var vm = new BranchCaseViewModel { TargetLabel = c.TargetLabel };
+        foreach (var cond in c.Conditions.Select(FieldConditionViewModel.FromModel))
+            vm.Conditions.Add(cond);
         return vm;
     }
 }

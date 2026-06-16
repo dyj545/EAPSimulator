@@ -19,7 +19,10 @@ public class AutoReplyConfig
             return new AutoReplyConfig();
 
         var json = File.ReadAllText(path);
-        return JsonConvert.DeserializeObject<AutoReplyConfig>(json) ?? new AutoReplyConfig();
+        var cfg = JsonConvert.DeserializeObject<AutoReplyConfig>(json) ?? new AutoReplyConfig();
+        // Convert legacy (Receive carrying parked actionTemplateName) into Receive+Reply pairs.
+        ScenarioMigration.MigrateLegacy(cfg.Scenarios);
+        return cfg;
     }
 
     public void SaveToFile(string path)

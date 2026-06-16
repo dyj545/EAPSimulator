@@ -161,12 +161,12 @@ public partial class ScenarioFlowView : UserControl
     {
         return step.TriggerType switch
         {
-            Core.Protocols.SecsGem.AutoReply.TriggerType.Mapper => SwimLane.EAP,
-            Core.Protocols.SecsGem.AutoReply.TriggerType.Judgement => SwimLane.EAP,
-            Core.Protocols.SecsGem.AutoReply.TriggerType.SecsMessage =>
+            ViewModels.TriggerType.Mapper => SwimLane.EAP,
+            ViewModels.TriggerType.Judgement => SwimLane.EAP,
+            ViewModels.TriggerType.SecsMessage =>
                 step.HostInitiated ? SwimLane.EAP : SwimLane.Equipment,
-            Core.Protocols.SecsGem.AutoReply.TriggerType.HostMessage => SwimLane.Host,
-            Core.Protocols.SecsGem.AutoReply.TriggerType.EquipmentState => SwimLane.Equipment,
+            ViewModels.TriggerType.HostMessage => SwimLane.Host,
+            ViewModels.TriggerType.EquipmentState => SwimLane.Equipment,
             _ => SwimLane.EAP
         };
     }
@@ -175,11 +175,11 @@ public partial class ScenarioFlowView : UserControl
     {
         return step.ActionType switch
         {
-            Core.Protocols.SecsGem.AutoReply.ActionType.Mapper => SwimLane.EAP,
-            Core.Protocols.SecsGem.AutoReply.ActionType.StateAlterer => SwimLane.EAP,
-            Core.Protocols.SecsGem.AutoReply.ActionType.SecsReply =>
+            ViewModels.ActionType.Mapper => SwimLane.EAP,
+            ViewModels.ActionType.StateAlterer => SwimLane.EAP,
+            ViewModels.ActionType.SecsReply =>
                 step.HostInitiated ? SwimLane.Equipment : SwimLane.EAP,
-            Core.Protocols.SecsGem.AutoReply.ActionType.HostMessage => SwimLane.Host,
+            ViewModels.ActionType.HostMessage => SwimLane.Host,
             _ => SwimLane.EAP
         };
     }

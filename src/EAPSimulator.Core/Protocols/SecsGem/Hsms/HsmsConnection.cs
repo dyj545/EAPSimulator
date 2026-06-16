@@ -19,8 +19,11 @@ public class HsmsConnection : IAsyncDisposable
     private Task? _receiveTask;
     private Timer? _t6Timer;
     private Timer? _t7Timer;
+    private Timer? _t8Timer;
+    private volatile bool _t8Stopped = true;
     private uint _systemBytesCounter;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private int _closed;  // 0 = open, 1 = closed; guarded with Interlocked for idempotency.
 
     private readonly int _t3Timeout;
     private readonly int _t5Timeout;
@@ -160,7 +163,7 @@ public class HsmsConnection : IAsyncDisposable
                 StopT7Timer();
                 // Send SelectRsp
                 var selectRsp = HsmsMessage.CreateControlMessage(HsmsMessageType.SelectRsp, _sessionId, msg.Header.SystemBytes);
-                _ = SendHsmsAsync(selectRsp, CancellationToken.None);
+                FireAndLog(SendHsmsAsync(selectRsp, CancellationToken.None), "SelectRsp");
                 break;
 
             case HsmsMessageType.SelectRsp:
@@ -174,7 +177,7 @@ public class HsmsConnection : IAsyncDisposable
             case HsmsMessageType.DeselectReq:
                 StateMachine.TryTrigger(HsmsEvent.ReceiveDeselectReq);
                 var deselectRsp = HsmsMessage.CreateControlMessage(HsmsMessageType.DeselectRsp, _sessionId, msg.Header.SystemBytes);
-                _ = SendHsmsAsync(deselectRsp, CancellationToken.None);
+                FireAndLog(SendHsmsAsync(deselectRsp, CancellationToken.None), "DeselectRsp");
                 break;
 
             case HsmsMessageType.DeselectRsp:
@@ -186,7 +189,7 @@ public class HsmsConnection : IAsyncDisposable
             case HsmsMessageType.LinkTestReq:
                 StateMachine.TryTrigger(HsmsEvent.ReceiveLinkTestReq);
                 var ltRsp = HsmsMessage.CreateControlMessage(HsmsMessageType.LinkTestRsp, _sessionId, msg.Header.SystemBytes);
-                _ = SendHsmsAsync(ltRsp, CancellationToken.None);
+                FireAndLog(SendHsmsAsync(ltRsp, CancellationToken.None), "LinkTestRsp");
                 break;
 
             case HsmsMessageType.LinkTestRsp:
@@ -204,6 +207,20 @@ public class HsmsConnection : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Fire-and-forget that still surfaces send failures. Without this, an exception in
+    /// SendHsmsAsync (broken pipe, peer reset) for a control reply would land on the
+    /// thread pool with no observer and silently cause T6 timeouts on the peer.
+    /// </summary>
+    private void FireAndLog(Task t, string what)
+    {
+        _ = t.ContinueWith(task =>
+        {
+            if (task.IsFaulted)
+                _logger.LogError(task.Exception, "HSMS control reply '{What}' failed", what);
+        }, TaskScheduler.Default);
+    }
+
     private uint NextSystemBytes() => Interlocked.Increment(ref _systemBytesCounter);
 
     public async Task<HsmsMessage> SendSelectAsync(CancellationToken ct)
@@ -214,21 +231,29 @@ public class HsmsConnection : IAsyncDisposable
         var tcs = new TaskCompletionSource<HsmsMessage>();
         _pendingReplies[sysBytes] = tcs;
 
-        await SendHsmsAsync(selectReq, ct);
-        StateMachine.TryTrigger(HsmsEvent.Select);
-        StartT6Timer();
-
-        using var timeoutCts = new CancellationTokenSource(_t6Timeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-
         try
         {
-            return await tcs.Task.WaitAsync(linkedCts.Token);
+            await SendHsmsAsync(selectReq, ct);
+            StateMachine.TryTrigger(HsmsEvent.Select);
+            StartT6Timer();
+
+            using var timeoutCts = new CancellationTokenSource(_t6Timeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
+            try
+            {
+                return await tcs.Task.WaitAsync(linkedCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                StateMachine.TryTrigger(HsmsEvent.SelectTimeout);
+                throw new TimeoutException("HSMS Select timeout (T6)");
+            }
         }
-        catch (OperationCanceledException)
+        finally
         {
-            StateMachine.TryTrigger(HsmsEvent.SelectTimeout);
-            throw new TimeoutException("HSMS Select timeout (T6)");
+            // Always clean up — whether we got a reply, timed out, or the send threw.
+            _pendingReplies.TryRemove(sysBytes, out _);
         }
     }
 
@@ -244,13 +269,14 @@ public class HsmsConnection : IAsyncDisposable
             _pendingReplies[sysBytes] = tcs;
         }
 
-        // Send bytes on wire and fire MessageSent immediately
-        // so the message appears in the log before the reply arrives
-        await SendHsmsAsync(hsmsMsg, ct);
-
-        if (tcs != null)
+        try
         {
-            // Wait for reply with T3 timeout
+            // Send bytes on wire and fire MessageSent immediately
+            // so the message appears in the log before the reply arrives
+            await SendHsmsAsync(hsmsMsg, ct);
+
+            if (tcs == null) return hsmsMsg;
+
             using var timeoutCts = new CancellationTokenSource(_t3Timeout);
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
 
@@ -260,12 +286,14 @@ public class HsmsConnection : IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
-                _pendingReplies.TryRemove(sysBytes, out _);
-                throw new TimeoutException($"HSMS T3 timeout waiting for reply to S{secsMsg.Stream}F{secsMsg.Function}");
+                throw new TimeoutException(
+                    $"HSMS T3 timeout waiting for reply to S{secsMsg.Stream}F{secsMsg.Function}");
             }
         }
-
-        return hsmsMsg;
+        finally
+        {
+            if (tcs != null) _pendingReplies.TryRemove(sysBytes, out _);
+        }
     }
 
     public async Task SendHsmsAsync(HsmsMessage msg, CancellationToken ct)
@@ -315,9 +343,6 @@ public class HsmsConnection : IAsyncDisposable
     private void StopT6Timer() => _t6Timer?.Dispose();
 
     // T8 timer: inter-byte timeout
-    private Timer? _t8Timer;
-    private volatile bool _t8Stopped = true;
-
     private void ResetT8Timer()
     {
         _t8Stopped = false;
@@ -339,22 +364,25 @@ public class HsmsConnection : IAsyncDisposable
 
     public void CloseConnection()
     {
+        // Idempotent: any of the four call sites (receive loop EOF / SeparateReq / T7 or T8
+        // timer / external Disconnect) may race; only the first wins.
+        if (Interlocked.Exchange(ref _closed, 1) != 0) return;
+
         _t6Timer?.Dispose();
         _t7Timer?.Dispose();
         _t8Timer?.Dispose();
-        _receiveCts?.Cancel();
-        _stream?.Close();
-        _tcpClient?.Close();
+        try { _receiveCts?.Cancel(); } catch (ObjectDisposedException) { }
+        try { _stream?.Close(); } catch { }
+        try { _tcpClient?.Close(); } catch { }
 
         if (StateMachine.State != HsmsState.NotConnected)
-        {
             StateMachine.TryTrigger(HsmsEvent.Disconnect);
-        }
 
-        // Reject all pending replies
-        foreach (var kvp in _pendingReplies)
+        // Snapshot keys first; senders may concurrently add a TCS, so iterating the live
+        // dictionary is racy.
+        foreach (var key in _pendingReplies.Keys.ToArray())
         {
-            if (_pendingReplies.TryRemove(kvp.Key, out var tcs))
+            if (_pendingReplies.TryRemove(key, out var tcs))
                 tcs.TrySetCanceled();
         }
 

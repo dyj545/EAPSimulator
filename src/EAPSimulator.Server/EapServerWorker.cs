@@ -196,29 +196,21 @@ public class EapServerWorker : BackgroundService
         }
 
         // Setup scenario engine
+        // The new ScenarioEngine is an imperative interpreter (Send/Receive/Reply/Delay/Log/Branch);
+        // it runs ONE scenario at a time on demand. Server-side autostart of scenarios is not yet wired —
+        // load a scenario via UI or future config flag.
         var enabledScenarios = autoReplyConfig.Scenarios.Where(s => s.Enabled).ToList();
         if (enabledScenarios.Count > 0)
         {
             _scenarioEngine = new ScenarioEngine(
                 _loggerFactory.CreateLogger<ScenarioEngine>(),
-                enabledScenarios,
                 templateLookup,
-                stateAlterHandler: (varName, value) =>
-                {
-                    if (_equipmentModel == null) return;
-                    var sv = _equipmentModel.StatusVariables.FirstOrDefault(v => v.Name == varName);
-                    if (sv != null)
-                    {
-                        sv.Value = value;
-                        _logger.LogInformation("State alter: {Var} = {Value}", varName, value);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("State alter: variable '{Var}' not found", varName);
-                    }
-                });
+                send: (msg, ct) => _secsProtocol!.SendSecsMessageAsync(msg, ct),
+                currentRole: _secsProtocol.Role);
+            _scenarioEngine.Log += text => _logger.LogInformation("[Scenario] {Text}", text);
             _secsProtocol.Router.SetScenarioEngine(_scenarioEngine);
-            _logger.LogInformation("Scenario engine loaded with {Count} scenarios", enabledScenarios.Count);
+            _logger.LogInformation("Scenario engine ready ({Count} scenarios available; start manually)",
+                enabledScenarios.Count);
         }
 
         await _secsProtocol.StartAsync(ct);
@@ -265,14 +257,6 @@ public class EapServerWorker : BackgroundService
         _hostProtocol.MessageReceived += (_, e) =>
         {
             _logger.LogInformation("[Host <<] {Name}", e.Message.Name);
-            // Forward to scenario engine for Host trigger matching
-            if (_scenarioEngine != null)
-            {
-                var fields = e.Message.Fields
-                    .Where(kv => kv.Value != null)
-                    .ToDictionary(kv => kv.Key, kv => kv.Value!.ToString() ?? "");
-                _scenarioEngine.HandleHostMessage(e.Message.Name, fields);
-            }
         };
 
         _hostProtocol.MessageSent += (_, e) =>
@@ -300,34 +284,6 @@ public class EapServerWorker : BackgroundService
             _bridge.AttachSecsProtocol(_secsProtocol);
             _bridge.AttachHostProtocol(_hostProtocol);
             _logger.LogInformation("EAP Bridge established (SECS <-> Host)");
-        }
-
-        // Wire up scenario engine host actions
-        if (_scenarioEngine != null)
-        {
-            _scenarioEngine.HostActionTriggered += async (_, args) =>
-            {
-                try
-                {
-                    var template = hostTemplates.FirstOrDefault(t => t.Name == args.HostMessageName);
-                    if (template == null)
-                    {
-                        _logger.LogWarning("Scenario Host action: template not found '{Name}'", args.HostMessageName);
-                        return;
-                    }
-
-                    var hostMsg = template.BuildMessage();
-                    await _hostProtocol.SendHostMessageAsync(hostMsg, ct);
-                    _logger.LogInformation("Scenario Host action: sent '{Name}'", args.HostMessageName);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Scenario Host action failed");
-                }
-            };
-
-            _scenarioEngine.StateAlterTriggered += (_, args) =>
-                _logger.LogInformation("Scenario State alter: {Var} = {Value}", args.VariableName, args.NewValue);
         }
     }
 

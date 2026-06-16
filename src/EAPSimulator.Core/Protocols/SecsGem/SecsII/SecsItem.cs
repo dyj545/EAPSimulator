@@ -47,6 +47,29 @@ public abstract class SecsItem
     public static SecsItem F4(params float[] value) => new SecsF4(value);
     public static SecsItem F8(params double[] value) => new SecsF8(value);
 
+    /// <summary>
+    /// Clean up ASCII string - remove trailing NUL characters and other control characters.
+    /// </summary>
+    internal static string CleanAsciiString(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return input;
+
+        // Find first NUL character and truncate there
+        int nulIndex = input.IndexOf('\0');
+        if (nulIndex >= 0)
+            input = input.Substring(0, nulIndex);
+
+        // Remove other control characters except CR and LF
+        var sb = new System.Text.StringBuilder();
+        foreach (char c in input)
+        {
+            if (!char.IsControl(c) || c == '\r' || c == '\n')
+                sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
     protected static byte[] EncodeHeader(SecsFormat format, int length)
     {
         if (length <= 0xFF)
@@ -92,7 +115,7 @@ public abstract class SecsItem
 
         return format switch
         {
-            SecsFormat.ASCII => new SecsAscii(System.Text.Encoding.ASCII.GetString(valueData)),
+            SecsFormat.ASCII => new SecsAscii(CleanAsciiString(System.Text.Encoding.ASCII.GetString(valueData))),
             SecsFormat.Binary => new SecsBinary(valueData),
             SecsFormat.Boolean => new SecsBoolean(valueData.Length > 0 && valueData[0] != 0),
             SecsFormat.U1 => new SecsU1(valueData),
@@ -223,7 +246,7 @@ public class SecsList : SecsItem
 public class SecsAscii : SecsItem
 {
     public string Value { get; }
-    public SecsAscii(string value) : base(SecsFormat.ASCII) => Value = value;
+    public SecsAscii(string value) : base(SecsFormat.ASCII) => Value = CleanAsciiString(value);
     public override byte[] Encode() => EncodeHeader(Format, Value.Length).Concat(System.Text.Encoding.ASCII.GetBytes(Value)).ToArray();
     public override int GetEncodedLength() => EncodeHeader(Format, Value.Length).Length + Value.Length;
     public override string ToString() => $"A: \"{Value}\"";

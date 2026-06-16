@@ -114,15 +114,6 @@ public class EapBridge : IAsyncDisposable
         {
             var msg = e.Message;
 
-            // Forward to scenario engine for Host trigger matching
-            if (_scenarioEngine != null)
-            {
-                var fields = msg.Fields
-                    .Where(kv => kv.Value != null)
-                    .ToDictionary(kv => kv.Key, kv => kv.Value!.ToString() ?? "");
-                _scenarioEngine.HandleHostMessage(msg.Name, fields);
-            }
-
             // Remote command
             if (msg.Name.Contains("RemoteCommand"))
             {

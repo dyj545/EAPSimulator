@@ -106,11 +106,28 @@ public partial class MainViewModel : ObservableObject
         Config.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ConfigViewModel.ConnectionMode))
+            {
                 UpdateButtonText();
+                SyncAutoReplyRole();
+            }
         };
+
+        // Initial role sync from current Config.
+        SyncAutoReplyRole();
 
         // Auto-load default template file
         LoadDefaultTemplateFile();
+    }
+
+    /// <summary>
+    /// Mirror Config.ConnectionMode → AutoReply.CurrentRole so new scenarios default to the
+    /// right side and AutoStart filtering works without the user reconnecting first.
+    /// </summary>
+    private void SyncAutoReplyRole()
+    {
+        AutoReply.CurrentRole = Config.ConnectionMode == "Active"
+            ? Core.Protocols.ProtocolRole.Host
+            : Core.Protocols.ProtocolRole.Equipment;
     }
 
     private void LoadDefaultTemplateFile()
@@ -266,8 +283,10 @@ public partial class MainViewModel : ObservableObject
         protocol.MessageSent += OnMessageSent;
         protocol.StateChanged += OnProtocolStateChanged;
 
-        // Register auto-reply rules on the router
-        AutoReply.ApplyToRouter(protocol.Router, _loggerFactory.CreateLogger<MainViewModel>());
+        // Register auto-reply rules on the router; pass the protocol's send method so
+        // scenario Send/Reply steps can push messages out.
+        AutoReply.ApplyToRouter(protocol.Router, _loggerFactory.CreateLogger<MainViewModel>(),
+            (msg, ct) => protocol.SendSecsMessageAsync(msg, ct));
 
         await protocol.StartAsync(_cts!.Token);
 

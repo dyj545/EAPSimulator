@@ -91,11 +91,9 @@ public partial class MessageLogViewModel : ObservableObject
             {
                 var filter = new MessageHeaderFilter(header);
                 filter.IsEnabled = true;
-                filter.PropertyChanged += (_, _) =>
-                {
-                    if (HeaderFilterEnabled)
-                        RebuildFiltered();
-                };
+                // Use a named handler so Clear() can unsubscribe — otherwise the closure
+                // keeps the filter alive and re-adding a header risks duplicate subscriptions.
+                filter.PropertyChanged += OnHeaderFilterChanged;
                 _headerLookup[header] = filter;
                 HeaderFilters.Add(filter);
             }
@@ -111,6 +109,11 @@ public partial class MessageLogViewModel : ObservableObject
             FilteredEntries.Insert(0, entry);
             FilteredCount = FilteredEntries.Count;
         }
+    }
+
+    private void OnHeaderFilterChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (HeaderFilterEnabled) RebuildFiltered();
     }
 
     /// <summary>
@@ -186,6 +189,11 @@ public partial class MessageLogViewModel : ObservableObject
     [RelayCommand]
     private void Clear()
     {
+        // Detach handlers before dropping references — otherwise closures from the old
+        // pre-named-handler code path could pile up across Clear/AddEntry cycles.
+        foreach (var f in HeaderFilters)
+            f.PropertyChanged -= OnHeaderFilterChanged;
+
         Entries.Clear();
         FilteredEntries.Clear();
         HeaderFilters.Clear();
