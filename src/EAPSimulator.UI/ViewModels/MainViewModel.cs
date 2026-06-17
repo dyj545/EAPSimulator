@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EAPSimulator.Core.Configuration;
 using EAPSimulator.Core.Protocols;
+using EAPSimulator.Core.Protocols.HostProtocol;
 using EAPSimulator.Core.Protocols.SecsGem;
 using EAPSimulator.Core.Protocols.SecsGem.AutoReply;
 using EAPSimulator.Core.Protocols.SecsGem.Gem;
@@ -16,15 +17,21 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly ILoggerFactory _loggerFactory;
     private IProtocol? _currentProtocol;
+    private EAPSimulator.Core.Protocols.HostProtocol.HostProtocol? _hostProtocol;
+    private List<EAPSimulator.Core.Protocols.HostProtocol.HostMessageTemplate> _hostTemplates = [];
+    /// <summary>Connected host channels keyed by channel name (MES/RMS/...).</summary>
+    private readonly Dictionary<string, EAPSimulator.Core.Protocols.HostProtocol.HostProtocol> _hostChannels = new();
     private CancellationTokenSource? _cts;
 
     public IProtocol? CurrentProtocol => _currentProtocol;
+    public EAPSimulator.Core.Protocols.HostProtocol.HostProtocol? HostProtocol => _hostProtocol;
 
     public ConfigViewModel Config { get; } = new();
     public MessageLogViewModel MessageLog { get; } = new();
     public StatusPanelViewModel StatusPanel { get; } = new();
     public MessageEditorViewModel MessageEditor { get; } = new();
     public AutoReplyViewModel AutoReply { get; } = new();
+    public HostMessageEditorViewModel HostEditor { get; } = new();
 
     [ObservableProperty]
     private bool _isConnected;
@@ -44,7 +51,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _connectButtonColor = "#4CAF50";
 
-    public string[] ProtocolTypes { get; } = ["SECS/GEM", "Custom"];
+    public string[] ProtocolTypes { get; } = ["SECS/GEM", "Custom", "Host (MES/RMS)"];
 
     partial void OnSelectedProtocolTypeChanged(string value)
     {
@@ -53,10 +60,17 @@ public partial class MainViewModel : ObservableObject
 
     private void UpdateButtonText()
     {
-        if (IsConnected)
+        var isHost = SelectedProtocolType == "Host (MES/RMS)";
+
+        if (IsConnected && !isHost)
         {
             ConnectButtonText = "Connected";
             ConnectButtonColor = "#888";
+        }
+        else if (IsConnected && isHost)
+        {
+            ConnectButtonText = "Disconnect Host";
+            ConnectButtonColor = "#F44747";
         }
         else if (IsListening)
         {
@@ -65,7 +79,8 @@ public partial class MainViewModel : ObservableObject
         }
         else
         {
-            ConnectButtonText = Config.ConnectionMode == "Passive" ? "Start Listening" : "Connect";
+            ConnectButtonText = isHost ? "Connect Host"
+                : (Config.ConnectionMode == "Passive" ? "Start Listening" : "Connect");
             ConnectButtonColor = "#4CAF50";
         }
     }
@@ -117,6 +132,68 @@ public partial class MainViewModel : ObservableObject
 
         // Auto-load default template file
         LoadDefaultTemplateFile();
+
+        // Load host templates into editor on startup (lazy — won't fail if file's missing).
+        try
+        {
+            var hostPath = ResolveProjectPath(Config.HostMessageTemplatesPath);
+            HostEditor.LoadFromPath(hostPath);
+        }
+        catch (Exception ex) { LogSystem($"Host template load error: {ex.Message}"); }
+
+        // Wire up Host editor send button to protocol
+        HostEditor.SendRequested += async tpl => { await SendHostTestMessageAsync(tpl); };
+
+        // Multi-channel host: load saved channels + wire each channel's Connect/Disconnect.
+        Config.LoadHostChannels();
+        foreach (var ch in Config.HostChannels)
+            WireChannelEvents(ch);
+        SyncChannelNames();
+        Config.HostChannels.CollectionChanged += (_, e) =>
+        {
+            if (e.NewItems != null)
+                foreach (HostChannelViewModel ch in e.NewItems) WireChannelEvents(ch);
+            SyncChannelNames();
+        };
+    }
+
+    private void SyncChannelNames()
+    {
+        HostEditor.ChannelNames.Clear();
+        HostEditor.ChannelNames.Add(""); // empty = any
+        foreach (var ch in Config.HostChannels)
+            HostEditor.ChannelNames.Add(ch.Name);
+        // Also update each channel's Name property listener so renames re-sync.
+        foreach (var ch in Config.HostChannels)
+        {
+            ch.PropertyChanged -= OnChannelPropertyChanged;
+            ch.PropertyChanged += OnChannelPropertyChanged;
+        }
+    }
+
+    private void OnChannelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(HostChannelViewModel.Name))
+            SyncChannelNames();
+    }
+
+    private void WireChannelEvents(HostChannelViewModel ch)
+    {
+        ch.ConnectRequested += ConnectHostChannelAsync;
+        ch.DisconnectRequested += DisconnectHostChannelAsync;
+    }
+
+    /// <summary>
+    /// Resolve a relative config file path against the project root (not bin/Debug).
+    /// </summary>
+    private static string ResolveProjectPath(string relativePath)
+    {
+        if (Path.IsPathRooted(relativePath)) return relativePath;
+        var basePath = AppDomain.CurrentDomain.BaseDirectory;
+        var projectRootPath = Path.GetFullPath(Path.Combine(basePath, "..", "..", "..", "..", "..", relativePath));
+        if (File.Exists(projectRootPath)) return projectRootPath;
+        var binPath = Path.Combine(basePath, relativePath);
+        return binPath;
     }
 
     /// <summary>
@@ -204,6 +281,19 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task ConnectAsync()
     {
+        // Host mode: toggle — clicking Connect when connected disconnects and returns.
+        if (SelectedProtocolType == "Host (MES/RMS)")
+        {
+            if (_hostProtocol != null)
+            {
+                await StopHostOnlyAsync();
+                return;
+            }
+            await ConnectHostOnlyAsync();
+            UpdateButtonText();
+            return;
+        }
+
         if (IsListening)
         {
             await StopListeningAsync();
@@ -241,8 +331,102 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private async Task ConnectHostOnlyAsync()
+    {
+        LogSystem($"Starting Host ({Config.HostTransportType}) standalone...");
+
+        // Load host templates from editor
+        _hostTemplates = HostEditor.Templates.Select(t => t.ToModel()).ToList();
+        AutoReply.HostMessageNames.Clear();
+        foreach (var t in HostEditor.Templates)
+            AutoReply.HostMessageNames.Add(t.Name);
+
+        var hostLogger = _loggerFactory.CreateLogger<EAPSimulator.Core.Protocols.HostProtocol.HostProtocol>();
+        _hostProtocol = new EAPSimulator.Core.Protocols.HostProtocol.HostProtocol(hostLogger);
+        _hostProtocol.Configure(Config.GetHostTransportConfig());
+
+        _hostProtocol.MessageReceived += OnHostMessageReceived;
+        _hostProtocol.MessageSent += OnHostMessageSent;
+        _hostProtocol.StateChanged += OnHostStateChanged;
+
+        await _hostProtocol.StartAsync(_cts!.Token);
+
+        IsConnected = true;
+        StatusPanel.UpdateConnectionState(true);
+        StatusText = $"Host connected ({Config.HostTransportType})";
+        LogSystem($"Host {Config.HostTransportType} connected (standalone mode).");
+    }
+
+    private async Task StopHostOnlyAsync()
+    {
+        if (_hostProtocol == null) return;
+        try
+        {
+            _hostProtocol.MessageReceived -= OnHostMessageReceived;
+            _hostProtocol.MessageSent -= OnHostMessageSent;
+            _hostProtocol.StateChanged -= OnHostStateChanged;
+            await _hostProtocol.StopAsync(CancellationToken.None);
+            await _hostProtocol.DisposeAsync();
+        }
+        catch (Exception ex) { LogSystem($"Host stop error: {ex.Message}"); }
+        _hostProtocol = null;
+        // Only flip IsConnected if we're in standalone Host mode (no SECS underneath).
+        if (SelectedProtocolType == "Host (MES/RMS)")
+        {
+            IsConnected = false;
+            StatusPanel.UpdateConnectionState(false);
+            StatusText = "Host disconnected";
+        }
+        LogSystem("Host disconnected.");
+    }
+
+    private void OnHostMessageReceived(object? sender, ProtocolMessageEventArgs e)
+        => LogSystem($"[Host <<] {e.Message.Name}");
+
+    private void OnHostMessageSent(object? sender, ProtocolMessageEventArgs e)
+        => LogSystem($"[Host >>] {e.Message.Name}");
+
+    private void OnHostStateChanged(object? sender, ProtocolStateEventArgs e)
+        => LogSystem($"[Host State] {e.OldState} -> {e.NewState}");
+
+    /// <summary>
+    /// Send a host message from the editor to the connected MES/RMS for testing.
+    /// </summary>
+    public async Task SendHostTestMessageAsync(HostMessageTemplate template)
+    {
+        // Pick channel from template; fall back to first connected channel.
+        var channelName = string.IsNullOrEmpty(template.ChannelName)
+            ? _hostChannels.Keys.FirstOrDefault()
+            : template.ChannelName;
+
+        if (channelName == null)
+        {
+            LogSystem("ERROR: 没有已连接的 Host 通道。请在 Config 里添加通道并连接。");
+            HostEditor.StatusMessage = "无已连接通道";
+            return;
+        }
+        if (!_hostChannels.TryGetValue(channelName, out var hp))
+        {
+            LogSystem($"ERROR: Host 通道 '{channelName}' 未连接。");
+            HostEditor.StatusMessage = $"通道 {channelName} 未连接";
+            return;
+        }
+        try
+        {
+            var msg = template.BuildMessage();
+            await hp.SendHostMessageAsync(msg, CancellationToken.None);
+            HostEditor.StatusMessage = $"已通过 [{channelName}] 发送 {msg.Name}";
+        }
+        catch (Exception ex)
+        {
+            LogSystem($"ERROR Host send on [{channelName}]: {ex.Message}");
+            HostEditor.StatusMessage = $"发送失败: {ex.Message}";
+        }
+    }
+
     private async Task StopListeningAsync()
     {
+        await StopHostAsync();
         try
         {
             if (_currentProtocol != null)
@@ -284,13 +468,21 @@ public partial class MainViewModel : ObservableObject
         protocol.StateChanged += OnProtocolStateChanged;
 
         // Register auto-reply rules on the router; pass the protocol's send method so
-        // scenario Send/Reply steps can push messages out.
+        // scenario Send/Reply steps can push messages out. Host send delegate is wired
+        // later by StartHostAsync so HostSend / HostReceive scenario steps work.
         AutoReply.ApplyToRouter(protocol.Router, _loggerFactory.CreateLogger<MainViewModel>(),
             (msg, ct) => protocol.SendSecsMessageAsync(msg, ct));
 
         await protocol.StartAsync(_cts!.Token);
 
         _currentProtocol = protocol;
+
+        // If Host is enabled in config, start it now and wire scenario engine to it.
+        if (Config.HostEnabled)
+        {
+            try { await StartHostAsync(_cts!.Token); }
+            catch (Exception ex) { LogSystem($"Host start failed: {ex.Message}"); }
+        }
 
         switch (settings.ConnectionMode)
         {
@@ -361,7 +553,14 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task DisconnectAsync()
     {
+        // Host-only mode: just stop host.
+        if (SelectedProtocolType == "Host (MES/RMS)" || _hostProtocol != null)
+            await StopHostOnlyAsync();
+
         if (_currentProtocol == null) return;
+
+        // Stop host first so the scenario engine has nothing to fire into a closing transport.
+        await StopHostAsync();
 
         try
         {
@@ -379,6 +578,121 @@ public partial class MainViewModel : ObservableObject
         _connectionMode = "";
         UpdateButtonText();
         _cts?.Cancel();
+    }
+
+    private async Task StartHostAsync(CancellationToken ct)
+    {
+        // Sync host message names from editor into AutoReply scenario combo.
+        AutoReply.HostMessageNames.Clear();
+        foreach (var t in HostEditor.Templates)
+            AutoReply.HostMessageNames.Add(t.Name);
+
+        // Rebuild typed template list from editor.
+        _hostTemplates = HostEditor.Templates.Select(t => t.ToModel()).ToList();
+
+        var hostLogger = _loggerFactory.CreateLogger<EAPSimulator.Core.Protocols.HostProtocol.HostProtocol>();
+        _hostProtocol = new EAPSimulator.Core.Protocols.HostProtocol.HostProtocol(hostLogger);
+        _hostProtocol.Configure(Config.GetHostTransportConfig());
+
+        _hostProtocol.MessageReceived += (_, e) => LogSystem($"[Host <<] {e.Message.Name}");
+        _hostProtocol.MessageSent += (_, e) => LogSystem($"[Host >>] {e.Message.Name}");
+        _hostProtocol.StateChanged += (_, e) => LogSystem($"[Host State] {e.OldState} -> {e.NewState}");
+
+        await _hostProtocol.StartAsync(ct);
+        LogSystem($"Host {Config.HostTransportType} started ({(Config.HostIsActiveMode ? "active" : "passive")}).");
+
+        // Wire scenario engine to host: HostSend uses _hostSend; HostReceive consumes from inbox.
+        var hostTplDict = _hostTemplates.ToDictionary(t => t.Name, t => t);
+        AutoReply.AttachHostToScenarioEngine(
+            name => hostTplDict.TryGetValue(name, out var t) ? t : null,
+            (msg, ct2) => _hostProtocol.SendHostMessageAsync(msg, ct2),
+            evt => _hostProtocol.HostMessageReceived += evt);
+    }
+
+    private async Task StopHostAsync()
+    {
+        if (_hostProtocol == null) return;
+        try
+        {
+            await _hostProtocol.StopAsync(CancellationToken.None);
+            await _hostProtocol.DisposeAsync();
+        }
+        catch (Exception ex) { LogSystem($"Host stop error: {ex.Message}"); }
+        _hostProtocol = null;
+    }
+
+    // ─── Multi-channel Host connection management ───
+
+    private async Task ConnectHostChannelAsync(HostChannelViewModel ch)
+    {
+        if (_hostChannels.ContainsKey(ch.Name))
+        {
+            LogSystem($"[{ch.Name}] already connected");
+            return;
+        }
+        try
+        {
+            ch.StatusText = "Connecting...";
+            ch.StatusColor = "#FF9800";
+            var logger = _loggerFactory.CreateLogger<EAPSimulator.Core.Protocols.HostProtocol.HostProtocol>();
+            var hp = new EAPSimulator.Core.Protocols.HostProtocol.HostProtocol(logger);
+            hp.Configure(ch.ToModel().ToTransportConfig());
+
+            var name = ch.Name;
+            hp.MessageReceived += (_, e) => LogSystem($"[Host:{name} <<] {e.Message.Name}");
+            hp.MessageSent += (_, e) => LogSystem($"[Host:{name} >>] {e.Message.Name}");
+            hp.StateChanged += (_, e) =>
+            {
+                LogSystem($"[Host:{name} State] {e.OldState} -> {e.NewState}");
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    ch.IsConnected = e.NewState == ProtocolState.Connected || e.NewState == ProtocolState.Online;
+                    ch.StatusText = ch.IsConnected ? "Connected" : e.NewState.ToString();
+                    ch.StatusColor = ch.IsConnected ? "#4CAF50" : "#888";
+                });
+            };
+
+            await hp.StartAsync(_cts?.Token ?? CancellationToken.None);
+            _hostChannels[ch.Name] = hp;
+            ch.IsConnected = true;
+            ch.StatusText = "Connected";
+            ch.StatusColor = "#4CAF50";
+            LogSystem($"[{ch.Name}] {ch.TransportType} channel connected.");
+        }
+        catch (Exception ex)
+        {
+            ch.StatusText = $"Error: {ex.Message}";
+            ch.StatusColor = "#F44747";
+            LogSystem($"[{ch.Name}] connect failed: {ex.Message}");
+        }
+    }
+
+    private async Task DisconnectHostChannelAsync(HostChannelViewModel ch)
+    {
+        if (!_hostChannels.TryGetValue(ch.Name, out var hp)) return;
+        try
+        {
+            await hp.StopAsync(CancellationToken.None);
+            await hp.DisposeAsync();
+        }
+        catch (Exception ex) { LogSystem($"[{ch.Name}] stop error: {ex.Message}"); }
+        _hostChannels.Remove(ch.Name);
+        ch.IsConnected = false;
+        ch.StatusText = "Disconnected";
+        ch.StatusColor = "#888";
+        LogSystem($"[{ch.Name}] disconnected.");
+    }
+
+    /// <summary>Send a host message via the named channel (used by Host editor "发送测试").</summary>
+    public async Task SendHostMessageOnChannelAsync(string channelName, EAPSimulator.Core.Protocols.HostProtocol.HostMessage msg)
+    {
+        if (!_hostChannels.TryGetValue(channelName, out var hp))
+        {
+            LogSystem($"ERROR: Host 通道 '{channelName}' 未连接。");
+            return;
+        }
+        try { await hp.SendHostMessageAsync(msg, CancellationToken.None); }
+        catch (Exception ex) { LogSystem($"[{channelName}] send error: {ex.Message}"); }
     }
 
     private void OnMessageReceived(object? sender, ProtocolMessageEventArgs e)

@@ -52,15 +52,18 @@
             <DockPanel x:Name="LeftPanel" Grid.Column="0">
                 <Border DockPanel.Dock="Top" Padding="4,2" Background="#2D2D2D">
                     <StackPanel Orientation="Horizontal">
-                        <RadioButton x:Name="EditorTab" Content="消息编辑" IsChecked="True"
+                        <RadioButton x:Name="EditorTab" Content="SECS" IsChecked="True"
                                      Click="OnEditorTabClick" Margin="0,0,8,0" FontSize="11"/>
                         <RadioButton x:Name="AutoReplyTab" Content="自动回复"
-                                     Click="OnAutoReplyTabClick" FontSize="11"/>
+                                     Click="OnAutoReplyTabClick" FontSize="11" Margin="0,0,8,0"/>
+                        <RadioButton x:Name="HostEditorTab" Content="Host"
+                                     Click="OnHostEditorTabClick" FontSize="11"/>
                     </StackPanel>
                 </Border>
                 <Panel>
                     <views:MessageEditorView x:Name="EditorView" DataContext="{Binding MessageEditor}"/>
                     <views:AutoReplyView x:Name="AutoReplyView" DataContext="{Binding AutoReply}" IsVisible="False"/>
+                    <views:HostMessageEditorView x:Name="HostEditorView" DataContext="{Binding HostEditor}" IsVisible="False"/>
                 </Panel>
             </DockPanel>
 

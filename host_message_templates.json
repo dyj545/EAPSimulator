@@ -1,337 +1,2076 @@
 {
-  "Templates": [
+  "templates": [
     {
-      "Name": "EquipmentStatusReport",
-      "Description": "设备状态上报到 MES",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
-        { "Name": "Status", "Type": "ASCII", "DefaultValue": "IDLE", "Description": "设备状态 (IDLE/RUNNING/DOWN)", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "当前配方名称", "Required": false },
-        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      "name": "FBPBISTOL_ToolModeChange",
+      "description": "设备模式变更 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolCimMode",
+          "type": "String",
+          "description": "CIM模式",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolIp",
+          "type": "String",
+          "description": "设备IP",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "ProcessStartReport",
-      "Description": "工艺开始上报",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
-        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": false },
-        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      "name": "FTPTOLOPE_ToolStateChange",
+      "description": "设备状态变更 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolStat",
+          "type": "String",
+          "description": "设备状态",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "rsnCode",
+          "type": "String",
+          "description": "原因代码",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolSubStat",
+          "type": "String",
+          "description": "原因代码",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "ProcessEndReport",
-      "Description": "工艺结束上报",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
-        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": false },
-        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "工艺结果 (OK/NG)", "Required": true },
-        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      "name": "FTPTOLOPE_ToolHold",
+      "description": "设备HOLD — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolHoldFlg",
+          "type": "String",
+          "description": "Y-hold,N-解HOLD",
+          "defaultValue": "Y",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "AlarmReport",
-      "Description": "报警上报",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
-        { "Name": "AlarmId", "Type": "I4", "DefaultValue": "0", "Description": "报警 ID", "Required": true },
-        { "Name": "AlarmText", "Type": "ASCII", "DefaultValue": "", "Description": "报警描述", "Required": true },
-        { "Name": "Severity", "Type": "ASCII", "DefaultValue": "Warning", "Description": "严重程度 (Info/Warning/Critical)", "Required": true },
-        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      "name": "FTPTOLALARM_ToolAlarm",
+      "description": "设备报警 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "startTimestamp",
+          "type": "Timestamp",
+          "description": "设备报警开始时间",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "endTimestamp",
+          "type": "Timestamp",
+          "description": "设备报警结束时间",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "lineIdFk",
+          "type": "String",
+          "description": "线别",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolIdFk",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmDealUsr",
+          "type": "String",
+          "description": "警报处理者",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmCode",
+          "type": "Timestamp",
+          "description": "警报代码",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmLvl",
+          "type": "String",
+          "description": "警报级别",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmEvtTyp",
+          "type": "String",
+          "description": "警报类别",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmNote",
+          "type": "String",
+          "description": "报警备注",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmDsc",
+          "type": "String",
+          "description": "报警内容",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmDealMeas",
+          "type": "String",
+          "description": "报警处理措施",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmDealResult",
+          "type": "String",
+          "description": "报警处理结果",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "featAction",
+          "type": "String",
+          "description": "后续动作",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "featActUsr",
+          "type": "String",
+          "description": "后续处理人",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolReportStat",
+          "type": "String",
+          "description": "设备上报状态",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "RecipeDownloadCommand",
-      "Description": "MES 下发配方命令",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
-        { "Name": "RecipeBody", "Type": "ASCII", "DefaultValue": "", "Description": "配方内容", "Required": true }
+      "name": "FTPTOLALARM_ToolAlarm_REPLY",
+      "description": "设备报警 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "oary",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "toolIdFk",
+              "type": "String",
+              "description": "设备代码",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmSeqId",
+              "type": "String",
+              "description": "报警seqid",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "holdFlg",
+              "type": "String",
+              "description": "是否需要hold设备:Y/N",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "abedFlg",
+              "type": "String",
+              "description": "wafer是否需要设备成abed状态:Y/N",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "startTimestamp",
+              "type": "Timestamp",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "endTimestamp",
+              "type": "Timestamp",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmCode",
+              "type": "String",
+              "description": "警报代码",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "lineIdFk",
+              "type": "String",
+              "description": "线别",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmDealUsr",
+              "type": "String",
+              "description": "警报处理者",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmLvl",
+              "type": "String",
+              "description": "警报级别",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmEvtTyp",
+              "type": "String",
+              "description": "警报类别",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmDsc",
+              "type": "String",
+              "description": "警报内容",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmNote",
+              "type": "String",
+              "description": "警报备注",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmDealMeas",
+              "type": "String",
+              "description": "处理措施",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "alarmDealResult",
+              "type": "String",
+              "description": "处理结果",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "featAction",
+              "type": "String",
+              "description": "后续动作",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "featActUsr",
+              "type": "String",
+              "description": "后续处理人",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "evtTimestamp",
+              "type": "Timestamp",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "RemoteCommand",
-      "Description": "MES 远程控制命令",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "EQUIP001", "Description": "设备编号", "Required": true },
-        { "Name": "Command", "Type": "ASCII", "DefaultValue": "", "Description": "命令名称 (START/STOP/ABORT/RESET)", "Required": true },
-        { "Name": "Params", "Type": "ASCII", "DefaultValue": "", "Description": "命令参数", "Required": false }
+      "name": "FTPTOLALARM_AlarmClear",
+      "description": "结束报警 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "startTimestamp",
+          "type": "Timestamp",
+          "description": "设备报警开始时间",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "endTimestamp",
+          "type": "Timestamp",
+          "description": "设备报警结束时间",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "alarmSeqId",
+          "type": "String",
+          "description": "报警seqid",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "EAPDA_EQUIPMENT_STATE",
-      "Description": "EAP 向 DA 上报设备状态",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "State", "Type": "ASCII", "DefaultValue": "IDLE", "Description": "设备状态", "Required": true },
-        { "Name": "Timestamp", "Type": "ASCII", "DefaultValue": "", "Description": "时间戳", "Required": true }
+      "name": "FBPBISTOL_PortChange",
+      "description": "设备Port变更 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "IaryB",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "protId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "unqSeqId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "portTyp",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "portNgFlg",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "portStat",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "portTimestamp",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "lstXfrTimestamp",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "fromStkId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "toStkId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "rtdFlg",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "xfrNode",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "xfrId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "portActiveFlg",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "eg",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "{",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "\"trxId\": \"FBPBISTOL\",",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "\"strInMsg\": \"{\\\"trxId\\\":\\\"FBPBISTOL\\\",\\\"actionFlg\\\":\\\"UPPORT\\\",\\\"iary\\\":[{\\\"toolId\\\":\\\"0301001013\\\"}],\\\"iaryB\\\":[{\\\"protId\\\":\\\"0301001013\\\",\\\"unqSeqId\\\":\\\"0301001013\\\",\\\"portTyp\\\":\\\"0301001013\\\",\\\"portNgFlg\\\":\\\"0301001013\\\",\\\"portStat\\\":\\\"0301001013\\\",\\\"portTimestamp\\\":\\\"0301001013\\\",\\\"lstXfrTimestamp\\\":\\\"0301001013\\\",\\\"toStkId\\\":\\\"0301001013\\\",\\\"fromStkId\\\":\\\"0301001013\\\",\\\"rtdFlg\\\":\\\"0301001013\\\",\\\"xfrNode\\\":\\\"0301001013\\\",\\\"xfrId\\\":\\\"xfrId\\\",\\\"portActiveFlg\\\":\\\"portActiveFlg\\\"}],\\\"fabIdFk\\\":\\\"PACK\\\",\\\"evtUsr\\\":\\\"ADMIN\\\",\\\"opiFlg\":\\\"N\\\"}\"",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "}",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "EAPDA_EQMODE_OR",
-      "Description": "EAP 向 DA 上报设备模式",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "Mode", "Type": "ASCII", "DefaultValue": "REMOTE", "Description": "设备模式 (LOCAL/REMOTE)", "Required": true }
+      "name": "FPPMOVEINQUERY_MoveInQuery",
+      "description": "问账 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "boxId",
+          "type": "String",
+          "description": "载具ID",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "EAPDA_MAP_COUNT_REQ",
-      "Description": "EAP 向 DA 请求 Map 数量",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      "name": "FPPMOVEINQUERY_MoveInQuery_REPLY",
+      "description": "问账 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "publicPath",
+          "type": "String",
+          "description": "修频IBE文件公盘路径",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "localPath",
+          "type": "String",
+          "description": "修频IBE文件本地路径",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "type": "String",
+          "description": "修频waferID读取模式：MANUAL/AUTO",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "changeUpFlg",
+          "type": "Boolean",
+          "description": "true-换机上机接口",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "entities",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "waferType",
+              "type": "String",
+              "description": "W:wafer(非成品)   F:frame(成品)",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "mdlIdFk",
+              "type": "String",
+              "description": "产品代码",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "lotStat",
+              "type": "String",
+              "description": "批次状态",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "boxIdFk",
+              "type": "String",
+              "description": "载具ID",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "retPrdInfoVOList",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "prdSeqTyp",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "tempPrdSeqId",
+              "type": "String",
+              "description": "片号",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "frameId",
+              "type": "String",
+              "description": "frameId",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "prdStat",
+              "type": "String",
+              "description": "晶圆状态",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "boxIdFk",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "bisPamRecipeVOList",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "serialNumber",
+              "type": "String",
+              "description": "序号",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "recipeId",
+              "type": "String",
+              "description": "配方ID",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "DAEAP_MAP_COUNT_REP",
-      "Description": "DA 回复 Map 数量",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
-        { "Name": "MapCount", "Type": "I4", "DefaultValue": "1", "Description": "Map 数量", "Required": true }
+      "name": "FPPMOVEIN_WaferStart",
+      "description": "wafer event start — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "boxId",
+          "type": "String",
+          "description": "载具ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "shtOpeMsg",
+          "type": "String",
+          "description": "备注",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "ibeName",
+          "type": "String",
+          "description": "修频IBE文件名",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "bladeName1",
+          "type": "String",
+          "description": "刀1露出量",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "bladeName2",
+          "type": "String",
+          "description": "刀2露出量",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "confirmFirstCheckFlg",
+          "type": "Boolean",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "binCodeInfoList",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "binCode",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "qty",
+              "type": "Integer",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "isOk",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "IaryL",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "groupId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "mtrlSeqId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "retRawDataVOList",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "opeNo",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "toolIdFk",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "procToolIdFk",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "retUnitFk",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "dataPatFk",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "dataIdFk",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "dataValue",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "prdSeqIdFk",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "tempPrdSeqId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "EAPDA_MAP_INFO_REQ",
-      "Description": "EAP 向 DA 请求 Map 信息",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
-        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true }
+      "name": "FPPMOVEIN_WaferStart_REPLY",
+      "description": "wafer event start — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "DAEAP_MAP_INFO_REP",
-      "Description": "DA 回复 Map 信息",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true },
-        { "Name": "MapData", "Type": "ASCII", "DefaultValue": "", "Description": "Map 数据", "Required": true }
+      "name": "FPPMOVEIN_LotTrackIn",
+      "description": "批次入账 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "mainToolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "boxId",
+          "type": "String",
+          "description": "载具ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "shtOpeMsg",
+          "type": "String",
+          "description": "备注",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "confirmFirstCheckFlg",
+          "type": "Boolean",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "IaryL",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "EAPDA_MAP_DOWNLOAD_REQ",
-      "Description": "EAP 向 DA 请求下载 Map",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true }
+      "name": "FPPMOVEIN_LotTrackIn_REPLY",
+      "description": "批次入账 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "DAEAP_MAP_DOWNLOAD_REP",
-      "Description": "DA 回复 Map 下载结果",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true },
-        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "下载结果 (OK/NG)", "Required": true }
+      "name": "FPPMOVEIN_ToolChangeOver",
+      "description": "换机上机 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "mainToolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "boxId",
+          "type": "String",
+          "description": "载具ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "shtOpeMsg",
+          "type": "String",
+          "description": "备注",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "confirmFirstCheckFlg",
+          "type": "Boolean",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "changeEqp",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "Y",
+          "required": false
+        },
+        {
+          "name": "IaryL",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "EAPDA_MAP_UPLOAD_REQ",
-      "Description": "EAP 向 DA 请求上传 Map",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true }
+      "name": "FPPMOVEIN_ToolChangeOver_REPLY",
+      "description": "换机上机 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "DAEAP_MAP_UPLOAD_REP",
-      "Description": "DA 回复 Map 上传结果",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "MapId", "Type": "ASCII", "DefaultValue": "", "Description": "Map ID", "Required": true },
-        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "上传结果 (OK/NG)", "Required": true }
+      "name": "FPPMOVEOUTBYWAFER_WaferEnd",
+      "description": "wafer event end — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "recipeId",
+          "type": "String",
+          "description": "recipe",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "boxId",
+          "type": "String",
+          "description": "载具ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "shtOpeMsg",
+          "type": "String",
+          "description": "备注",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "mtrQty",
+          "type": "String",
+          "description": "扣料数量",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "eqpQty",
+          "type": "String",
+          "description": "载具数量",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "bladeName2",
+          "type": "String",
+          "description": "刀1露出量",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "bladeName2",
+          "type": "String",
+          "description": "刀2露出量",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "retRawDataVOList",
+          "type": "ArrayList",
+          "description": "上报数据",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "retRawDataVOList",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "dataIdFk",
+              "type": "String",
+              "description": "参数子项",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "dataValue",
+              "type": "String",
+              "description": "量测值",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "retUnitFk",
+              "type": "String",
+              "description": "上报单元",
+              "defaultValue": "R",
+              "required": false
+            },
+            {
+              "name": "dataPatFk",
+              "type": "String",
+              "description": "线别描述",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "binCodeInfoList",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "binCode",
+              "type": "String",
+              "description": "binCode",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "isOk",
+              "type": "String",
+              "description": "Y-OK N-NG",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "Qty",
+              "type": "Integer",
+              "description": "数量",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "EAPDA_RECIPE_BODY_CHECK_REQ",
-      "Description": "EAP 向 DA 请求配方检查",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      "name": "FPPMOVEOUTBYWAFER_WaferEnd_REPLY",
+      "description": "wafer event end — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        },
+        {
+          "name": "lackMtrlFlg",
+          "type": "String",
+          "description": "Y-扣料失败",
+          "defaultValue": "是否扣料成功",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "DAEAP_RECIPE_BODY_CHECK_REP",
-      "Description": "DA 回复配方检查结果",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
-        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "检查结果 (OK/NG)", "Required": true }
+      "name": "FPACKMOVEOUT_LotTrackOut",
+      "description": "批次出账 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "mainToolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备ID",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "shtOpeMsg",
+          "type": "String",
+          "description": "备注",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "holdFlag",
+          "type": "Boolean",
+          "description": "固定值",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "abnormalFlag",
+          "type": "Boolean",
+          "description": "固定值",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "flg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "PACKDEFAULT",
+          "required": false
+        },
+        {
+          "name": "iaryL",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "actualQty",
+              "type": "Integer",
+              "description": "实际产品数量",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "rsnCate",
+              "type": "String",
+              "description": "固定值",
+              "defaultValue": "SCRS",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "EAPDA_RECIPE_BODY_VERIFY_REQ",
-      "Description": "EAP 向 DA 请求配方验证",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      "name": "FPACKMOVEOUT_LotTrackOut_REPLY",
+      "description": "批次出账 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "EAPMES_WAFER_LOAD_VERIFY_REQ",
-      "Description": "EAP 向 MES 请求晶圆装载验证",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      "name": "FBISEQPTRECIPE_RecipeCreate",
+      "description": "recipe建模 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "bisEqptRecipeVO",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "toolIdFk",
+              "type": "String",
+              "description": "设备",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "recipeGroupId",
+              "type": "String",
+              "description": "recipe群组（不存在的话和recipeId一致）",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "validFlg",
+              "type": "String",
+              "description": "是否有效（N）固定值",
+              "defaultValue": "N",
+              "required": false
+            },
+            {
+              "name": "recipeId",
+              "type": "String",
+              "description": "recipe ID",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "recipeVer",
+              "type": "String",
+              "description": "版本",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "toolIdFk",
+              "type": "String",
+              "description": "设备ID",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "MESEAP_WAFER_LOAD_VERIFY_SUCC",
-      "Description": "MES 回复晶圆装载验证成功",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": true }
+      "name": "FBISEQPTRECIPE_RecipeCreate_REPLY",
+      "description": "recipe建模 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "MESEAP_WAFER_LOAD_VERIFY_FAIL",
-      "Description": "MES 回复晶圆装载验证失败",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "WaferId", "Type": "ASCII", "DefaultValue": "", "Description": "晶圆号", "Required": true },
-        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      "name": "FBISEQPTRECIPE_RecipeDelete",
+      "description": "recipe建模 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "bisEqptRecipeVO",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "toolIdFk",
+              "type": "String",
+              "description": "设备",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "recipeGroupId",
+              "type": "String",
+              "description": "recipe群组（不存在的话和recipeId一致）",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "validFlg",
+              "type": "String",
+              "description": "是否有效（N）固定值",
+              "defaultValue": "N",
+              "required": false
+            },
+            {
+              "name": "recipeId",
+              "type": "String",
+              "description": "recipe ID",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "recipeVer",
+              "type": "String",
+              "description": "版本",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "toolIdFk",
+              "type": "String",
+              "description": "设备ID",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "EAPMES_RECIPE_CHECK_REQ",
-      "Description": "EAP 向 MES 请求配方检查",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      "name": "FBISEQPTRECIPE_RecipeDelete_REPLY",
+      "description": "recipe建模 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "MESEAP_RECIPE_CHECK_SUCC",
-      "Description": "MES 回复配方检查成功",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      "name": "FBPBISTOL_ToolModel",
+      "description": "设备建模，EAP地址上报程序接口 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "opiOpeFlg",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "N",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "eapUrl",
+          "type": "String",
+          "description": "EAP地址",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "MESEAP_RECIPE_CHECK_FAIL",
-      "Description": "MES 回复配方检查失败",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
-        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      "name": "FBPBISTOL_ToolModel_REPLY",
+      "description": "设备建模，EAP地址上报程序接口 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "EAPMES_START_CMD_REQ",
-      "Description": "EAP 向 MES 请求启动命令",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      "name": "MESCHGCTROMODE_MES_SwitchMode",
+      "description": "MES切换设备模式 — EAP-MES",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolMode",
+          "type": "String",
+          "description": "设备模式 OFF: Offline，ONL:OnlineLocal， ONR:OnlineReomte",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "MESEAP_START_CMD_SUCC",
-      "Description": "MES 回复启动命令成功",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true }
+      "name": "MESCHGCTROMODE_MES_SwitchMode_REPLY",
+      "description": "MES切换设备模式 — 返回",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolMode",
+          "type": "String",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "MESEAP_START_CMD_FAIL",
-      "Description": "MES 回复启动命令失败",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      "name": "MESJOBCNL_MES_CancelTrackIn",
+      "description": "MES端手动入账取消发送EAP — EAP-MES",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "EAPMES_LOT_END",
-      "Description": "EAP 向 MES 通知 Lot 结束",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
-        { "Name": "Result", "Type": "ASCII", "DefaultValue": "OK", "Description": "结果", "Required": true }
+      "name": "MESJOBCNL_MES_CancelTrackIn_REPLY",
+      "description": "MES端手动入账取消发送EAP — 返回",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "MESEAP_LOT_END_SUCC",
-      "Description": "MES 确认 Lot 结束成功",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      "name": "MESFCINSRUT_MES_FirstCheckConfirm",
+      "description": "MES将首件检结果发送给EAP — EAP-MES",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "insResult",
+          "type": "String",
+          "description": "Y：首件检通过，N：未通过",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "tempPrdSeqId",
+          "type": "String",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "waferId",
+          "type": "String",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "prdStat",
+          "type": "String",
+          "description": "产品状态",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "frameId",
+          "type": "String",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "insResult",
+          "type": "String",
+          "description": "Y：首件检通过，N：未通过",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "MESEAP_LOT_END_FAIL",
-      "Description": "MES 确认 Lot 结束失败",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
-        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      "name": "MESFCINSRUT_MES_FirstCheckConfirm_REPLY",
+      "description": "MES将首件检结果发送给EAP — 返回",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "EAPMES_LOT_START_REQ",
-      "Description": "EAP 向 MES 请求 Lot 开始",
-      "Direction": "Send",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
-        { "Name": "RecipeName", "Type": "ASCII", "DefaultValue": "", "Description": "配方名称", "Required": true }
+      "name": "MESLOTEND_MES_LotEnd",
+      "description": "MES Lot换机时通知EAP — EAP-MES",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     },
     {
-      "Name": "MESEAP_LOT_START_SUCC",
-      "Description": "MES 回复 Lot 开始成功",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true }
+      "name": "MESLOTEND_MES_LotEnd_REPLY",
+      "description": "MES Lot换机时通知EAP — 返回",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "typeId",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "O",
+          "required": false
+        },
+        {
+          "name": "oaryE",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "dftQty",
+              "type": "Integer",
+              "description": "不良数量",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "prdQty",
+              "type": "Integer",
+              "description": "产品数量",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
       ]
     },
     {
-      "Name": "MESEAP_LOT_START_FAIL",
-      "Description": "MES 回复 Lot 开始失败",
-      "Direction": "Receive",
-      "Fields": [
-        { "Name": "EquipmentId", "Type": "ASCII", "DefaultValue": "SHINKAWA001", "Description": "设备编号", "Required": true },
-        { "Name": "LotId", "Type": "ASCII", "DefaultValue": "", "Description": "批次号", "Required": true },
-        { "Name": "Reason", "Type": "ASCII", "DefaultValue": "", "Description": "失败原因", "Required": true }
+      "name": "ABPBISCUS_CustomerVendor",
+      "description": "客户、厂商接口 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "cusId",
+          "type": "String",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "cusTyp",
+          "type": "String",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "ABPBISCUS_CustomerVendor_REPLY",
+      "description": "客户、厂商接口 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "oary",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "cusId",
+              "type": "String",
+              "description": "客户/厂商代码",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "cusName",
+              "type": "String",
+              "description": "客户/厂商名称",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "cusDesc",
+              "type": "String",
+              "description": "客户/厂商描述",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "cusTyp",
+              "type": "String",
+              "description": "R：厂商；S：客户",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "locInfo",
+              "type": "String",
+              "description": "客户/厂商地址信息",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "unqSeqId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "userId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "userKey",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "propId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "inprLot",
+              "type": "Integer",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "totaLot",
+              "type": "Integer",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "waitLot",
+              "type": "Integer",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FBPBISDAT_ToolTypeList",
+      "description": "设备型号 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "dataCate",
+          "type": "String",
+          "description": "固定值",
+          "defaultValue": "TOYP",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "FBPBISDAT_ToolTypeList_REPLY",
+      "description": "设备型号 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "oary",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "dataId",
+              "type": "String",
+              "description": "设备型号代码",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "dataDesc",
+              "type": "String",
+              "description": "设备型号描述",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FBPRETPRDLOT_WaferCheck_REPLY",
+      "description": "设备类型 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "oaryB",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "mdlIdFk",
+              "type": "String",
+              "description": "产品ID",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "isMath",
+              "type": "String",
+              "description": "批次和wafer是否匹配Y/N",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "mtrlProdId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "mtrlProdDsc",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "lableName",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "mtrlLotId",
+              "type": "String",
+              "description": "",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FBPBISTOL_ToolTypeInfo",
+      "description": "设备类型 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备id",
+          "defaultValue": "",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "FBPBISTOL_ToolTypeInfo_REPLY",
+      "description": "设备类型 — 返回",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "toolType",
+          "type": "String",
+          "description": "设备类型",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "oaryH",
+          "type": "ArrayList",
+          "description": "",
+          "defaultValue": "",
+          "required": false,
+          "children": [
+            {
+              "name": "opeId",
+              "type": "String",
+              "description": "工步id",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "opeVer",
+              "type": "String",
+              "description": "工步版本",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "opeDsc",
+              "type": "String",
+              "description": "工步描述",
+              "defaultValue": "",
+              "required": false
+            },
+            {
+              "name": "toolgId",
+              "type": "String",
+              "description": "设备群组",
+              "defaultValue": "",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MESMTRLPASS_MES_ClearLackFlag",
+      "description": "MES通知EAP清除扣料不足标记 — EAP-MES",
+      "direction": "Receive",
+      "fields": [
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "设备",
+          "defaultValue": "",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "FEAPSERVICE_BladeCheck",
+      "description": "设备类型 — EAP-MES",
+      "direction": "Send",
+      "fields": [
+        {
+          "name": "bladeName1",
+          "type": "String",
+          "description": "主轴1刀号（上刀2时为空）",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "bladeName2",
+          "type": "String",
+          "description": "主轴2刀号（上刀1时为空）",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "bladeReason1",
+          "type": "String",
+          "description": "主轴1换刀原因",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "bladeReason2",
+          "type": "String",
+          "description": "主轴2换刀原因",
+          "defaultValue": "",
+          "required": false
+        },
+        {
+          "name": "toolId",
+          "type": "String",
+          "description": "",
+          "defaultValue": "",
+          "required": false
+        }
       ]
     }
   ]

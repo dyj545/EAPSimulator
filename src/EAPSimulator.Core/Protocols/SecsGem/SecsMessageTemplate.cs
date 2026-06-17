@@ -164,6 +164,7 @@ public class SecsMessageTemplate
         return tag switch
         {
             "A" => SecsItem.A(value),
+            "J" => SecsItem.J(ParseHexBytes(value)),
             "B" => SecsItem.B(ParseHexBytes(value)),
             "BOOLEAN" => SecsItem.Boolean(value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase)),
             "U1" => SecsItem.U1(value.Split(',').Select(s => byte.Parse(s.Trim())).ToArray()),
@@ -205,6 +206,12 @@ public class FieldMetadata
 
     [JsonProperty("format")]
     public string? Format { get; set; }
+
+    [JsonProperty("inputFormat")]
+    public string? InputFormat { get; set; }
+
+    [JsonProperty("previewFormat")]
+    public string? PreviewFormat { get; set; }
 
     [JsonProperty("nlb")]
     public string? Nlb { get; set; }

@@ -1,0 +1,232 @@
+<UserControl x:Class="EAPSimulator.UI.Views.HostMessageEditorView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:EAPSimulator.UI.ViewModels"
+             FontSize="12"
+             KeyDown="OnKeyDown">
+
+    <Grid ColumnDefinitions="260,Auto,*" RowDefinitions="*,Auto">
+        <!-- Left: Template list -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
+            <Border Grid.Row="0" Padding="4,4" Background="#2A2A2A">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Button Content="保存" Command="{Binding SaveCommand}"
+                            Classes="accent" Padding="10,3" FontSize="11"/>
+                    <Button Content="发送测试" Command="{Binding SendTestCommand}"
+                            Padding="10,3" FontSize="11" Foreground="#4CAF50"
+                            ToolTip.Tip="发送当前选中的消息到 MES/RMS (Ctrl+Enter)"/>
+                    <Border Width="1" Background="#444" Margin="4,2"/>
+                    <Button Content="+ 模板" Command="{Binding AddTemplateCommand}"
+                            Padding="8,3" FontSize="11"/>
+                    <Button Content="克隆" Command="{Binding CloneTemplateCommand}"
+                            Padding="8,3" FontSize="11"/>
+                    <Button Content="删除" Command="{Binding DeleteTemplateCommand}"
+                            Padding="8,3" FontSize="11" Foreground="#F44747"/>
+                </StackPanel>
+            </Border>
+
+            <ListBox Grid.Row="1"
+                     ItemsSource="{Binding Templates}"
+                     SelectedItem="{Binding SelectedTemplate}"
+                     Padding="2"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:HostMessageTemplateViewModel}">
+                        <StackPanel Margin="2">
+                            <DockPanel>
+                                <Border Background="#1F1F1F" CornerRadius="2" Padding="4,1" Margin="0,0,6,0">
+                                    <TextBlock Text="{Binding DirectionName}" FontSize="9"
+                                               FontWeight="Bold" Foreground="#FF9800"/>
+                                </Border>
+                                <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Fields.Count, StringFormat=' ({0} 字段)'}"
+                                           FontSize="10" Opacity="0.4" Margin="6,0,0,0"
+                                           VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.5"
+                                       Margin="4,1,0,0" TextTrimming="CharacterEllipsis"
+                                       IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Border Grid.Row="2" Padding="4,2" Background="#252525">
+                <TextBlock Text="{Binding StatusMessage}" FontSize="11" Opacity="0.6"
+                           TextTrimming="CharacterEllipsis"/>
+            </Border>
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Width="4"
+                      HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="#333"/>
+
+        <!-- Right panel -->
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="8" Spacing="6"
+                        IsVisible="{Binding SelectedTemplate, Converter={x:Static ObjectConverters.IsNotNull}}">
+
+                <!-- Template properties -->
+                <Border Background="#252525" CornerRadius="4" Padding="10,8">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="模板属性" FontWeight="SemiBold" Foreground="#569CD6" FontSize="13"/>
+                        <Grid ColumnDefinitions="60,*,60,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="名称:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedTemplate.Name}"
+                                     Padding="4,2" VerticalContentAlignment="Center"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="描述:" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedTemplate.Description}"
+                                     Padding="4,2" VerticalContentAlignment="Center" Watermark="消息用途说明" Margin="0,4,0,0"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="方向:" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1"
+                                      ItemsSource="{Binding DirectionNames}"
+                                      SelectedItem="{Binding SelectedTemplate.DirectionName}"
+                                      MinWidth="100" Height="26" Padding="4,0"
+                                      VerticalContentAlignment="Center" Margin="0,4,0,0"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="通道:" VerticalAlignment="Center" Margin="0,4,0,0"
+                                       ToolTip.Tip="此模板默认走哪个 Host 通道"/>
+                            <ComboBox Grid.Row="3" Grid.Column="1"
+                                      ItemsSource="{Binding ChannelNames}"
+                                      SelectedItem="{Binding SelectedTemplate.ChannelName}"
+                                      MinWidth="100" Height="26" Padding="4,0"
+                                      VerticalContentAlignment="Center" Margin="0,4,0,0"
+                                      PlaceholderText="(空 = 任意已连接通道)"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Body:" VerticalAlignment="Center" Margin="0,4,0,0"
+                                       ToolTip.Tip="Json: 自动用字段拼; Raw: 用 RawBody 模板"/>
+                            <ComboBox Grid.Row="4" Grid.Column="1"
+                                      ItemsSource="{Binding SelectedTemplate.BodyFormats}"
+                                      SelectedItem="{Binding SelectedTemplate.BodyFormat}"
+                                      MinWidth="100" Height="26" Padding="4,0"
+                                      VerticalContentAlignment="Center" Margin="0,4,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Raw body editor (visible only when BodyFormat = Raw) -->
+                <Border Background="#252525" CornerRadius="4" Padding="10,8"
+                        IsVisible="{Binding IsRawBody}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Raw Body (支持 {字段名} 占位)" FontWeight="SemiBold" Foreground="#FF9800" FontSize="13"/>
+                        <TextBox Text="{Binding SelectedTemplate.RawBody}"
+                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                 MinHeight="100" MaxHeight="300"
+                                 FontFamily="Consolas,monospace" FontSize="11"
+                                 Padding="4,2"
+                                 Watermark='示例:&#x0A;{"trxId":"FBPBISTOL","strInMsg":"{\"trxId\":\"FBPBISTOL\",...}", "fabIdFk":"{fabIdFk}" }'/>
+                        <TextBlock Text="提示: BodyFormat=Raw 时直接发送此文本，{字段名} 会用 Fields 里的对应值替换。"
+                                   FontSize="10" Opacity="0.5" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Field tree -->
+                <Border Background="#252525" CornerRadius="4" Padding="10,8">
+                    <StackPanel Spacing="4">
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="消息字段" FontWeight="SemiBold" Foreground="#4CAF50" FontSize="13"
+                                       VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                            <Button Content="+ 添加顶层字段"
+                                    Command="{Binding SelectedTemplate.AddFieldCommand}"
+                                    Padding="8,2" FontSize="11" Classes="accent" DockPanel.Dock="Right"/>
+                        </DockPanel>
+
+                        <TreeView ItemsSource="{Binding SelectedTemplate.Fields}" BorderThickness="0"
+                                  Background="Transparent">
+                            <TreeView.DataTemplates>
+                                <TreeDataTemplate DataType="{x:Type vm:HostFieldViewModel}"
+                                                  ItemsSource="{Binding Children}">
+                                    <Border Background="#1F1F1F" CornerRadius="2"
+                                            Padding="4,2" Margin="0,1"
+                                            BorderBrush="#333" BorderThickness="0,0,0,1">
+                                        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                            <Button Content="✕" Padding="4,0" FontSize="10"
+                                                    ToolTip.Tip="删除此字段"
+                                                    Command="{Binding DataContext.SelectedTemplate.DeleteFieldCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Foreground="#F44747" Background="Transparent"
+                                                    VerticalAlignment="Center"/>
+
+                                            <!-- Type: ComboBox = display AND edit in one -->
+                                            <ComboBox ItemsSource="{x:Static vm:HostFieldViewModel.TypeNames}"
+                                                      SelectedItem="{Binding TypeName}"
+                                                      Width="90" Padding="2,0" FontSize="10"
+                                                      Height="24" Margin="4,0"
+                                                      VerticalContentAlignment="Center"
+                                                      ToolTip.Tip="字段类型"/>
+
+                                            <TextBox Text="{Binding Name}" MinWidth="90"
+                                                     Padding="3,1" FontSize="11"
+                                                     VerticalContentAlignment="Center"
+                                                     FontFamily="Consolas,monospace"
+                                                     Watermark="字段名"/>
+
+                                            <TextBox Text="{Binding DefaultValue}" MinWidth="80"
+                                                     Padding="3,1" FontSize="11"
+                                                     VerticalContentAlignment="Center"
+                                                     FontFamily="Consolas,monospace"
+                                                     IsVisible="{Binding IsLeaf}"
+                                                     Watermark="默认值" Margin="4,0,0,0"/>
+
+                                            <TextBox Text="{Binding Description}" MinWidth="100"
+                                                     Padding="3,1" FontSize="11"
+                                                     VerticalContentAlignment="Center"
+                                                     Watermark="说明" Margin="4,0,0,0"/>
+
+                                            <CheckBox IsChecked="{Binding Required}"
+                                                      ToolTip.Tip="必填" Margin="4,0"
+                                                      VerticalAlignment="Center"/>
+
+                                            <Button Content="+ 子" Padding="4,0" FontSize="10"
+                                                    IsVisible="{Binding IsContainer}"
+                                                    ToolTip.Tip="添加子字段"
+                                                    Command="{Binding DataContext.SelectedTemplate.AddChildFieldCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    VerticalAlignment="Center"/>
+
+                                            <Button Content="▲" Padding="3,0" FontSize="9"
+                                                    ToolTip.Tip="上移"
+                                                    Command="{Binding DataContext.SelectedTemplate.MoveFieldUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="Transparent" VerticalAlignment="Center"/>
+                                            <Button Content="▼" Padding="3,0" FontSize="9"
+                                                    ToolTip.Tip="下移"
+                                                    Command="{Binding DataContext.SelectedTemplate.MoveFieldDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="Transparent" VerticalAlignment="Center"/>
+                                        </WrapPanel>
+                                    </Border>
+                                </TreeDataTemplate>
+                            </TreeView.DataTemplates>
+                        </TreeView>
+
+                        <TextBlock Text="提示: Object/ArrayList 容器可包含子字段。用 ✕ 删除、▲▼ 调整顺序、CTRL+S 保存。"
+                                   FontSize="10" Opacity="0.4" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- JSON preview -->
+                <Border Background="#252525" CornerRadius="4" Padding="10,8">
+                    <StackPanel Spacing="6">
+                        <DockPanel>
+                            <TextBlock Text="JSON 预览" FontWeight="SemiBold" Foreground="#9CDCFE" FontSize="13"
+                                       VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                            <TextBlock Text="{Binding SelectedTemplate.Name}"
+                                       FontSize="11" Opacity="0.4" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        </DockPanel>
+                        <Border Background="#1E1E1E" CornerRadius="3" Padding="8,6" MaxHeight="300">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <TextBlock Text="{Binding JsonPreview}"
+                                           FontSize="11" FontFamily="Consolas,monospace"
+                                           Foreground="#D4D4D4" TextWrapping="NoWrap"/>
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

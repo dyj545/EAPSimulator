@@ -65,9 +65,28 @@
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="输入格式:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <ComboBox x:Name="InputFormatCombo"
+                                      ItemsSource="{x:Static vm:SecsItemViewModel.InputFormatOptions}"
+                                      MinWidth="120" Height="26" FontSize="12"
+                                      FontFamily="Consolas,monospace" Padding="4,0"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="预览格式:" Width="70" VerticalAlignment="Center" FontSize="12"/>
+                            <ComboBox x:Name="PreviewFormatCombo"
+                                      ItemsSource="{x:Static vm:SecsItemViewModel.PreviewFormatOptions}"
+                                      MinWidth="120" Height="26" FontSize="12"
+                                      FontFamily="Consolas,monospace" Padding="4,0"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
                             <TextBlock Text="NLB:" Width="70" VerticalAlignment="Center" FontSize="12"/>
-                            <TextBox x:Name="NlbBox" MinWidth="200" FontSize="12" Padding="4,2"
-                                     VerticalContentAlignment="Center" Watermark="Number List Block"/>
+                            <ComboBox x:Name="NlbCombo"
+                                      ItemsSource="{x:Static vm:SecsItemViewModel.NlbOptions}"
+                                      MinWidth="120" Height="26" FontSize="12"
+                                      FontFamily="Consolas,monospace" Padding="4,0"
+                                      ToolTip.Tip="Length-byte selector. Auto = 自动选最短 header"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal">

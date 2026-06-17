@@ -895,7 +895,9 @@ public partial class SecsMessageViewModel : ObservableObject
             item.Alias = meta.Alias ?? string.Empty;
             item.Description = meta.Description ?? string.Empty;
             item.Format = meta.Format ?? string.Empty;
-            item.Nlb = meta.Nlb ?? string.Empty;
+            item.InputFormat = meta.InputFormat ?? "Dec";
+            item.PreviewFormat = meta.PreviewFormat ?? "Dec";
+            item.Nlb = meta.Nlb ?? "Auto";
             item.DefaultValue = meta.DefaultValue ?? string.Empty;
 
             if (meta.ValueMappings != null)
@@ -952,9 +954,13 @@ public partial class SecsMessageViewModel : ObservableObject
 
     private static void CollectFieldMetadata(SecsItemViewModel item, string path, Dictionary<string, FieldMetadata> metadata)
     {
-        // Only save metadata if the item has at least one non-empty field
+        // Only save metadata if the item has at least one non-empty field.
+        // Defaults (InputFormat="Dec", PreviewFormat="Dec", Nlb="Auto") don't count as "set".
         bool hasMeta = !string.IsNullOrEmpty(item.Alias) || !string.IsNullOrEmpty(item.Description) ||
-            !string.IsNullOrEmpty(item.Format) || !string.IsNullOrEmpty(item.Nlb) ||
+            !string.IsNullOrEmpty(item.Format) ||
+            (!string.IsNullOrEmpty(item.InputFormat) && item.InputFormat != "Dec") ||
+            (!string.IsNullOrEmpty(item.PreviewFormat) && item.PreviewFormat != "Dec") ||
+            (!string.IsNullOrEmpty(item.Nlb) && item.Nlb != "Auto") ||
             !string.IsNullOrEmpty(item.DefaultValue) || item.ValueMappings.Count > 0;
         if (hasMeta)
         {
@@ -963,7 +969,9 @@ public partial class SecsMessageViewModel : ObservableObject
                 Alias = item.Alias,
                 Description = item.Description,
                 Format = item.Format,
-                Nlb = item.Nlb,
+                InputFormat = item.InputFormat != "Dec" ? item.InputFormat : null,
+                PreviewFormat = item.PreviewFormat != "Dec" ? item.PreviewFormat : null,
+                Nlb = item.Nlb != "Auto" ? item.Nlb : null,
                 DefaultValue = item.DefaultValue,
             };
             if (item.ValueMappings.Count > 0)

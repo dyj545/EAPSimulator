@@ -62,6 +62,18 @@ public enum ScenarioStepKind
     /// is an unconditional goto.
     /// </summary>
     Branch,
+
+    /// <summary>
+    /// Send a message to the Host/MES side via HostProtocol, built from a Host template.
+    /// Use when EAP needs to actively initiate Host traffic (e.g. EAPDA_MAP_COUNT_REQ).
+    /// </summary>
+    HostSend,
+
+    /// <summary>
+    /// Wait for an inbound Host/MES message matching by name (and optional path conditions),
+    /// with timeout. Use to consume RMS/MES replies (e.g. DAEAP_MAP_COUNT_REP/ERROR).
+    /// </summary>
+    HostReceive,
 }
 
 /// <summary>
@@ -137,6 +149,22 @@ public class ScenarioStep
     [JsonProperty("onTimeout")]
     public ReceiveTimeoutAction OnTimeout { get; set; } = ReceiveTimeoutAction.Fail;
 
+    // ─── HostSend / HostReceive ───
+
+    /// <summary>
+    /// Host message name. For HostSend it is the template name; for HostReceive it is
+    /// the inbound message name to match (empty = match any).
+    /// </summary>
+    [JsonProperty("hostMessageName")]
+    public string HostMessageName { get; set; } = "";
+
+    /// <summary>
+    /// Host channel to route this step through ("MES", "RMS", ...). Empty = first
+    /// configured channel. Lets a single scenario talk to multiple downstream systems.
+    /// </summary>
+    [JsonProperty("hostChannelName")]
+    public string HostChannelName { get; set; } = "";
+
     // ─── Delay ───
 
     [JsonProperty("delayMs")]
@@ -177,6 +205,8 @@ public class ScenarioStep
                 ScenarioStepKind.Delay => $"⏱ Delay {DelayMs} ms{label}",
                 ScenarioStepKind.Log => $"📝 Log {Message}{label}",
                 ScenarioStepKind.Branch => BuildBranchDisplay() + label,
+                ScenarioStepKind.HostSend => $"▶ HostSend [{(string.IsNullOrEmpty(HostChannelName) ? "*" : HostChannelName)}] {(string.IsNullOrEmpty(HostMessageName) ? "(未设置)" : HostMessageName)}{label}",
+                ScenarioStepKind.HostReceive => BuildHostReceiveDisplay() + label,
                 _ => $"? {Kind}{label}",
             };
         }
@@ -197,6 +227,15 @@ public class ScenarioStep
         var parts = Cases.Select(c => $"{c.Summary}→{c.TargetLabel}").ToList();
         if (!string.IsNullOrEmpty(DefaultLabel)) parts.Add($"else→{DefaultLabel}");
         return $"⑂ Branch {{ {string.Join(", ", parts)} }}";
+    }
+
+    private string BuildHostReceiveDisplay()
+    {
+        var name = string.IsNullOrEmpty(HostMessageName) ? "any" : HostMessageName;
+        var ch = string.IsNullOrEmpty(HostChannelName) ? "*" : HostChannelName;
+        if (Conditions.Count == 0) return $"◀ HostRecv [{ch}] {name}";
+        var conds = string.Join(" & ", Conditions.Select(c => c.DisplayText));
+        return $"◀ HostRecv [{ch}] {name} where {conds}";
     }
 }
 

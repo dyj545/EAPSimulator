@@ -267,6 +267,19 @@ public class EapServerWorker : BackgroundService
 
         await _hostProtocol.StartAsync(ct);
 
+        // Wire scenario engine into Host now that it's available
+        if (_scenarioEngine != null)
+        {
+            var hostTplDict = hostTemplates.ToDictionary(t => t.Name, t => t);
+            Func<string, HostMessageTemplate?> hostLookup = name =>
+                hostTplDict.TryGetValue(name, out var t) ? t : null;
+            _scenarioEngine.AttachHost(
+                hostLookup,
+                (msg, ct2) => _hostProtocol.SendHostMessageAsync(msg, ct2));
+            _hostProtocol.HostMessageReceived += (_, msg) => _scenarioEngine.OnHostMessageReceived(msg);
+            _logger.LogInformation("Scenario engine attached to Host protocol");
+        }
+
         // Wire up bridge if SECS is also connected
         if (_secsProtocol != null)
         {

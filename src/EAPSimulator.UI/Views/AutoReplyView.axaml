@@ -600,6 +600,48 @@
                                                  ToolTip.Tip="也可手动输入 Label 名"/>
                                     </StackPanel>
                                 </StackPanel>
+
+                                <!-- HostSend: pick a host template by name -->
+                                <StackPanel IsVisible="{Binding SelectedStep.IsHostSendKind}" Margin="0,4,0,0">
+                                    <TextBlock Text="Host 发送 (EAP→MES/RMS):" FontSize="11"
+                                               Foreground="#FFB454" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="消息名:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <ComboBox ItemsSource="{Binding HostMessageNames}"
+                                                  SelectedItem="{Binding SelectedStep.HostMessageName}"
+                                                  Padding="4,2" FontSize="11" MinWidth="240"
+                                                  PlaceholderText="(选择 Host 消息模板)"/>
+                                    </StackPanel>
+                                    <TextBlock Text="提示: Host 消息模板从 host_message_templates.json 加载;字段值在模板里配置。"
+                                               FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <!-- HostReceive: name match + conditions + timeout -->
+                                <StackPanel IsVisible="{Binding SelectedStep.IsHostReceiveKind}" Margin="0,4,0,0">
+                                    <TextBlock Text="Host 接收 (MES/RMS→EAP):" FontSize="11"
+                                               Foreground="#FFB454" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="消息名:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <ComboBox ItemsSource="{Binding HostMessageNames}"
+                                                  SelectedItem="{Binding SelectedStep.HostMessageName}"
+                                                  Padding="4,2" FontSize="11" MinWidth="240"
+                                                  PlaceholderText="(留空匹配任意 Host 消息)"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="超时(ms):" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.TimeoutMs}"
+                                                 Width="100" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"/>
+                                        <TextBlock Text="超时动作:" VerticalAlignment="Center"
+                                                   Margin="12,0,6,0"/>
+                                        <ComboBox ItemsSource="{Binding SelectedStep.OnTimeoutNames}"
+                                                  SelectedItem="{Binding SelectedStep.OnTimeoutName}"
+                                                  Padding="4,2" FontSize="11"/>
+                                    </StackPanel>
+                                    <TextBlock Text="提示: 在 Branch 步骤里用 Path 指定 Host 字段名 (留空匹配消息名本身)。"
+                                               FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 

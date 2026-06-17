@@ -10,12 +10,31 @@
       "Bash(dotnet restore *)",
       "Bash(dotnet list *)",
       "Bash(ls -la \"D:\\\\C Sharp\\\\AutoFileBackup\")",
-      "Read(//d/C Sharp/AutoFileBackup/**)"
+      "Read(//d/C Sharp/AutoFileBackup/**)",
+      "Bash(python3 fix_combo.py)",
+      "Bash(ls -la \"D:/C Sharp/TaskPilot\")",
+      "Read(//d/C Sharp/TaskPilot/**)",
+      "Bash(awk 'NR>=509 && /^                                <\\\\/StackPanel>/{print NR; exit}' src/EAPSimulator.UI/Views/AutoReplyView.axaml)",
+      "Bash(python3)",
+      "Bash(cd d:/Python/Object/EAPSimulator && git diff --no-index /dev/null src/EAPSimulator.UI/Views/ConfigView.axaml | grep -A3 -B3 \"提示.*通道\")",
+      "Read(//dev/**)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(dotnet clean *)",
+      "Bash(dotnet add *)",
+      "Bash(dotnet run *)",
+      "Bash(powershell -Command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen.Bounds\")",
+      "Bash(findstr EAPSimulator)",
+      "Bash(powershell -Command ' *)",
+      "Read(//c/Users/Administrator/AppData/Local/Temp/claude/**)"
     ],
     "additionalDirectories": [
       "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\Views",
       "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\ViewModels",
-      "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\Resources"
+      "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\Resources",
+      "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup",
+      "D:\\C Sharp\\AutoFileBackup",
+      "D:\\C Sharp\\TaskPilot"
     ]
   }
 }

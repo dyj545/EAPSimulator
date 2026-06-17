@@ -1,0 +1,18 @@
+{
+  "channels": [
+    {
+      "name": "MES",
+      "transportType": "HttpPost",
+      "isActiveMode": true,
+      "httpUrl": "http://127.0.0.1:8080/api/mes",
+      "httpHeaders": {},
+      "remoteHost": "127.0.0.1",
+      "remotePort": 8080,
+      "localHost": "0.0.0.0",
+      "localPort": 0,
+      "bodyFormat": "Json",
+      "contentType": "",
+      "templatePath": ""
+    }
+  ]
+}

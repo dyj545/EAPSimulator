@@ -41,5 +41,31 @@
       "enabled": true
     }
   ],
-  "scenarios": []
+  "scenarios": [
+    {
+      "name": "ConnectStart",
+      "description": "接入时自动协议消息体",
+      "role": 1,
+      "enabled": true,
+      "loop": false,
+      "autoStart": false,
+      "steps": [
+        {
+          "kind": 0,
+          "label": "",
+          "templateName": "S1F1 - Are You There Request",
+          "waitReply": false,
+          "stream": 0,
+          "function": 0,
+          "conditions": [],
+          "timeoutMs": 30000,
+          "onTimeout": 0,
+          "delayMs": 1000,
+          "message": "",
+          "cases": [],
+          "defaultLabel": ""
+        }
+      ]
+    }
+  ]
 }

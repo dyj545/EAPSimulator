@@ -17,6 +17,8 @@ public partial class FieldEditDialog : Window
     private readonly string _origDescription = "";
     private readonly string _origValueText = "";
     private readonly string _origFormat = "";
+    private readonly string _origInputFormat = "";
+    private readonly string _origPreviewFormat = "";
     private readonly string _origNlb = "";
     private readonly string _origDefaultValue = "";
     private readonly List<ValueMappingEntry> _origMappings = [];
@@ -40,7 +42,9 @@ public partial class FieldEditDialog : Window
         DescriptionBox.Text = item.Description;
         ValueText.Text = item.ValueText;
         FormatBox.Text = item.Format;
-        NlbBox.Text = item.Nlb;
+        InputFormatCombo.SelectedItem = NormalizeOption(item.InputFormat, SecsItemViewModel.InputFormatOptions, "Dec");
+        PreviewFormatCombo.SelectedItem = NormalizeOption(item.PreviewFormat, SecsItemViewModel.PreviewFormatOptions, "Dec");
+        NlbCombo.SelectedItem = NormalizeOption(item.Nlb, SecsItemViewModel.NlbOptions, "Auto");
         DefaultValueBox.Text = item.DefaultValue;
 
         MappingList.ItemsSource = _mappings;
@@ -53,10 +57,15 @@ public partial class FieldEditDialog : Window
         _origDescription = item.Description;
         _origValueText = item.ValueText;
         _origFormat = item.Format;
-        _origNlb = item.Nlb;
+        _origInputFormat = (string)InputFormatCombo.SelectedItem!;
+        _origPreviewFormat = (string)PreviewFormatCombo.SelectedItem!;
+        _origNlb = (string)NlbCombo.SelectedItem!;
         _origDefaultValue = item.DefaultValue;
         _origMappings = item.ValueMappings.Select(m => m.Clone()).ToList();
     }
+
+    private static string NormalizeOption(string current, string[] options, string fallback) =>
+        options.Contains(current) ? current : fallback;
 
     private bool HasChanges()
     {
@@ -65,7 +74,9 @@ public partial class FieldEditDialog : Window
         if ((DescriptionBox.Text ?? "") != _origDescription) return true;
         if ((ValueText.Text ?? "") != _origValueText) return true;
         if ((FormatBox.Text ?? "") != _origFormat) return true;
-        if ((NlbBox.Text ?? "") != _origNlb) return true;
+        if ((InputFormatCombo.SelectedItem as string ?? "") != _origInputFormat) return true;
+        if ((PreviewFormatCombo.SelectedItem as string ?? "") != _origPreviewFormat) return true;
+        if ((NlbCombo.SelectedItem as string ?? "") != _origNlb) return true;
         if ((DefaultValueBox.Text ?? "") != _origDefaultValue) return true;
         if (_mappings.Count != _origMappings.Count) return true;
         for (int i = 0; i < _mappings.Count; i++)
@@ -171,7 +182,9 @@ public partial class FieldEditDialog : Window
         _item.Description = DescriptionBox.Text ?? string.Empty;
         _item.ValueText = ValueText.Text ?? string.Empty;
         _item.Format = FormatBox.Text ?? string.Empty;
-        _item.Nlb = NlbBox.Text ?? string.Empty;
+        _item.InputFormat = InputFormatCombo.SelectedItem as string ?? "Dec";
+        _item.PreviewFormat = PreviewFormatCombo.SelectedItem as string ?? "Dec";
+        _item.Nlb = NlbCombo.SelectedItem as string ?? "Auto";
         _item.DefaultValue = DefaultValueBox.Text ?? string.Empty;
 
         // Apply value mappings
@@ -233,8 +246,12 @@ public partial class FieldEditDialog : Window
         if (!string.IsNullOrEmpty(desc)) parts.Add($"Desc: {desc}");
         var format = FormatBox.Text ?? string.Empty;
         if (!string.IsNullOrEmpty(format)) parts.Add($"Format: {format}");
-        var nlb = NlbBox.Text ?? string.Empty;
-        if (!string.IsNullOrEmpty(nlb)) parts.Add($"NLB: {nlb}");
+        var inFmt = InputFormatCombo.SelectedItem as string ?? "";
+        if (!string.IsNullOrEmpty(inFmt) && inFmt != "Dec") parts.Add($"Input: {inFmt}");
+        var prevFmt = PreviewFormatCombo.SelectedItem as string ?? "";
+        if (!string.IsNullOrEmpty(prevFmt) && prevFmt != "Dec") parts.Add($"Preview: {prevFmt}");
+        var nlb = NlbCombo.SelectedItem as string ?? "";
+        if (!string.IsNullOrEmpty(nlb) && nlb != "Auto") parts.Add($"NLB: {nlb}");
         var defVal = DefaultValueBox.Text ?? string.Empty;
         if (!string.IsNullOrEmpty(defVal)) parts.Add($"Default: {defVal}");
         if (_mappings.Count > 0) parts.Add($"Mappings: {_mappings.Count}");

@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using EAPSimulator.Core.Protocols;
+using EAPSimulator.Core.Protocols.HostProtocol;
 using EAPSimulator.Core.Protocols.SecsGem.Gem;
 using EAPSimulator.Core.Protocols.SecsGem.Handlers;
 using EAPSimulator.Core.Protocols.SecsGem.SecsII;
@@ -9,9 +10,11 @@ namespace EAPSimulator.Core.Protocols.SecsGem.AutoReply;
 
 /// <summary>
 /// Famate-style scenario interpreter. Drives a script of heterogeneous steps
-/// (Send/Receive/Reply/Delay/Log) and lets the user run/stop/single-step.
-/// Implements <see cref="ISecsMessageHandler"/> so an active Receive step can
-/// consume an inbound message off the router pipeline.
+/// (Send/Receive/Reply/Delay/Log/Branch/HostSend/HostReceive) and lets the user
+/// run/stop/single-step. Implements <see cref="ISecsMessageHandler"/> so an active
+/// Receive step can consume an inbound SECS message off the router pipeline.
+/// Host messages are forwarded via <see cref="OnHostMessageReceived"/>; wire it up
+/// to <c>HostProtocol.MessageReceived</c>.
 /// </summary>
 public class ScenarioEngine : ISecsMessageHandler
 {
@@ -20,15 +23,32 @@ public class ScenarioEngine : ISecsMessageHandler
     private readonly Func<SecsMessage, CancellationToken, Task>? _send;
     private readonly ProtocolRole _currentRole;
 
+    // Per-channel host wiring. Key "" = default channel (used when a step omits HostChannelName).
+    private readonly Dictionary<string, Func<string, HostMessageTemplate?>> _hostTemplateLookups = new();
+    private readonly Dictionary<string, Func<HostMessage, CancellationToken, Task>> _hostSends = new();
+
     private readonly object _lock = new();
     private CancellationTokenSource? _runCts;
     private Task? _runTask;
 
-    // Current Receive step waits on this channel; the router pushes inbound messages in.
+    // Current SECS Receive step waits on this channel; the router pushes inbound SECS messages in.
     private Channel<SecsMessage>? _inbox;
 
-    // Last-received message — used by a subsequent Reply step.
+    // Per-channel host inboxes; HostReceive step reads from the channel its step specifies.
+    private readonly Dictionary<string, Channel<HostMessage>> _hostInboxes = new();
+
+    // Last-received SECS message — used by a subsequent Reply step.
     private SecsMessage? _lastReceived;
+
+    // Last-received Host message — used by a subsequent Branch evaluating Host fields.
+    private HostMessage? _lastHostReceived;
+
+    /// <summary>
+    /// Tracks which side fed <see cref="_lastReceived"/> / <see cref="_lastHostReceived"/> last,
+    /// so Branch knows which message to evaluate conditions against.
+    /// </summary>
+    private LastSource _lastSource = LastSource.None;
+    private enum LastSource { None, Secs, Host }
 
     public event Action<ScenarioDefinition, int, ScenarioStep>? StepStarted;
     public event Action<ScenarioDefinition, int, ScenarioStep, string>? StepCompleted; // status text
@@ -39,25 +59,54 @@ public class ScenarioEngine : ISecsMessageHandler
     public ScenarioDefinition? RunningScenario { get; private set; }
     public int CurrentStepIndex { get; private set; }
 
-    /// <summary>
-    /// Set by <see cref="HandleAsync"/> when an inbound message was forwarded into the running
-    /// scenario's inbox. The router checks this to decide whether to suppress built-in handlers
-    /// for that message — otherwise a W-bit request gets answered twice (once by the script's
-    /// Reply step, once by the built-in handler).
-    /// </summary>
     public bool ConsumedLast { get; private set; }
 
     public ScenarioEngine(
         ILogger logger,
         Func<string, SecsMessageTemplate?> templateLookup,
         Func<SecsMessage, CancellationToken, Task>? send = null,
-        ProtocolRole currentRole = ProtocolRole.Equipment)
+        ProtocolRole currentRole = ProtocolRole.Equipment,
+        Func<string, HostMessageTemplate?>? hostTemplateLookup = null,
+        Func<HostMessage, CancellationToken, Task>? hostSend = null)
     {
         _logger = logger;
         _templateLookup = templateLookup;
         _send = send;
         _currentRole = currentRole;
+        // Backwards-compat: ctor lookup + send register under default channel.
+        if (hostTemplateLookup != null) _hostTemplateLookups[""] = hostTemplateLookup;
+        if (hostSend != null) _hostSends[""] = hostSend;
     }
+
+    /// <summary>
+    /// Register Host capability for the given channel name. Use empty string for the default
+    /// channel that catches steps with no <see cref="ScenarioStep.HostChannelName"/> set.
+    /// </summary>
+    public void AttachHostChannel(
+        string channelName,
+        Func<string, HostMessageTemplate?> hostTemplateLookup,
+        Func<HostMessage, CancellationToken, Task> hostSend)
+    {
+        var key = channelName ?? "";
+        _hostTemplateLookups[key] = hostTemplateLookup;
+        _hostSends[key] = hostSend;
+    }
+
+    /// <summary>Detach a host channel (e.g. when its transport disconnects).</summary>
+    public void DetachHostChannel(string channelName)
+    {
+        var key = channelName ?? "";
+        _hostTemplateLookups.Remove(key);
+        _hostSends.Remove(key);
+    }
+
+    /// <summary>
+    /// Backwards-compat shim — registers as the default channel.
+    /// </summary>
+    public void AttachHost(
+        Func<string, HostMessageTemplate?> hostTemplateLookup,
+        Func<HostMessage, CancellationToken, Task> hostSend)
+        => AttachHostChannel("", hostTemplateLookup, hostSend);
 
     /// <summary>
     /// Start running the scenario from step 0. Returns immediately; observe events for progress.
@@ -89,7 +138,11 @@ public class ScenarioEngine : ISecsMessageHandler
             RunningScenario = scenario;
             CurrentStepIndex = 0;
             _lastReceived = null;
+            _lastHostReceived = null;
+            _lastSource = LastSource.None;
             _inbox = Channel.CreateUnbounded<SecsMessage>();
+            // Lazily create host inboxes per channel as steps reference them.
+            _hostInboxes.Clear();
             var ct = _runCts.Token;
             _runTask = Task.Run(() => RunLoopAsync(scenario, ct), ct);
         }
@@ -178,6 +231,9 @@ public class ScenarioEngine : ISecsMessageHandler
                 RunningScenario = null;
                 _inbox?.Writer.TryComplete();
                 _inbox = null;
+                foreach (var inbox in _hostInboxes.Values)
+                    inbox.Writer.TryComplete();
+                _hostInboxes.Clear();
             }
         }
     }
@@ -185,7 +241,7 @@ public class ScenarioEngine : ISecsMessageHandler
     private (string status, int nextPc) ExecuteBranch(
         ScenarioStep step, int pc, Dictionary<string, int> labelIndex)
     {
-        // Cases evaluated in order against the most recently captured Receive message.
+        // Cases evaluated in order against the most recently captured Receive (SECS or Host).
         // Conditions with empty path on a null lastReceived match (degenerate "always").
         for (int ci = 0; ci < step.Cases.Count; ci++)
         {
@@ -193,7 +249,13 @@ public class ScenarioEngine : ISecsMessageHandler
             bool ok = true;
             foreach (var cond in c.Conditions)
             {
-                if (!MatchUtil.MatchesCondition(cond, _lastReceived?.RootItem))
+                bool match = _lastSource switch
+                {
+                    LastSource.Host => MatchUtil.MatchesCondition(cond, _lastHostReceived),
+                    LastSource.Secs => MatchUtil.MatchesCondition(cond, _lastReceived?.RootItem),
+                    _ => MatchUtil.MatchesCondition(cond, _lastReceived?.RootItem),
+                };
+                if (!match)
                 {
                     ok = false;
                     break;
@@ -239,6 +301,10 @@ public class ScenarioEngine : ISecsMessageHandler
             case ScenarioStepKind.Branch:
                 // Should never reach here — Branch is handled in RunLoopAsync directly so it can change PC.
                 throw new InvalidOperationException("Branch step must be handled by RunLoopAsync");
+            case ScenarioStepKind.HostSend:
+                return await ExecuteHostSendAsync(step, ct).ConfigureAwait(false);
+            case ScenarioStepKind.HostReceive:
+                return await ExecuteHostReceiveAsync(step, ct).ConfigureAwait(false);
             default:
                 return $"unknown kind {step.Kind}";
         }
@@ -273,6 +339,7 @@ public class ScenarioEngine : ISecsMessageHandler
                     if (MatchesReceiveStep(step, candidate))
                     {
                         _lastReceived = candidate;
+                        _lastSource = LastSource.Secs;
                         return $"matched S{candidate.Stream}F{candidate.Function}";
                     }
                     // Non-matching messages fall through silently — they'll be handled by other handlers
@@ -318,6 +385,109 @@ public class ScenarioEngine : ISecsMessageHandler
         }
         return true;
     }
+
+    private async Task<string> ExecuteHostSendAsync(ScenarioStep step, CancellationToken ct)
+    {
+        var (lookup, send, channelKey) = ResolveHostChannel(step.HostChannelName);
+        if (send == null || lookup == null)
+            throw new InvalidOperationException(
+                $"ScenarioEngine has no host channel '{channelKey}'; configure & connect it first.");
+        var tpl = lookup(step.HostMessageName)
+            ?? throw new InvalidOperationException($"Host template '{step.HostMessageName}' not found on channel '{channelKey}' for HostSend step.");
+        var msg = tpl.BuildMessage();
+        await send(msg, ct).ConfigureAwait(false);
+        return $"host-sent [{channelKey}] {msg.Name}";
+    }
+
+    private async Task<string> ExecuteHostReceiveAsync(ScenarioStep step, CancellationToken ct)
+    {
+        var channelKey = step.HostChannelName ?? "";
+        var inbox = GetOrCreateHostInbox(channelKey);
+
+        var timeout = step.TimeoutMs <= 0 ? Timeout.InfiniteTimeSpan : TimeSpan.FromMilliseconds(step.TimeoutMs);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (timeout != Timeout.InfiniteTimeSpan)
+            timeoutCts.CancelAfter(timeout);
+
+        try
+        {
+            while (await inbox.Reader.WaitToReadAsync(timeoutCts.Token).ConfigureAwait(false))
+            {
+                while (inbox.Reader.TryRead(out var candidate))
+                {
+                    if (MatchesHostReceiveStep(step, candidate))
+                    {
+                        _lastHostReceived = candidate;
+                        _lastSource = LastSource.Host;
+                        return $"host-matched [{channelKey}] {candidate.Name}";
+                    }
+                }
+            }
+            return $"host channel '{channelKey}' closed";
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return step.OnTimeout switch
+            {
+                ReceiveTimeoutAction.Skip => "timeout — skipped",
+                ReceiveTimeoutAction.Continue => "timeout — continue",
+                _ => throw new TimeoutException($"HostReceive step timed out after {step.TimeoutMs} ms"),
+            };
+        }
+    }
+
+    private static bool MatchesHostReceiveStep(ScenarioStep step, HostMessage msg)
+    {
+        // HostMessageName "" matches any inbound host message; otherwise exact-match by name.
+        if (!string.IsNullOrEmpty(step.HostMessageName)
+            && !string.Equals(step.HostMessageName, msg.Name, StringComparison.Ordinal))
+            return false;
+        foreach (var cond in step.Conditions)
+        {
+            if (!MatchUtil.MatchesCondition(cond, msg)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Resolve (lookup, send) for the given channel name. Falls back to default channel ""
+    /// if the requested channel isn't registered (so empty step.HostChannelName + single
+    /// AttachHost call still works).
+    /// </summary>
+    private (Func<string, HostMessageTemplate?>? lookup, Func<HostMessage, CancellationToken, Task>? send, string key)
+        ResolveHostChannel(string? channelName)
+    {
+        var key = channelName ?? "";
+        if (_hostSends.TryGetValue(key, out var send) && _hostTemplateLookups.TryGetValue(key, out var lookup))
+            return (lookup, send, key);
+        if (key != "" && _hostSends.TryGetValue("", out var defSend) && _hostTemplateLookups.TryGetValue("", out var defLookup))
+            return (defLookup, defSend, "(default)");
+        return (null, null, key);
+    }
+
+    private Channel<HostMessage> GetOrCreateHostInbox(string channelKey)
+    {
+        if (!_hostInboxes.TryGetValue(channelKey, out var inbox))
+        {
+            inbox = Channel.CreateUnbounded<HostMessage>();
+            _hostInboxes[channelKey] = inbox;
+        }
+        return inbox;
+    }
+
+    /// <summary>
+    /// Wire this to <c>HostProtocol.HostMessageReceived</c>. Pass the channel name the
+    /// message arrived on so HostReceive steps targeting that channel can consume it.
+    /// </summary>
+    public void OnHostMessageReceived(string channelName, HostMessage msg)
+    {
+        var key = channelName ?? "";
+        var inbox = GetOrCreateHostInbox(key);
+        inbox.Writer.TryWrite(msg);
+    }
+
+    /// <summary>Backwards-compat overload — uses default channel.</summary>
+    public void OnHostMessageReceived(HostMessage msg) => OnHostMessageReceived("", msg);
 
     private void EmitLog(string text)
     {

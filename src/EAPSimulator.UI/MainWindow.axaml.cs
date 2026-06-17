@@ -38,7 +38,29 @@ public partial class MainWindow : Window
     {
         EditorView.IsVisible = true;
         AutoReplyView.IsVisible = false;
+        HostEditorView.IsVisible = false;
+        RestorePanels();
+    }
 
+    private void OnAutoReplyTabClick(object? sender, RoutedEventArgs e)
+    {
+        EditorView.IsVisible = false;
+        AutoReplyView.IsVisible = true;
+        HostEditorView.IsVisible = false;
+        ExpandLeftPanel();
+    }
+
+    private void OnHostEditorTabClick(object? sender, RoutedEventArgs e)
+    {
+        EditorView.IsVisible = false;
+        AutoReplyView.IsVisible = false;
+        HostEditorView.IsVisible = true;
+        ExpandLeftPanel();
+        ViewModel.HostEditor.RefreshPreview();
+    }
+
+    private void RestorePanels()
+    {
         // Restore 3-panel layout
         Grid.SetColumnSpan(LeftPanel, 1);
         Splitter1.IsVisible = true;
@@ -47,12 +69,9 @@ public partial class MainWindow : Window
         StatusPanel.IsVisible = true;
     }
 
-    private void OnAutoReplyTabClick(object? sender, RoutedEventArgs e)
+    private void ExpandLeftPanel()
     {
-        EditorView.IsVisible = false;
-        AutoReplyView.IsVisible = true;
-
-        // Full-screen AutoReply: hide right panels
+        // Full-screen left panel: hide right panels
         Grid.SetColumnSpan(LeftPanel, 5);
         Splitter1.IsVisible = false;
         MessageLogPanel.IsVisible = false;

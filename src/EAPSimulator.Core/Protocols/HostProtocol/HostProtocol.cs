@@ -27,6 +27,13 @@ public class HostProtocol : IProtocol
     public event EventHandler<ProtocolMessageEventArgs>? MessageSent;
     public event EventHandler<ProtocolStateEventArgs>? StateChanged;
 
+    /// <summary>
+    /// Raised in addition to <see cref="MessageReceived"/> with the full <see cref="HostMessage"/>,
+    /// not the lossy <see cref="ProtocolMessage"/> projection. Used by ScenarioEngine to
+    /// match by name and field values.
+    /// </summary>
+    public event EventHandler<HostMessage>? HostMessageReceived;
+
     public HostProtocol(ILogger logger)
     {
         _logger = logger;
@@ -132,8 +139,9 @@ public class HostProtocol : IProtocol
         if (_transport == null || !_transport.IsConnected)
             throw new InvalidOperationException("Not connected");
 
-        var json = message.ToJson();
-        await _transport.SendAsync(json, ct);
+        // Use ToWireBody so Raw / custom JSON shapes go out as authored.
+        var body = message.ToWireBody();
+        await _transport.SendAsync(body, ct);
 
         var protocolMsg = message.ToProtocolMessage();
         MessageSent?.Invoke(this, new ProtocolMessageEventArgs(protocolMsg, MessageDirection.Send));
@@ -151,6 +159,7 @@ public class HostProtocol : IProtocol
 
             var protocolMsg = hostMsg.ToProtocolMessage();
             MessageReceived?.Invoke(this, new ProtocolMessageEventArgs(protocolMsg, MessageDirection.Receive));
+            HostMessageReceived?.Invoke(this, hostMsg);
             _logger.LogInformation("Host received: {Name}", hostMsg.Name);
         }
         catch (Exception ex)

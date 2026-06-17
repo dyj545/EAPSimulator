@@ -1,3 +1,4 @@
+using EAPSimulator.Core.Protocols.HostProtocol;
 using EAPSimulator.Core.Protocols.SecsGem.SecsII;
 
 namespace EAPSimulator.Core.Protocols.SecsGem.AutoReply;
@@ -17,6 +18,21 @@ internal static class MatchUtil
         if (item == null) return false;
 
         var itemValue = GetItemValueString(item);
+        return EvaluateCondition(itemValue, condition.Operator, condition.Value);
+    }
+
+    /// <summary>
+    /// Match a condition against a flat <see cref="HostMessage"/>. Path is interpreted as
+    /// a field name; the special path "name" or empty path tests against the message Name.
+    /// </summary>
+    public static bool MatchesCondition(FieldCondition condition, HostMessage? msg)
+    {
+        if (msg == null) return string.IsNullOrEmpty(condition.Value);
+
+        string itemValue = string.IsNullOrEmpty(condition.Path)
+            ? msg.Name
+            : (msg.GetFieldValue(condition.Path) ?? "");
+
         return EvaluateCondition(itemValue, condition.Operator, condition.Value);
     }
 

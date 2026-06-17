@@ -32,7 +32,13 @@ public partial class SecsItemViewModel : ObservableObject
     private string _format = string.Empty;
 
     [ObservableProperty]
-    private string _nlb = string.Empty;
+    private string _inputFormat = "Dec";
+
+    [ObservableProperty]
+    private string _previewFormat = "Dec";
+
+    [ObservableProperty]
+    private string _nlb = "Auto";
 
     [ObservableProperty]
     private string _defaultValue = string.Empty;
@@ -74,7 +80,9 @@ public partial class SecsItemViewModel : ObservableObject
             if (!string.IsNullOrEmpty(Alias)) parts.Add($"Name: {Alias}");
             if (!string.IsNullOrEmpty(Description)) parts.Add($"Desc: {Description}");
             if (!string.IsNullOrEmpty(Format)) parts.Add($"Format: {Format}");
-            if (!string.IsNullOrEmpty(Nlb)) parts.Add($"NLB: {Nlb}");
+            if (!string.IsNullOrEmpty(InputFormat) && InputFormat != "Dec") parts.Add($"Input: {InputFormat}");
+            if (!string.IsNullOrEmpty(PreviewFormat) && PreviewFormat != "Dec") parts.Add($"Preview: {PreviewFormat}");
+            if (!string.IsNullOrEmpty(Nlb) && Nlb != "Auto") parts.Add($"NLB: {Nlb}");
             if (!string.IsNullOrEmpty(DefaultValue)) parts.Add($"Default: {DefaultValue}");
             if (ValueMappings.Count > 0) parts.Add($"Mappings: {ValueMappings.Count}");
             return parts.Count > 0 ? string.Join("\n", parts) : $"{TypeName} {ValueText}";
@@ -89,6 +97,8 @@ public partial class SecsItemViewModel : ObservableObject
 
     partial void OnDescriptionChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
     partial void OnFormatChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
+    partial void OnInputFormatChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
+    partial void OnPreviewFormatChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
     partial void OnNlbChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
     partial void OnDefaultValueChanged(string value) => OnPropertyChanged(nameof(ToolTipText));
 
@@ -130,7 +140,25 @@ public partial class SecsItemViewModel : ObservableObject
     public ObservableCollection<SecsItemViewModel> Children { get; } = new();
 
     public static string[] TypeNames { get; } =
-        ["L", "A", "B", "Boolean", "U1", "U2", "U4", "U8", "I1", "I2", "I4", "I8", "F4", "F8"];
+        ["L", "A", "B", "Boolean", "JIS-8", "U1", "U2", "U4", "U8", "I1", "I2", "I4", "I8", "F4", "F8"];
+
+    /// <summary>
+    /// Selectable display/input format options for numeric types in the field editor.
+    /// Dec/Hex/Bin/Oct picks how the raw bytes are rendered to the user; ASCII / List / Binary
+    /// are kept for parity with mature SECS editors that mix structural format into the same combo.
+    /// </summary>
+    public static string[] InputFormatOptions { get; } =
+        ["Dec", "Hex", "Bin", "Oct", "ASCII"];
+
+    public static string[] PreviewFormatOptions { get; } =
+        ["Dec", "Hex", "Bin", "Oct", "ASCII"];
+
+    /// <summary>
+    /// Length-byte selector. "Auto" = pick the smallest header that fits at encode time.
+    /// Numeric values force a specific header byte count.
+    /// </summary>
+    public static string[] NlbOptions { get; } =
+        ["Auto", "1", "2", "3"];
 
     public bool IsList => TypeName == "L";
 
@@ -164,6 +192,7 @@ public partial class SecsItemViewModel : ObservableObject
     {
         SecsList list => FromList(list),
         SecsAscii a => new("A", a.Value),
+        SecsJis8 j => new("JIS-8", BitConverter.ToString(j.Value).Replace("-", "")),
         SecsBinary b => new("B", BitConverter.ToString(b.Value).Replace("-", "")),
         SecsBoolean bl => new("Boolean", bl.Value ? "1" : "0"),
         SecsU1 u1 => new("U1", string.Join(",", u1.Value)),
@@ -200,6 +229,7 @@ public partial class SecsItemViewModel : ObservableObject
         return TypeName switch
         {
             "A" => SecsItem.A(val),
+            "JIS-8" => SecsItem.J(ParseHexBytes(val)),
             "B" => SecsItem.B(ParseHexBytes(val)),
             "Boolean" => SecsItem.Boolean(val == "1" || val.Equals("true", StringComparison.OrdinalIgnoreCase)),
             "U1" => SecsItem.U1(ParseArray<byte>(val)),
@@ -239,6 +269,8 @@ public partial class SecsItemViewModel : ObservableObject
             Alias = Alias,
             Description = Description,
             Format = Format,
+            InputFormat = InputFormat,
+            PreviewFormat = PreviewFormat,
             Nlb = Nlb,
             DefaultValue = DefaultValue,
         };

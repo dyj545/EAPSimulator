@@ -34,6 +34,7 @@ public abstract class SecsItem
 
     public static SecsItem L(params SecsItem[] items) => new SecsList(items);
     public static SecsItem A(string value) => new SecsAscii(value);
+    public static SecsItem J(params byte[] value) => new SecsJis8(value);
     public static SecsItem B(params byte[] value) => new SecsBinary(value);
     public static SecsItem Boolean(bool value) => new SecsBoolean(value);
     public static SecsItem U1(params byte[] value) => new SecsU1(value);
@@ -116,6 +117,7 @@ public abstract class SecsItem
         return format switch
         {
             SecsFormat.ASCII => new SecsAscii(CleanAsciiString(System.Text.Encoding.ASCII.GetString(valueData))),
+            SecsFormat.JIS8 => new SecsJis8(valueData),
             SecsFormat.Binary => new SecsBinary(valueData),
             SecsFormat.Boolean => new SecsBoolean(valueData.Length > 0 && valueData[0] != 0),
             SecsFormat.U1 => new SecsU1(valueData),
@@ -250,6 +252,20 @@ public class SecsAscii : SecsItem
     public override byte[] Encode() => EncodeHeader(Format, Value.Length).Concat(System.Text.Encoding.ASCII.GetBytes(Value)).ToArray();
     public override int GetEncodedLength() => EncodeHeader(Format, Value.Length).Length + Value.Length;
     public override string ToString() => $"A: \"{Value}\"";
+}
+
+/// <summary>
+/// JIS-8 (Shift_JIS / single-byte JIS) encoded text. Carried as raw bytes since
+/// .NET on non-Windows may not have the JIS code page; callers can decode with
+/// the appropriate Encoding when needed.
+/// </summary>
+public class SecsJis8 : SecsItem
+{
+    public byte[] Value { get; }
+    public SecsJis8(byte[] value) : base(SecsFormat.JIS8) => Value = value;
+    public override byte[] Encode() => EncodeHeader(Format, Value.Length).Concat(Value).ToArray();
+    public override int GetEncodedLength() => EncodeHeader(Format, Value.Length).Length + Value.Length;
+    public override string ToString() => $"J: [{BitConverter.ToString(Value)}]";
 }
 
 public class SecsBinary : SecsItem

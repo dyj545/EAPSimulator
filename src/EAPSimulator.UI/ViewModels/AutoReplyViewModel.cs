@@ -33,6 +33,12 @@ public partial class AutoReplyViewModel : ObservableObject
     public ObservableCollection<string> TemplateNames { get; } = [];
 
     /// <summary>
+    /// Available Host/MES message template names. Set by MainViewModel when host templates load.
+    /// Empty when Host protocol is not in use.
+    /// </summary>
+    public ObservableCollection<string> HostMessageNames { get; } = [];
+
+    /// <summary>
     /// Full template list for resolving names to templates.
     /// </summary>
     private List<SecsMessageTemplate> _allTemplates = [];
@@ -571,10 +577,13 @@ public partial class AutoReplyViewModel : ObservableObject
     /// <summary>
     /// Apply quick-reply rules and scenarios to the router.
     /// Call this after protocol starts. <paramref name="send"/> is invoked by Send/Reply
-    /// scenario steps; pass the protocol's SendSecsMessageAsync.
+    /// scenario steps; pass the protocol's SendSecsMessageAsync. Optional host parameters
+    /// enable HostSend/HostReceive scenario steps when the Host protocol is wired up.
     /// </summary>
     public void ApplyToRouter(MessageRouter router, Microsoft.Extensions.Logging.ILogger logger,
-        Func<SecsMessage, CancellationToken, Task>? send = null)
+        Func<SecsMessage, CancellationToken, Task>? send = null,
+        Func<string, EAPSimulator.Core.Protocols.HostProtocol.HostMessageTemplate?>? hostTemplateLookup = null,
+        Func<EAPSimulator.Core.Protocols.HostProtocol.HostMessage, CancellationToken, Task>? hostSend = null)
     {
         router.ClearQuickReplyRules();
 
@@ -590,7 +599,8 @@ public partial class AutoReplyViewModel : ObservableObject
         // Build a single engine for all scenarios; each Run picks one.
         // Pass CurrentRole so the engine refuses to run cross-role scripts (e.g. an EAP-side
         // scenario loaded on the equipment-side simulator).
-        var engine = new ScenarioEngine(logger, FindTemplateByName, send, CurrentRole);
+        var engine = new ScenarioEngine(logger, FindTemplateByName, send, CurrentRole,
+            hostTemplateLookup, hostSend);
         engine.Log += text =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => StatusMessage = text);
         engine.ScenarioFinished += (sc, status) =>
@@ -611,6 +621,22 @@ public partial class AutoReplyViewModel : ObservableObject
         Func<SecsMessage, CancellationToken, Task>? send = null)
     {
         ApplyToRouter(router, logger, send);
+    }
+
+    /// <summary>
+    /// Attach Host capability to the currently active scenario engine after it's been built —
+    /// used when the SECS protocol starts before the Host transport. The <paramref name="subscribe"/>
+    /// callback is invoked so the caller can register the engine's <c>OnHostMessageReceived</c>
+    /// against <c>HostProtocol.HostMessageReceived</c>.
+    /// </summary>
+    public void AttachHostToScenarioEngine(
+        Func<string, EAPSimulator.Core.Protocols.HostProtocol.HostMessageTemplate?> hostTemplateLookup,
+        Func<EAPSimulator.Core.Protocols.HostProtocol.HostMessage, CancellationToken, Task> hostSend,
+        Action<EventHandler<EAPSimulator.Core.Protocols.HostProtocol.HostMessage>> subscribe)
+    {
+        if (_activeEngine == null) return;
+        _activeEngine.AttachHost(hostTemplateLookup, hostSend);
+        subscribe((_, msg) => _activeEngine.OnHostMessageReceived(msg));
     }
 
     partial void OnSelectedQuickReplyChanged(QuickReplyRuleViewModel? value)
@@ -966,6 +992,10 @@ public partial class ScenarioStepViewModel : ObservableObject
     [ObservableProperty]
     private string _message = "";
 
+    // HostSend / HostReceive
+    [ObservableProperty]
+    private string _hostMessageName = "";
+
     // Display
     [ObservableProperty]
     private string _displayText = "";
@@ -978,7 +1008,10 @@ public partial class ScenarioStepViewModel : ObservableObject
     public bool IsDelayKind => Kind == ScenarioStepKind.Delay;
     public bool IsLogKind => Kind == ScenarioStepKind.Log;
     public bool IsBranchKind => Kind == ScenarioStepKind.Branch;
+    public bool IsHostSendKind => Kind == ScenarioStepKind.HostSend;
+    public bool IsHostReceiveKind => Kind == ScenarioStepKind.HostReceive;
     public bool UsesTemplate => IsSendKind || IsReplyKind;
+    public bool UsesHostMessage => IsHostSendKind || IsHostReceiveKind;
 
     /// <summary>Branch cases (used only when Kind == Branch).</summary>
     public ObservableCollection<BranchCaseViewModel> Cases { get; } = [];
@@ -1022,7 +1055,10 @@ public partial class ScenarioStepViewModel : ObservableObject
         OnPropertyChanged(nameof(IsDelayKind));
         OnPropertyChanged(nameof(IsLogKind));
         OnPropertyChanged(nameof(IsBranchKind));
+        OnPropertyChanged(nameof(IsHostSendKind));
+        OnPropertyChanged(nameof(IsHostReceiveKind));
         OnPropertyChanged(nameof(UsesTemplate));
+        OnPropertyChanged(nameof(UsesHostMessage));
         OnPropertyChanged(nameof(KindName));
         UpdateDisplayText();
     }
@@ -1035,6 +1071,7 @@ public partial class ScenarioStepViewModel : ObservableObject
     partial void OnDelayMsChanged(int value) => UpdateDisplayText();
     partial void OnMessageChanged(string value) => UpdateDisplayText();
     partial void OnLabelChanged(string value) => UpdateDisplayText();
+    partial void OnHostMessageNameChanged(string value) => UpdateDisplayText();
 
     partial void OnTemplateNameChanged(string value)
     {
@@ -1066,8 +1103,18 @@ public partial class ScenarioStepViewModel : ObservableObject
             ScenarioStepKind.Delay => $"⏱ Delay {DelayMs} ms{label}",
             ScenarioStepKind.Log => $"📝 Log {Message}{label}",
             ScenarioStepKind.Branch => BuildBranchDisplay() + label,
+            ScenarioStepKind.HostSend => $"▶ HostSend {(string.IsNullOrEmpty(HostMessageName) ? "(未设置)" : HostMessageName)}{label}",
+            ScenarioStepKind.HostReceive => BuildHostReceiveDisplay() + label,
             _ => $"? {Kind}{label}",
         };
+    }
+
+    private string BuildHostReceiveDisplay()
+    {
+        var name = string.IsNullOrEmpty(HostMessageName) ? "any" : HostMessageName;
+        if (Conditions.Count == 0) return $"◀ HostRecv {name}";
+        var conds = string.Join(" & ", Conditions.Select(c => $"[{c.Path}] {c.Operator} {c.Value}"));
+        return $"◀ HostRecv {name} where {conds}";
     }
 
     private string BuildReceiveDisplay()
@@ -1102,6 +1149,7 @@ public partial class ScenarioStepViewModel : ObservableObject
             OnTimeout = OnTimeout,
             DelayMs = DelayMs,
             Message = Message,
+            HostMessageName = HostMessageName,
             Cases = Cases.Select(c => c.ToModel()).ToList(),
             DefaultLabel = DefaultLabel,
         };
@@ -1121,6 +1169,7 @@ public partial class ScenarioStepViewModel : ObservableObject
             OnTimeout = step.OnTimeout,
             DelayMs = step.DelayMs,
             Message = step.Message,
+            HostMessageName = step.HostMessageName,
             DefaultLabel = step.DefaultLabel,
         };
         foreach (var cond in step.Conditions.Select(FieldConditionViewModel.FromModel))
