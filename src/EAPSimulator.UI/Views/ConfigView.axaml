@@ -1,108 +1,633 @@
 <UserControl x:Class="EAPSimulator.UI.Views.ConfigView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:EAPSimulator.UI.Converters"
              FontSize="12">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="12">
-            <!-- Title -->
-            <TextBlock Text="Configuration" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
-            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,0,0,8"/>
-
-            <!-- HSMS Settings -->
-            <TextBlock Text="HSMS Connection" FontSize="13" FontWeight="SemiBold" Opacity="0.8" Margin="0,0,0,4"/>
-
-            <TextBlock Text="Connection Mode:" Opacity="0.6"/>
-            <ComboBox x:Name="ConnectionModeCombo"
-                      ItemsSource="{Binding ConnectionModes}"
-                      SelectedItem="{Binding ConnectionMode}"
-                      Margin="0,2,0,2" Height="30"
-                      Padding="6,3"
-                      VerticalContentAlignment="Center"/>
-            <TextBlock Text="{Binding ConnectionModeHint}"
-                       FontSize="11" Opacity="0.5"
-                       TextWrapping="Wrap"
-                       Margin="0,0,0,6"/>
-
-            <TextBlock Text="Local IP:" Opacity="0.6"/>
-            <TextBox Text="{Binding LocalHost}"
-                     Watermark="0.0.0.0" Margin="0,2,0,6"/>
-
-            <TextBlock Text="Local Port:" Opacity="0.6"/>
-            <TextBox Text="{Binding LocalPort}"
-                     Watermark="5000" Margin="0,2,0,6"/>
-
-            <TextBlock Text="Remote IP:" Opacity="0.6"/>
-            <TextBox Text="{Binding RemoteHost}"
-                     Watermark="127.0.0.1" Margin="0,2,0,6"/>
-
-            <TextBlock Text="Remote Port:" Opacity="0.6"/>
-            <TextBox Text="{Binding RemotePort}"
-                     Watermark="5000" Margin="0,2,0,6"/>
-
-            <TextBlock Text="Device ID:" Opacity="0.6"/>
-            <TextBox Text="{Binding DeviceId}"
-                     Watermark="1" Margin="0,2,0,6"/>
-
-            <CheckBox Content="Accept Communication (S1F13→ACK)" IsChecked="{Binding AcceptCommunication}" Margin="0,4,0,6"/>
-
-            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,8"/>
-
-            <!-- Timeout Settings -->
-            <TextBlock Text="Timeouts (ms)" FontSize="13" FontWeight="SemiBold" Opacity="0.8" Margin="0,0,0,4"/>
-
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="60"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="T3:" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding T3Timeout}" Margin="0,2"/>
-
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="T5:" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding T5Timeout}" Margin="0,2"/>
-
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="T6:" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding T6Timeout}" Margin="0,2"/>
-
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="T7:" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding T7Timeout}" Margin="0,2"/>
-
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="T8:" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding T8Timeout}" Margin="0,2"/>
-            </Grid>
-
-            <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,8"/>
-
-            <!-- Custom Protocol Settings -->
-            <TextBlock Text="Custom Protocol" FontSize="13" FontWeight="SemiBold" Opacity="0.8" Margin="0,0,0,4"/>
-
-            <TextBlock Text="Host:" Opacity="0.6"/>
-            <TextBox Text="{Binding CustomHost}"
-                     Watermark="127.0.0.1" Margin="0,2,0,6"/>
-
-            <TextBlock Text="Port:" Opacity="0.6"/>
-            <TextBox Text="{Binding CustomPort}"
-                     Watermark="6000" Margin="0,2,0,6"/>
-
-            <TextBlock Text="Config File:" Opacity="0.6"/>
-            <DockPanel Margin="0,2,0,6">
-                <Button Content="..." Click="OnBrowseCustomConfigClick"
-                        DockPanel.Dock="Right"
-                        Padding="8,2" Margin="4,0,0,0" FontSize="12"
-                        ToolTip.Tip="选择配置文件"/>
-                <TextBox Text="{Binding CustomConfigPath}"
-                         Watermark="custom_protocol.json"/>
-            </DockPanel>
-
-            <CheckBox Content="Server Mode" IsChecked="{Binding CustomIsServer}" Margin="0,4"/>
+    <Grid RowDefinitions="Auto,*" Margin="16">
+        <!-- Title and header -->
+        <StackPanel Grid.Row="0" Spacing="8">
+            <TextBlock Text="配置" FontSize="20" FontWeight="Bold"/>
+            <TextBlock Text="配置 SECS/GEM、自定义协议和 Host 连接"
+                       FontSize="12" Opacity="0.6"/>
         </StackPanel>
-    </ScrollViewer>
+
+        <!-- Content with max width constraint -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxWidth="1400"
+                      HorizontalAlignment="Left" Margin="0,20,0,0">
+            <StackPanel Spacing="20" MaxWidth="1400">
+                <!-- HSMS Settings Section -->
+                <Border Classes="section-card" Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="HSMS 连接" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="(SECS/GEM 协议)" FontSize="11" Opacity="0.6"/>
+                        </StackPanel>
+
+                        <!-- Row 1: 连接模式 (整行) -->
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Grid.Column="0" Text="连接模式" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="ConnectionModeCombo" Grid.Column="1"
+                                    ItemsSource="{Binding ConnectionModes}"
+                                    SelectedItem="{Binding ConnectionMode}"
+                                    Height="36" HorizontalAlignment="Stretch"/>
+                        </Grid>
+
+                        <!-- Row 2: 本地 IP + 本地端口 -->
+                        <Grid ColumnDefinitions="100,*,16,80,*">
+                            <TextBlock Grid.Column="0" Text="本地 IP" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding LocalHost}"
+                                    Watermark="0.0.0.0" Height="36"/>
+                            <TextBlock Grid.Column="3" Text="本地端口" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="4" Text="{Binding LocalPort}"
+                                    Watermark="5000" Height="36"/>
+                        </Grid>
+
+                        <!-- Row 3: 远程 IP + 远程端口 -->
+                        <Grid ColumnDefinitions="100,*,16,80,*">
+                            <TextBlock Grid.Column="0" Text="远程 IP" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding RemoteHost}"
+                                    Watermark="127.0.0.1" Height="36"/>
+                            <TextBlock Grid.Column="3" Text="远程端口" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="4" Text="{Binding RemotePort}"
+                                    Watermark="5000" Height="36"/>
+                        </Grid>
+
+                        <!-- Row 4: 设备 ID + 接受通讯 -->
+                        <Grid ColumnDefinitions="100,160,16,*">
+                            <TextBlock Grid.Column="0" Text="设备 ID" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding DeviceId}"
+                                    Watermark="1" Height="36"/>
+                            <CheckBox Grid.Column="3"
+                                    Content="接受通讯 (S1F13→ACK)"
+                                    IsChecked="{Binding AcceptCommunication}"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Border Height="1" Classes="section-divider" Margin="0,4"/>
+
+                        <TextBlock Text="连接模式说明" FontSize="11" Opacity="0.8" TextWrapping="Wrap"/>
+                        <Border Classes="hint-box" Padding="8">
+                            <TextBlock Text="{Binding ConnectionModeHint}"
+                                     FontSize="11" TextWrapping="Wrap"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Timeout Settings Section -->
+                <Border Classes="section-card" Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="超时设置" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="(毫秒)" FontSize="11" Opacity="0.6"/>
+                        </StackPanel>
+
+                        <!-- Row 1: T3 + T5 -->
+                        <Grid ColumnDefinitions="140,*,16,140,*">
+                            <TextBlock Grid.Column="0" Text="T3: 链路测试" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding T3Timeout}" Height="36"/>
+                            <TextBlock Grid.Column="3" Text="T5: 选择请求" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="4" Text="{Binding T5Timeout}" Height="36"/>
+                        </Grid>
+
+                        <!-- Row 2: T6 + T7 -->
+                        <Grid ColumnDefinitions="140,*,16,140,*">
+                            <TextBlock Grid.Column="0" Text="T6: 设备消息" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding T6Timeout}" Height="36"/>
+                            <TextBlock Grid.Column="3" Text="T7: 数据传输" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="4" Text="{Binding T7Timeout}" Height="36"/>
+                        </Grid>
+
+                        <!-- Row 3: T8 -->
+                        <Grid ColumnDefinitions="140,*,16,140,*">
+                            <TextBlock Grid.Column="0" Text="T8: 设备忙" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding T8Timeout}" Height="36"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Custom Protocol Settings Section -->
+                <Border Classes="section-card" Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="自定义协议" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="(非 SECS 通讯)" FontSize="11" Opacity="0.6"/>
+                        </StackPanel>
+
+                        <!-- 主机 + 端口 + 服务器模式 -->
+                        <Grid ColumnDefinitions="100,*,16,80,*">
+                            <TextBlock Grid.Column="0" Text="主机" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding CustomHost}"
+                                    Watermark="127.0.0.1" Height="36"/>
+                            <TextBlock Grid.Column="3" Text="端口" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="4" Text="{Binding CustomPort}"
+                                    Watermark="6000" Height="36"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Grid.Column="0" Text="服务器模式" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Column="1"
+                                    IsChecked="{Binding CustomIsServer}"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Grid.Column="0" Text="配置文件" VerticalAlignment="Center"/>
+                            <DockPanel Grid.Column="1">
+                                <Button Content="浏览..." Click="OnBrowseCustomConfigClick"
+                                        DockPanel.Dock="Right" Classes="secondary"
+                                        Padding="12,4" Margin="4,0,0,0"/>
+                                <TextBox Text="{Binding CustomConfigPath}"
+                                         Watermark="custom_protocol.json" Height="36"/>
+                            </DockPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Host Channels Section -->
+                <Border Classes="section-card" Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+                            <TextBlock Text="Host 通道" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="(MES / RMS / WMS / 其他系统)" FontSize="11" Opacity="0.6"/>
+                        </StackPanel>
+
+                        <Button Content="+ 添加通道" Command="{Binding AddHostChannelCommand}"
+                                Classes="accent" Padding="16,8" HorizontalAlignment="Left"/>
+
+                        <ItemsControl ItemsSource="{Binding HostChannels}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Classes="channel-card" Padding="0" Margin="0,8">
+                                        <StackPanel>
+                                            <!-- ─── Header (always visible) ─── -->
+                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="12,10">
+                                                <!-- Expand toggle -->
+                                                <Button Grid.Column="0"
+                                                        Command="{Binding ToggleExpandCommand}"
+                                                        Background="Transparent" BorderBrush="Transparent"
+                                                        Padding="4" Width="24" Height="24"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip.Tip="展开/折叠详细配置">
+                                                    <Panel>
+                                                        <TextBlock Text="▶" FontSize="10"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Center"
+                                                                   IsVisible="{Binding !IsExpanded}"/>
+                                                        <TextBlock Text="▼" FontSize="10"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Center"
+                                                                   IsVisible="{Binding IsExpanded}"/>
+                                                    </Panel>
+                                                </Button>
+
+                                                <!-- Status dot -->
+                                                <Border Grid.Column="1" Background="{Binding StatusColor}"
+                                                        CornerRadius="20" Width="10" Height="10"
+                                                        VerticalAlignment="Center" Margin="6,0,12,0"/>
+
+                                                <!-- Summary: name + protocol + endpoint (or stats when connected) -->
+                                                <Grid Grid.Column="2" ColumnDefinitions="Auto,Auto,Auto,Auto,*"
+                                                      VerticalAlignment="Center" Margin="0,0,12,0">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                               FontWeight="SemiBold" FontSize="13"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="·" Opacity="0.4"
+                                                               VerticalAlignment="Center" Margin="8,0"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding TransportType}"
+                                                               FontSize="11" Opacity="0.7"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="3" Text="·" Opacity="0.4"
+                                                               VerticalAlignment="Center" Margin="8,0"/>
+                                                    <!-- 已连接时显示统计，未连接时显示端点 -->
+                                                    <TextBlock Grid.Column="4" FontSize="11" Opacity="0.6"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis">
+                                                        <TextBlock.Text>
+                                                            <MultiBinding StringFormat="{}{0}  ↑{1}  ↓{2}">
+                                                                <Binding Path="EndpointSummary"/>
+                                                                <Binding Path="SendCount"/>
+                                                                <Binding Path="ReceiveCount"/>
+                                                            </MultiBinding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                </Grid>
+
+                                                <!-- Status text (hides when too narrow) -->
+                                                <TextBlock Grid.Column="3" Text="{Binding StatusText}"
+                                                           FontSize="11" Opacity="0.7"
+                                                           VerticalAlignment="Center" Margin="0,0,12,0"
+                                                           MinWidth="48"/>
+
+                                                <!-- Action buttons -->
+                                                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6">
+                                                    <Button Content="测试" Command="{Binding TestConnectionCommand}"
+                                                            Padding="10,6" FontSize="11"
+                                                            IsEnabled="{Binding !IsTesting}"
+                                                            ToolTip.Tip="测试连接配置是否正确"/>
+                                                    <Button Content="连接" Command="{Binding ConnectCommand}"
+                                                            Classes="accent" Padding="12,6" FontSize="11"
+                                                            IsVisible="{Binding !IsConnected}"/>
+                                                    <Button Content="断开" Command="{Binding DisconnectCommand}"
+                                                            Padding="12,6" FontSize="11" Foreground="#D32F2F"
+                                                            IsVisible="{Binding IsConnected}"/>
+                                                    <Button Content="✕" Padding="8,6" FontSize="12"
+                                                            Background="Transparent" Foreground="#999999"
+                                                            BorderBrush="Transparent"
+                                                            Command="{Binding $parent[ItemsControl].DataContext.RemoveHostChannelCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip.Tip="删除此通道"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- ─── Detail Configuration (collapsible) ─── -->
+                                            <Border IsVisible="{Binding IsExpanded}"
+                                                    BorderBrush="{DynamicResource SystemControlForegroundListLowBrush}"
+                                                    BorderThickness="0,1,0,0"
+                                                    Padding="16,12">
+                                                <StackPanel Spacing="10"
+                                                            IsEnabled="{Binding !IsConnected}">
+                                                    <!-- 已连接时的提示 -->
+                                                    <Border IsVisible="{Binding IsConnected}"
+                                                            Background="{DynamicResource SystemControlBackgroundListLowBrush}"
+                                                            CornerRadius="4" Padding="8,6">
+                                                        <TextBlock FontSize="11" Opacity="0.7"
+                                                                   Text="⚠ 通道已连接，断开后才能修改配置"/>
+                                                    </Border>
+
+                                                    <!-- 验证错误提示 -->
+                                                    <Border IsVisible="{Binding HasValidationErrors}"
+                                                            Background="#FFEBEE" CornerRadius="4" Padding="8,6">
+                                                        <StackPanel Spacing="4">
+                                                            <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="#D32F2F">
+                                                                ❌ 配置有误
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="11" Foreground="#D32F2F"
+                                                                       Text="{Binding ValidationErrors}"
+                                                                       TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- 测试连接结果 -->
+                                                    <Border IsVisible="{Binding HasTestResult}"
+                                                            CornerRadius="4" Padding="8,6">
+                                                        <Border.Background>
+                                                            <Binding Path="LastTestSuccess">
+                                                                <Binding.Converter>
+                                                                    <converters:BoolToBrushConverter TrueBrush="#E8F5E9" FalseBrush="#FFEBEE"/>
+                                                                </Binding.Converter>
+                                                            </Binding>
+                                                        </Border.Background>
+                                                        <StackPanel Spacing="4">
+                                                            <TextBlock FontSize="11" FontWeight="SemiBold">
+                                                                <TextBlock.Text>
+                                                                    <Binding Path="LastTestSuccess">
+                                                                        <Binding.Converter>
+                                                                            <converters:BoolToTextConverter TrueText="✅ 连接成功" FalseText="❌ 连接失败"/>
+                                                                        </Binding.Converter>
+                                                                    </Binding>
+                                                                </TextBlock.Text>
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="11" Text="{Binding LastTestResult}"
+                                                                       TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- ─── 通用字段 ─── -->
+                                                    <Grid ColumnDefinitions="100,*">
+                                                        <TextBlock Grid.Column="0" Text="名称"
+                                                                   FontSize="11" VerticalAlignment="Center"/>
+                                                        <TextBox Grid.Column="1" Text="{Binding Name}"
+                                                                 Watermark="MES / RMS / WMS"
+                                                                 Height="32" Padding="8,4"
+                                                                 VerticalContentAlignment="Center"/>
+                                                    </Grid>
+
+                                                    <!-- 协议 + Body 格式 一行 -->
+                                                    <Grid ColumnDefinitions="100,*,16,80,*">
+                                                        <TextBlock Grid.Column="0" Text="协议"
+                                                                   FontSize="11" VerticalAlignment="Center"/>
+                                                        <ComboBox Grid.Column="1"
+                                                                  ItemsSource="{Binding TransportTypes}"
+                                                                  SelectedItem="{Binding TransportType}"
+                                                                  Height="32" Padding="8,4"
+                                                                  VerticalContentAlignment="Center"
+                                                                  HorizontalAlignment="Stretch"/>
+                                                        <TextBlock Grid.Column="3" Text="Body 格式"
+                                                                   FontSize="11" VerticalAlignment="Center"/>
+                                                        <ComboBox Grid.Column="4"
+                                                                  ItemsSource="{Binding BodyFormats}"
+                                                                  SelectedItem="{Binding BodyFormat}"
+                                                                  Height="32" Padding="8,4"
+                                                                  VerticalContentAlignment="Center"
+                                                                  HorizontalAlignment="Stretch"
+                                                                  ToolTip.Tip="Json: 用模板字段构建JSON; Raw: 直接发送 RawBody"/>
+                                                    </Grid>
+
+                                                    <Border Classes="section-divider" Margin="0,4"/>
+
+                                                    <!-- ─── HttpPost ─── -->
+                                                    <StackPanel Spacing="10" IsVisible="{Binding IsHttp}">
+                                                        <TextBlock Text="HTTP 配置" FontSize="11"
+                                                                   FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="URL"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding HttpUrl}"
+                                                                     Watermark="http://192.168.1.10:8080/api/mes"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="Content-Type"
+                                                                       FontSize="11" VerticalAlignment="Center"
+                                                                       ToolTip.Tip="HTTP 请求头，告知服务器 Body 数据格式"/>
+                                                            <ComboBox Grid.Column="1"
+                                                                      ItemsSource="{Binding ContentTypes}"
+                                                                      SelectedItem="{Binding ContentType}"
+                                                                      Height="32" Padding="8,4"
+                                                                      VerticalContentAlignment="Center"
+                                                                      HorizontalAlignment="Stretch"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- ─── TCP ─── -->
+                                                    <StackPanel Spacing="10" IsVisible="{Binding IsTcp}">
+                                                        <TextBlock Text="TCP 配置" FontSize="11"
+                                                                   FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="模式"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                                        Spacing="16">
+                                                                <RadioButton Content="主动连接（客户端）"
+                                                                             IsChecked="{Binding IsActiveMode}"
+                                                                             FontSize="11"/>
+                                                                <RadioButton Content="被动监听（服务端）"
+                                                                             IsChecked="{Binding !IsActiveMode}"
+                                                                             FontSize="11"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                        <!-- 远程地址 + 端口 一行 -->
+                                                        <Grid ColumnDefinitions="100,*,16,80,*">
+                                                            <TextBlock Grid.Column="0" Text="远程地址"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding RemoteHost}"
+                                                                     Watermark="127.0.0.1"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="远程端口"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="4" Text="{Binding RemotePort}"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <!-- 本地地址 + 端口（仅被动模式）-->
+                                                        <Grid ColumnDefinitions="100,*,16,80,*"
+                                                              IsVisible="{Binding !IsActiveMode}">
+                                                            <TextBlock Grid.Column="0" Text="本地地址"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding LocalHost}"
+                                                                     Watermark="0.0.0.0"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="本地端口"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="4" Text="{Binding LocalPort}"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- ─── MQTT ─── -->
+                                                    <StackPanel Spacing="10" IsVisible="{Binding IsMqtt}">
+                                                        <TextBlock Text="MQTT 配置" FontSize="11"
+                                                                   FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <!-- Broker + 端口 一行 -->
+                                                        <Grid ColumnDefinitions="100,*,16,80,*">
+                                                            <TextBlock Grid.Column="0" Text="Broker"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding MqttBroker}"
+                                                                     Watermark="localhost"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="端口"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="4" Text="{Binding MqttPort}"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="Topic"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding MqttTopic}"
+                                                                     Watermark="eap/mes/messages"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="Client ID"
+                                                                       FontSize="11" VerticalAlignment="Center"
+                                                                       ToolTip.Tip="可选，留空将自动生成"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding MqttClientId}"
+                                                                     Watermark="(可选，留空自动生成)"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- ─── Kafka ─── -->
+                                                    <StackPanel Spacing="10" IsVisible="{Binding IsKafka}">
+                                                        <TextBlock Text="Kafka 配置" FontSize="11"
+                                                                   FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="Bootstrap"
+                                                                       FontSize="11" VerticalAlignment="Center"
+                                                                       ToolTip.Tip="Kafka Bootstrap Servers，多个用逗号分隔"/>
+                                                            <TextBox Grid.Column="1"
+                                                                     Text="{Binding KafkaBootstrapServers}"
+                                                                     Watermark="localhost:9092,host2:9092"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <!-- Topic + Group ID 一行 -->
+                                                        <Grid ColumnDefinitions="100,*,16,80,*">
+                                                            <TextBlock Grid.Column="0" Text="Topic"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding KafkaTopic}"
+                                                                     Watermark="eap-mes-topic"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="Group ID"
+                                                                       FontSize="11" VerticalAlignment="Center"
+                                                                       ToolTip.Tip="消费者组 ID（仅消费消息时需要）"/>
+                                                            <TextBox Grid.Column="4" Text="{Binding KafkaGroupId}"
+                                                                     Watermark="eap-group"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- ─── RabbitMQ ─── -->
+                                                    <StackPanel Spacing="10" IsVisible="{Binding IsRabbitMq}">
+                                                        <TextBlock Text="RabbitMQ 配置" FontSize="11"
+                                                                   FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <!-- 主机 + 端口 一行 -->
+                                                        <Grid ColumnDefinitions="100,*,16,80,*">
+                                                            <TextBlock Grid.Column="0" Text="主机"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding RabbitMqHost}"
+                                                                     Watermark="localhost"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="端口"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="4" Text="{Binding RabbitMqPort}"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <!-- Exchange + Routing Key 一行 -->
+                                                        <Grid ColumnDefinitions="100,*,16,100,*">
+                                                            <TextBlock Grid.Column="0" Text="Exchange"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding RabbitMqExchange}"
+                                                                     Watermark="eap.exchange"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="Routing Key"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="4"
+                                                                     Text="{Binding RabbitMqRoutingKey}"
+                                                                     Watermark="eap.mes"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="Queue"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding RabbitMqQueue}"
+                                                                     Watermark="eap.mes.queue"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- ─── ActiveMQ ─── -->
+                                                    <StackPanel Spacing="10" IsVisible="{Binding IsActiveMq}">
+                                                        <TextBlock Text="ActiveMQ 配置" FontSize="11"
+                                                                   FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="Broker URI"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1"
+                                                                     Text="{Binding ActiveMqBrokerUri}"
+                                                                     Watermark="tcp://localhost:61616"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <!-- 发送队列 + 响应队列 一行 -->
+                                                        <Grid ColumnDefinitions="100,*,16,100,*">
+                                                            <TextBlock Grid.Column="0" Text="发送队列"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding ActiveMqQueue}"
+                                                                     Watermark="eap.mes.queue"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="响应队列"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="4"
+                                                                     Text="{Binding ActiveMqResponseQueue}"
+                                                                     Watermark="eap.response.queue"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <!-- 用户名 + 密码 一行 -->
+                                                        <Grid ColumnDefinitions="100,*,16,80,*">
+                                                            <TextBlock Grid.Column="0" Text="用户名"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding Username}"
+                                                                     Watermark="(可选)"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="密码"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="4" Text="{Binding Password}"
+                                                                     PasswordChar="*"
+                                                                     Watermark="(可选)"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- ─── gRPC ─── -->
+                                                    <StackPanel Spacing="10" IsVisible="{Binding IsGrpc}">
+                                                        <TextBlock Text="gRPC 配置" FontSize="11"
+                                                                   FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="Endpoint"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding GrpcEndpoint}"
+                                                                     Watermark="https://localhost:5001"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- ─── OPC UA ─── -->
+                                                    <StackPanel Spacing="10" IsVisible="{Binding IsOpcUa}">
+                                                        <TextBlock Text="OPC UA 配置" FontSize="11"
+                                                                   FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="Endpoint"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding OpcUaEndpoint}"
+                                                                     Watermark="opc.tcp://localhost:4840"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Help Text -->
+                        <Border Classes="help-box" Padding="12" Margin="0,8">
+                            <StackPanel Spacing="4">
+                                <TextBlock FontSize="11" FontWeight="SemiBold">
+                                    💡 如何使用 Host 通道
+                                </TextBlock>
+                                <TextBlock FontSize="10" TextWrapping="Wrap" Opacity="0.8">
+                                    • 每个通道独立连接，独立日志
+                                    • 为 MES/RMS/WMS 等不同系统配置独立的通道
+                                    • 在模板编辑器中，可为消息模板指定所属通道
+                                    • 在场景步骤中，可选择 HostSend 使用哪个通道发送
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Buttons -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,24">
+                    <Button Content="恢复默认" Command="{Binding ResetConfigCommand}"
+                            Classes="secondary" Padding="24,10" FontSize="12"/>
+                    <Button Content="保存配置" Command="{Binding SaveConfigCommand}"
+                            Classes="accent" Padding="24,10" FontSize="12"/>
+                </StackPanel>
+
+                <!-- Status Message -->
+                <Border Classes="success-box" Padding="12" Margin="0,16"
+                        IsVisible="{Binding HasSaved}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="✓" FontSize="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="配置保存成功"
+                                 VerticalAlignment="Center" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
 </UserControl>

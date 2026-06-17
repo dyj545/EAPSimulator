@@ -59,6 +59,10 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <Link>auto_reply_rules.json</Link>
     </Content>
+    <Content Include="..\..\host_message_templates.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>host_message_templates.json</Link>
+    </Content>
   </ItemGroup>
 
 </Project>

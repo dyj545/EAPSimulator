@@ -3,5 +3,76 @@
              x:Class="EAPSimulator.UI.App">
     <Application.Styles>
         <FluentTheme />
+
+        <!-- Custom button styles -->
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="#1976D2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#1565C0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.accent:pointerover">
+            <Setter Property="Background" Value="#1565C0"/>
+        </Style>
+        <Style Selector="Button.accent:pressed">
+            <Setter Property="Background" Value="#0D47A1"/>
+        </Style>
+
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#F5F5F5"/>
+            <Setter Property="Foreground" Value="#424242"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.secondary:pointerover">
+            <Setter Property="Background" Value="#EEEEEE"/>
+        </Style>
+        <Style Selector="Button.secondary:pressed">
+            <Setter Property="Background" Value="#E0E0E0"/>
+        </Style>
+
+        <!-- Section card: theme-aware border, no hardcoded background -->
+        <Style Selector="Border.section-card">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundListLowBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+
+        <!-- Section divider line -->
+        <Style Selector="Border.section-divider">
+            <Setter Property="Background" Value="{DynamicResource SystemControlForegroundListLowBrush}"/>
+        </Style>
+
+        <!-- Hint box: subtle theme-aware background -->
+        <Style Selector="Border.hint-box">
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+
+        <!-- Channel card: theme-aware border, no hardcoded background -->
+        <Style Selector="Border.channel-card">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundListLowBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+
+        <!-- Help box: theme-aware -->
+        <Style Selector="Border.help-box">
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
+        <!-- Success box: theme-aware -->
+        <Style Selector="Border.success-box">
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}"/>
+            <Setter Property="BorderBrush" Value="#4CAF50"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
     </Application.Styles>
 </Application>
