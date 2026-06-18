@@ -701,6 +701,12 @@ public partial class HostChannelViewModel : ObservableObject
     [ObservableProperty] private string _contentType = "application/json";
 
     /// <summary>
+    /// (Passive HTTP only) Required Authorization header for incoming POST requests.
+    /// Empty = accept all. The UI hides this field in Active mode.
+    /// </summary>
+    [ObservableProperty] private string _expectedAuthorization = "";
+
+    /// <summary>
     /// Custom HTTP headers attached to every outbound request (Active mode). Most users
     /// fill this in to add bearer / api-key authentication, e.g.
     /// <c>Authorization: Bearer xxx</c> or <c>X-Api-Key: xxx</c>. Empty rows are ignored
@@ -824,7 +830,7 @@ public partial class HostChannelViewModel : ObservableObject
     public bool IsOpcUa    => TransportType == "OpcUa";
 
     /// <summary>仅 TCP 协议有"主动/被动"模式的概念。</summary>
-    public bool ShowActiveModeSwitch => IsTcp;
+    public bool ShowActiveModeSwitch => IsTcp || IsHttp;
 
     /// <summary>头部展示的端点摘要（折叠态用）</summary>
     public string EndpointSummary => TransportType switch
@@ -929,7 +935,7 @@ public partial class HostChannelViewModel : ObservableObject
             if (TestConnectionRequested != null)
             {
                 var (success, message) = await TestConnectionRequested.Invoke(this);
-                LastTestResult = success ? $"✅ {message}" : $"❌ {message}";
+                LastTestResult = message;
                 LastTestSuccess = success;
             }
             else
@@ -1056,6 +1062,7 @@ public partial class HostChannelViewModel : ObservableObject
         // HTTP
         HttpUrl = HttpUrl,
         ContentType = ContentType,
+        ExpectedAuthorization = ExpectedAuthorization,
         HttpHeaders = HttpHeaders
             .Where(h => !string.IsNullOrWhiteSpace(h.Key))
             .ToDictionary(h => h.Key.Trim(), h => h.Value ?? "", StringComparer.OrdinalIgnoreCase),
@@ -1103,6 +1110,7 @@ public partial class HostChannelViewModel : ObservableObject
             // HTTP
             HttpUrl = c.HttpUrl,
             ContentType = string.IsNullOrEmpty(c.ContentType) ? "application/json" : c.ContentType,
+            ExpectedAuthorization = c.ExpectedAuthorization,
             // TCP
             RemoteHost = c.RemoteHost,
             RemotePort = c.RemotePort,

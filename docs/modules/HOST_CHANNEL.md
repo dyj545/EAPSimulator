@@ -441,6 +441,7 @@ ScrollViewer
 | 2026-06-18 | Host 通道连接状态在主界面统一展示：顶部工具栏紧凑灯条 + 右侧 StatusPanel "Host Channels" 卡片（带 Connect/Disconnect 按钮）；统一错误红到 `#D32F2F` |
 | 2026-06-18 | 实现 Host 通道"测试连接"功能：MainViewModel 订阅 `TestConnectionRequested`，临时建立 HostProtocol 验证后立即断开（5s 超时） |
 | 2026-06-18 | HTTP 通道支持自定义 Header（Authorization / X-Api-Key 等鉴权头），Config 界面 HTTP 区块加 Headers 表格；Core 层既有 `HttpHeaders` 字段一直可用，本轮只暴露 UI |
+| 2026-06-18 | HTTP 通道闭环：测试连接改为真发 OPTIONS/HEAD/GET 探测请求（带 token、识别 401/403/5xx）；Listener Passive 模式校验 `Authorization` 头，不匹配返 401；Config 界面 HTTP 区块加主动/被动模式切换 + 期望 Authorization 输入框（仅 Passive 可见） |
 
 ---
 

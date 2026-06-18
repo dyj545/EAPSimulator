@@ -688,20 +688,44 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Build a throwaway HostProtocol with the channel's current settings, connect, then
-    /// immediately disconnect — proves end-to-end reachability without touching the
-    /// running <see cref="_hostChannels"/> map. Returns (success, message) for the
-    /// inline banner in <see cref="ConfigViewModel"/>.
+    /// Verify the channel is actually reachable. For HTTP we send a real probe request
+    /// (OPTIONS/HEAD/GET) — this catches dead URLs, wrong tokens, and 5xx responses that
+    /// the bare <see cref="EAPSimulator.Core.Protocols.HostProtocol.HostProtocol.StartAsync"/>
+    /// flow cannot detect (HttpClient construction never touches the network). For other
+    /// transports we still fall back to the connect-then-disconnect dance.
     /// </summary>
     private async Task<(bool success, string message)> TestHostChannelAsync(HostChannelViewModel ch)
     {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        if (ch.TransportType == "HttpPost")
+        {
+            var transportLogger = _loggerFactory.CreateLogger<EAPSimulator.Core.Protocols.HostProtocol.HttpPostTransport>();
+            var transport = new EAPSimulator.Core.Protocols.HostProtocol.HttpPostTransport(transportLogger);
+            try
+            {
+                transport.Configure(ch.ToModel().ToTransportConfig());
+                var (ok, status, msg) = await transport.ProbeAsync(cts.Token);
+                LogSystem($"[{ch.Name}] probe {(ok ? "ok" : "fail")}{(status.HasValue ? $" (HTTP {status})" : "")}: {msg}");
+                return (ok, msg);
+            }
+            catch (Exception ex)
+            {
+                LogSystem($"[{ch.Name}] probe error: {ex.Message}");
+                return (false, ex.Message);
+            }
+            finally
+            {
+                try { await transport.DisposeAsync(); } catch { }
+            }
+        }
+
+        // Non-HTTP transports: keep the original "Start then immediately Stop" probe.
+        // (Most of these are still optimistic — see HOST_CHANNEL.md for the open list.)
         var logger = _loggerFactory.CreateLogger<EAPSimulator.Core.Protocols.HostProtocol.HostProtocol>();
         var hp = new EAPSimulator.Core.Protocols.HostProtocol.HostProtocol(logger);
         try
         {
             hp.Configure(ch.ToModel().ToTransportConfig());
-            // Tight timeout — Test should fail fast rather than hang on a dead endpoint.
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await hp.StartAsync(cts.Token);
             await hp.StopAsync(CancellationToken.None);
             LogSystem($"[{ch.Name}] test ok ({ch.TransportType})");
@@ -711,7 +735,7 @@ public partial class MainViewModel : ObservableObject
         {
             try { await hp.StopAsync(CancellationToken.None); } catch { }
             LogSystem($"[{ch.Name}] test timeout");
-            return (false, "连接超时（5s）");
+            return (false, "连接超时");
         }
         catch (Exception ex)
         {

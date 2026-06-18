@@ -28,6 +28,12 @@ public class HostChannelConfig
     public string ContentType { get; set; } = "application/json";
     public Dictionary<string, string> HttpHeaders { get; set; } = new();
 
+    /// <summary>
+    /// (Passive HTTP only) Required Authorization header value for incoming POST requests.
+    /// Empty = accept all. See <see cref="HostTransportConfig.ExpectedAuthorization"/>.
+    /// </summary>
+    public string ExpectedAuthorization { get; set; } = "";
+
     // ─── TCP ───
     public string RemoteHost { get; set; } = "127.0.0.1";
     public int RemotePort { get; set; } = 8080;
@@ -77,6 +83,7 @@ public class HostChannelConfig
             // HTTP
             HttpUrl = HttpUrl,
             HttpHeaders = HttpHeaders,
+            ExpectedAuthorization = ExpectedAuthorization,
             // TCP
             RemoteHost = RemoteHost,
             RemotePort = RemotePort,

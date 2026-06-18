@@ -78,6 +78,15 @@ public class HostTransportConfig
     public string HttpUrl { get; set; } = "";
     public Dictionary<string, string> HttpHeaders { get; set; } = new();
 
+    /// <summary>
+    /// (Passive HTTP only) Required Authorization header value for incoming POST requests.
+    /// Empty = no check, accept all. Mismatch → respond 401 Unauthorized and skip
+    /// dispatching the body to <see cref="IHostTransport.MessageReceived"/>.
+    /// Compared verbatim (case-sensitive); the caller's stored value should already include
+    /// the scheme prefix, e.g. <c>Bearer xxxxxx</c>.
+    /// </summary>
+    public string ExpectedAuthorization { get; set; } = "";
+
     // --- ActiveMQ ---
     public string BrokerUri { get; set; } = "tcp://localhost:61616";
     public string QueueName { get; set; } = "eap.mes.queue";

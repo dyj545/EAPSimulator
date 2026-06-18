@@ -343,6 +343,20 @@
                                                     <StackPanel Spacing="10" IsVisible="{Binding IsHttp}">
                                                         <TextBlock Text="HTTP 配置" FontSize="11"
                                                                    FontWeight="SemiBold" Opacity="0.8"/>
+                                                        <!-- 主动 / 被动模式 — Active 是 EAP 主动 POST 给 MES，Passive 是 EAP 监听 MES 主动 POST 进来 -->
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="模式"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                                        Spacing="16">
+                                                                <RadioButton Content="主动 POST（客户端）"
+                                                                             IsChecked="{Binding IsActiveMode}"
+                                                                             FontSize="11"/>
+                                                                <RadioButton Content="被动监听（服务端）"
+                                                                             IsChecked="{Binding !IsActiveMode}"
+                                                                             FontSize="11"/>
+                                                            </StackPanel>
+                                                        </Grid>
                                                         <Grid ColumnDefinitions="100,*">
                                                             <TextBlock Grid.Column="0" Text="URL"
                                                                        FontSize="11" VerticalAlignment="Center"/>
@@ -363,8 +377,8 @@
                                                                       HorizontalAlignment="Stretch"/>
                                                         </Grid>
 
-                                                        <!-- 自定义 HTTP Headers — 用于 Authorization / X-Api-Key 等鉴权 -->
-                                                        <Grid ColumnDefinitions="100,*">
+                                                        <!-- 自定义 HTTP Headers (Active 模式: 出向请求附带的鉴权头) -->
+                                                        <Grid ColumnDefinitions="100,*" IsVisible="{Binding IsActiveMode}">
                                                             <TextBlock Grid.Column="0" Text="自定义 Header"
                                                                        FontSize="11" VerticalAlignment="Top"
                                                                        Margin="0,8,0,0"
@@ -393,6 +407,22 @@
                                                                         HorizontalAlignment="Left"
                                                                         Padding="8,3" FontSize="11"/>
                                                                 <TextBlock Text="提示：Authorization / X-Api-Key 等鉴权头放这里。值会原样发到 MES。"
+                                                                           FontSize="10" Opacity="0.55"
+                                                                           TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                        </Grid>
+
+                                                        <!-- 期望 Authorization (Passive 模式: 入向请求必须匹配此值) -->
+                                                        <Grid ColumnDefinitions="100,*" IsVisible="{Binding !IsActiveMode}">
+                                                            <TextBlock Grid.Column="0" Text="期望 Authorization"
+                                                                       FontSize="11" VerticalAlignment="Top"
+                                                                       Margin="0,8,0,0"
+                                                                       ToolTip.Tip="入向 POST 请求的 Authorization 头必须与此值完全一致"/>
+                                                            <StackPanel Grid.Column="1" Spacing="4">
+                                                                <TextBox Text="{Binding ExpectedAuthorization}"
+                                                                         Watermark="Bearer xxxxxx（留空则不校验）"
+                                                                         Padding="6,3" FontSize="11"/>
+                                                                <TextBlock Text="作为监听端时,只接受 Authorization 头匹配此值的请求,不匹配返回 401。"
                                                                            FontSize="10" Opacity="0.55"
                                                                            TextWrapping="Wrap" Margin="0,2,0,0"/>
                                                             </StackPanel>
