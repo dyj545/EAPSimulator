@@ -26,7 +26,34 @@
       "Bash(powershell -Command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen.Bounds\")",
       "Bash(findstr EAPSimulator)",
       "Bash(powershell -Command ' *)",
-      "Read(//c/Users/Administrator/AppData/Local/Temp/claude/**)"
+      "Read(//c/Users/Administrator/AppData/Local/Temp/claude/**)",
+      "Bash(dotnet sln *)",
+      "Bash(dotnet test *)",
+      "Bash(grep -n 'DeleteBranchCase\\\\|$parent' d:/Project/EAP/EAPSimulator/src/EAPSimulator.UI/Views/AutoReplyView.axaml)",
+      "Bash(git add *)",
+      "Bash(git -c user.name=dengyj commit -m 'MQTT 鉴权 + Send 失败触发 Disconnected *)",
+      "Bash(ls \"D:/Project/任务\")",
+      "Read(//d/Project/任务/**)",
+      "Bash(mkdir -p \"D:/Project/任务/振型三维动画/LambWaveA1/src\" \"D:/Project/任务/振型三维动画/LambWaveA1/output\" \"D:/Project/任务/振型三维动画/LambWaveA1/docs\")",
+      "Bash(python -c \"import sys; sys.path.insert\\(0,'src'\\); import lamb_dispersion as ld; ld.__name__='__main__'; exec\\(open\\('src/lamb_dispersion.py',encoding='utf-8'\\).read\\(\\).split\\('if __name__'\\)[1].split\\(':',1\\)[1]\\)\")",
+      "Bash(python -m pip install numpy matplotlib scipy)",
+      "Bash(python src/lamb_dispersion.py)",
+      "Bash(python src/render_animation.py)",
+      "Bash(where ffmpeg *)",
+      "Bash(python -c \"import imageio_ffmpeg as f; print\\(f.get_ffmpeg_exe\\(\\)\\)\")",
+      "Bash(python -c \"import pypdf; print\\(pypdf.__version__\\)\")",
+      "Bash(python -c \"import pdfplumber; print\\(pdfplumber.__version__\\)\")",
+      "Bash(python -m pip install pypdf pdfplumber pymupdf ezdxf)",
+      "Bash(python -c \"import pypdf; print\\('pypdf', pypdf.__version__\\)\")",
+      "Bash(python -c \"import pypdf\")",
+      "Bash(python -c \"import fitz\")",
+      "Bash(python -c \"import ezdxf; print\\('ezdxf', ezdxf.__version__\\)\")",
+      "Bash(python -m pip config list)",
+      "Bash(python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple pypdf pdfplumber pymupdf ezdxf)",
+      "Bash(mkdir -p \"D:/Project/任务/snp失效分析/SNP_Fail_Locator/src/snp_locator\" \"D:/Project/任务/snp失效分析/SNP_Fail_Locator/tests\" \"D:/Project/任务/snp失效分析/SNP_Fail_Locator/scripts\" \"D:/Project/任务/snp失效分析/SNP_Fail_Locator/docs\" \"D:/Project/任务/snp失效分析/SNP_Fail_Locator/release\" \"D:/Project/任务/snp失效分析/SNP_Fail_Locator/scratch\")",
+      "Bash(python src/snp_locator/touchstone.py)",
+      "Bash(python scripts/batch_analyze.py \"../s3p\")",
+      "Bash(awk -F'\\\\\\\\\\(' '{print $2 $3}')"
     ],
     "additionalDirectories": [
       "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\Views",
@@ -34,7 +61,9 @@
       "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup\\Resources",
       "D:\\C Sharp\\AutoFileBackup\\AutoFileBackup",
       "D:\\C Sharp\\AutoFileBackup",
-      "D:\\C Sharp\\TaskPilot"
+      "D:\\C Sharp\\TaskPilot",
+      "D:\\Project\\任务\\振型三维动画\\LambWaveA1",
+      "D:\\Project\\任务\\snp失效分析\\SNP_Fail_Locator\\src"
     ]
   }
 }
