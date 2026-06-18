@@ -115,6 +115,11 @@ public class HostTransportConfig
     public string MqttTopic { get; set; } = "eap/mes/messages";
     public string? MqttClientId { get; set; }
 
+    /// <summary>MQTT broker username; empty/null = anonymous (skip credentials).</summary>
+    public string? MqttUsername { get; set; }
+    /// <summary>MQTT broker password; only sent when <see cref="MqttUsername"/> is set.</summary>
+    public string? MqttPassword { get; set; }
+
     // --- OPC UA ---
     public string OpcUaEndpoint { get; set; } = "opc.tcp://localhost:4840";
 }

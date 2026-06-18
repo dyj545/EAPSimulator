@@ -265,4 +265,47 @@ public class HttpPostTransportTests
             await transport.DisposeAsync();
         }
     }
+
+    [Fact]
+    public async Task SendAsync_OnNetworkFailure_FiresDisconnected()
+    {
+        // Bind a server, connect against it, then kill the server BEFORE we Send —
+        // the Send must throw and the Disconnected event must fire so the UI light
+        // can flip red without waiting for the next probe.
+        var port = FreePort();
+        var url = $"http://127.0.0.1:{port}/api/";
+        var serverCts = new CancellationTokenSource();
+        var server = StartLocalServer(url, ctx =>
+        {
+            ctx.Response.StatusCode = 200;
+            ctx.Response.Close();
+        }, out serverCts);
+
+        var transport = new HttpPostTransport(NullLogger.Instance);
+        transport.Configure(new HostTransportConfig
+        {
+            TransportType = TransportType.HttpPost,
+            IsActiveMode = true,
+            HttpUrl = url,
+        });
+        string? disconnectReason = null;
+        transport.Disconnected += (_, reason) => disconnectReason = reason ?? "(null)";
+
+        try
+        {
+            await transport.ConnectAsync(CancellationToken.None);
+            // Tear down the server so the next POST hits a refused-connection.
+            server.Dispose();
+            // Some OSes need a beat to release the port / drop pending listeners.
+            await Task.Delay(50);
+
+            await Assert.ThrowsAsync<HttpRequestException>(() =>
+                transport.SendAsync("payload", CancellationToken.None));
+            Assert.NotNull(disconnectReason);
+        }
+        finally
+        {
+            await transport.DisposeAsync();
+        }
+    }
 }

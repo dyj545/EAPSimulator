@@ -85,8 +85,17 @@ public class ActiveMqTransport : IHostTransport
         if (_producer == null)
             throw new InvalidOperationException("Not connected");
 
-        var textMsg = _session!.CreateTextMessage(message);
-        _producer.Send(textMsg);
+        try
+        {
+            var textMsg = _session!.CreateTextMessage(message);
+            _producer.Send(textMsg);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            Disconnected?.Invoke(this, ex.Message);
+            throw;
+        }
         _logger.LogDebug("ActiveMQ sent message to {Queue}", _config.QueueName);
         await Task.CompletedTask;
     }

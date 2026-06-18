@@ -70,8 +70,18 @@ public class GrpcTransport : IHostTransport
         // Generic implementation: use HttpClient to POST JSON to gRPC-gateway
         // or a custom REST bridge. For native gRPC, a .proto definition is needed.
         var content = new StringContent(message, Encoding.UTF8, "application/json");
-        var response = await _httpClient!.PostAsync(_config.GrpcEndpoint, content, ct);
-        response.EnsureSuccessStatusCode();
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient!.PostAsync(_config.GrpcEndpoint, content, ct);
+            response.EnsureSuccessStatusCode();
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            Disconnected?.Invoke(this, ex.Message);
+            throw;
+        }
 
         var responseBody = await response.Content.ReadAsStringAsync(ct);
         if (!string.IsNullOrEmpty(responseBody))

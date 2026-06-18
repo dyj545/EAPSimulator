@@ -442,6 +442,7 @@ ScrollViewer
 | 2026-06-18 | 实现 Host 通道"测试连接"功能：MainViewModel 订阅 `TestConnectionRequested`，临时建立 HostProtocol 验证后立即断开（5s 超时） |
 | 2026-06-18 | HTTP 通道支持自定义 Header（Authorization / X-Api-Key 等鉴权头），Config 界面 HTTP 区块加 Headers 表格；Core 层既有 `HttpHeaders` 字段一直可用，本轮只暴露 UI |
 | 2026-06-18 | HTTP 通道闭环：测试连接改为真发 OPTIONS/HEAD/GET 探测请求（带 token、识别 401/403/5xx）；Listener Passive 模式校验 `Authorization` 头，不匹配返 401；Config 界面 HTTP 区块加主动/被动模式切换 + 期望 Authorization 输入框（仅 Passive 可见） |
+| 2026-06-18 | MQTT 补齐 username/password（既有字段从未传给 broker，认证 broker 连不上）；8 个 transport SendAsync 失败时主动触发 Disconnected 事件，UI 灯立即变红，不再要等到下一次发送才暴露掉线 |
 
 ---
 

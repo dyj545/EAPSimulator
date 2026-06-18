@@ -725,6 +725,10 @@ public partial class HostChannelViewModel : ObservableObject
     [ObservableProperty] private int _mqttPort = 1883;
     [ObservableProperty] private string _mqttTopic = "eap/mes/messages";
     [ObservableProperty] private string _mqttClientId = "";
+    /// <summary>MQTT broker username; empty = anonymous (skip credentials).</summary>
+    [ObservableProperty] private string _mqttUsername = "";
+    /// <summary>MQTT broker password; only used when <see cref="MqttUsername"/> is non-empty.</summary>
+    [ObservableProperty] private string _mqttPassword = "";
 
     // ─── Kafka ───
     [ObservableProperty] private string _kafkaBootstrapServers = "localhost:9092";
@@ -1076,6 +1080,8 @@ public partial class HostChannelViewModel : ObservableObject
         MqttPort = MqttPort,
         MqttTopic = MqttTopic,
         MqttClientId = MqttClientId,
+        MqttUsername = MqttUsername,
+        MqttPassword = MqttPassword,
         // Kafka
         KafkaBootstrapServers = KafkaBootstrapServers,
         KafkaTopic = KafkaTopic,
@@ -1121,6 +1127,8 @@ public partial class HostChannelViewModel : ObservableObject
             MqttPort = c.MqttPort,
             MqttTopic = c.MqttTopic,
             MqttClientId = c.MqttClientId,
+            MqttUsername = c.MqttUsername,
+            MqttPassword = c.MqttPassword,
             // Kafka
             KafkaBootstrapServers = c.KafkaBootstrapServers,
             KafkaTopic = c.KafkaTopic,

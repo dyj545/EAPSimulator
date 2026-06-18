@@ -146,8 +146,18 @@ public class HostTcpTransport : IHostTransport
             throw new InvalidOperationException("Not connected");
 
         var data = Encoding.UTF8.GetBytes(message + "\n");
-        await _stream.WriteAsync(data, ct);
-        await _stream.FlushAsync(ct);
+        try
+        {
+            await _stream.WriteAsync(data, ct);
+            await _stream.FlushAsync(ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            // Socket write failed — peer likely closed. ReceiveLoop may also fire, harmless.
+            Disconnected?.Invoke(this, ex.Message);
+            throw;
+        }
     }
 
     public async Task DisconnectAsync()

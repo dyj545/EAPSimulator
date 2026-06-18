@@ -92,7 +92,17 @@ public class OpcUaTransport : IHostTransport
         // Send via HTTP POST to the OPC UA endpoint (REST-style)
         // For full OPC UA, this would use the OPC UA client SDK to write to nodes
         var content = new StringContent(message, Encoding.UTF8, "application/json");
-        var response = await _httpClient.PostAsync(_config.OpcUaEndpoint, content, ct);
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.PostAsync(_config.OpcUaEndpoint, content, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            Disconnected?.Invoke(this, ex.Message);
+            throw;
+        }
 
         if (response.IsSuccessStatusCode)
         {

@@ -46,6 +46,11 @@ public class HostChannelConfig
     public string MqttTopic { get; set; } = "eap/mes/messages";
     public string MqttClientId { get; set; } = "";
 
+    /// <summary>MQTT broker username; empty = anonymous.</summary>
+    public string MqttUsername { get; set; } = "";
+    /// <summary>MQTT broker password; only used when <see cref="MqttUsername"/> is non-empty.</summary>
+    public string MqttPassword { get; set; } = "";
+
     // ─── Kafka ───
     public string KafkaBootstrapServers { get; set; } = "localhost:9092";
     public string KafkaTopic { get; set; } = "eap-mes-topic";
@@ -94,6 +99,8 @@ public class HostChannelConfig
             MqttPort = MqttPort,
             MqttTopic = MqttTopic,
             MqttClientId = string.IsNullOrEmpty(MqttClientId) ? null : MqttClientId,
+            MqttUsername = string.IsNullOrEmpty(MqttUsername) ? null : MqttUsername,
+            MqttPassword = string.IsNullOrEmpty(MqttPassword) ? null : MqttPassword,
             // Kafka
             KafkaBootstrapServers = KafkaBootstrapServers,
             KafkaTopic = KafkaTopic,

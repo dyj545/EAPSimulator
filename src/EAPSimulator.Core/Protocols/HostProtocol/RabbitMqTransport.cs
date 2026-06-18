@@ -95,13 +95,22 @@ public class RabbitMqTransport : IHostTransport
             DeliveryMode = DeliveryModes.Persistent,
         };
 
-        await _channel.BasicPublishAsync(
-            exchange: _config.RabbitMqExchange,
-            routingKey: _config.RabbitMqRoutingKey,
-            mandatory: false,
-            basicProperties: props,
-            body: body,
-            cancellationToken: ct);
+        try
+        {
+            await _channel.BasicPublishAsync(
+                exchange: _config.RabbitMqExchange,
+                routingKey: _config.RabbitMqRoutingKey,
+                mandatory: false,
+                basicProperties: props,
+                body: body,
+                cancellationToken: ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            Disconnected?.Invoke(this, ex.Message);
+            throw;
+        }
 
         _logger.LogDebug("RabbitMQ published to {Exchange}/{Key}", _config.RabbitMqExchange, _config.RabbitMqRoutingKey);
     }

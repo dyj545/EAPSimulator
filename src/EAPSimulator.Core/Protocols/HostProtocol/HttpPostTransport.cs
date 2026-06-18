@@ -225,8 +225,21 @@ public class HttpPostTransport : IHostTransport
             throw new InvalidOperationException("Not configured for sending");
 
         var content = new StringContent(message, Encoding.UTF8, "application/json");
-        var response = await _httpClient.PostAsync(_config.HttpUrl, content, ct);
-        response.EnsureSuccessStatusCode();
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.PostAsync(_config.HttpUrl, content, ct);
+            response.EnsureSuccessStatusCode();
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            // Network failure / non-2xx — flag the channel as down so the UI light reflects
+            // reality immediately. The next call will throw "Not configured" if the client
+            // got disposed in between.
+            Disconnected?.Invoke(this, ex.Message);
+            throw;
+        }
 
         var responseBody = await response.Content.ReadAsStringAsync(ct);
         if (!string.IsNullOrEmpty(responseBody))

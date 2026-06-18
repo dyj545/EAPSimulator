@@ -39,11 +39,17 @@ public class MqttTransport : IHostTransport
             _client = factory.CreateMqttClient();
 
             var clientId = _config.MqttClientId ?? $"eap-{Guid.NewGuid():N8}";
-            var options = new MqttClientOptionsBuilder()
+            var builder = new MqttClientOptionsBuilder()
                 .WithTcpServer(_config.MqttBroker, _config.MqttPort)
                 .WithClientId(clientId)
-                .WithCleanSession()
-                .Build();
+                .WithCleanSession();
+
+            // Anonymous when MqttUsername is empty/null. Some brokers (EMQX with anonymous=false)
+            // would otherwise reject the connect with ConnAck=NotAuthorized.
+            if (!string.IsNullOrEmpty(_config.MqttUsername))
+                builder = builder.WithCredentials(_config.MqttUsername, _config.MqttPassword ?? "");
+
+            var options = builder.Build();
 
             _client.ApplicationMessageReceivedAsync += OnMessageReceived;
             _client.DisconnectedAsync += args =>
@@ -96,7 +102,19 @@ public class MqttTransport : IHostTransport
             .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
             .Build();
 
-        await _client.PublishAsync(mqttMsg, ct);
+        try
+        {
+            await _client.PublishAsync(mqttMsg, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            // Surface the disconnect to listeners so the UI light goes red immediately —
+            // MQTT broker may have closed the connection between heartbeats and the client
+            // hasn't fired its own DisconnectedAsync yet.
+            Disconnected?.Invoke(this, ex.Message);
+            throw;
+        }
         _logger.LogDebug("MQTT published to {Topic}", _config.MqttTopic);
     }
 

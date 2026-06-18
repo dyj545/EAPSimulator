@@ -93,7 +93,17 @@ public class KafkaTransport : IHostTransport
             throw new InvalidOperationException("Not connected");
 
         var msg = new Message<string, string> { Value = message };
-        await _producer.ProduceAsync(_config.KafkaTopic, msg, ct);
+        try
+        {
+            await _producer.ProduceAsync(_config.KafkaTopic, msg, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            // Kafka producer may have lost broker connectivity — surface to UI.
+            Disconnected?.Invoke(this, ex.Message);
+            throw;
+        }
         _logger.LogDebug("Kafka produced to {Topic}", _config.KafkaTopic);
     }
 

@@ -512,6 +512,24 @@
                                                                      Height="32" Padding="8,4"
                                                                      VerticalContentAlignment="Center"/>
                                                         </Grid>
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="用户名"
+                                                                       FontSize="11" VerticalAlignment="Center"
+                                                                       ToolTip.Tip="MQTT broker 用户名，留空表示匿名连接"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding MqttUsername}"
+                                                                     Watermark="(可选，留空匿名)"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="100,*"
+                                                              IsVisible="{Binding MqttUsername, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Grid.Column="0" Text="密码"
+                                                                       FontSize="11" VerticalAlignment="Center"/>
+                                                            <TextBox Grid.Column="1" Text="{Binding MqttPassword}"
+                                                                     PasswordChar="●"
+                                                                     Height="32" Padding="8,4"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
                                                     </StackPanel>
 
                                                     <!-- ─── Kafka ─── -->
