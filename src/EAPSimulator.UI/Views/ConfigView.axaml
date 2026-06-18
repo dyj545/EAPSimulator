@@ -256,29 +256,42 @@
 
                                                     <!-- 验证错误提示 -->
                                                     <Border IsVisible="{Binding HasValidationErrors}"
-                                                            Background="#FFEBEE" CornerRadius="4" Padding="8,6">
+                                                            Background="{DynamicResource SystemControlBackgroundListMediumBrush}"
+                                                            BorderBrush="#D32F2F" BorderThickness="1"
+                                                            CornerRadius="4" Padding="8,6">
                                                         <StackPanel Spacing="4">
                                                             <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="#D32F2F">
                                                                 ❌ 配置有误
                                                             </TextBlock>
-                                                            <TextBlock FontSize="11" Foreground="#D32F2F"
+                                                            <TextBlock FontSize="11"
+                                                                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                                                                        Text="{Binding ValidationErrors}"
                                                                        TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <!-- 测试连接结果 -->
+                                                    <!-- 测试连接结果。
+                                                         背景用主题资源以兼容暗色，状态色只放在边框 + 标题文字上 -->
                                                     <Border IsVisible="{Binding HasTestResult}"
-                                                            CornerRadius="4" Padding="8,6">
-                                                        <Border.Background>
+                                                            CornerRadius="4" Padding="8,6"
+                                                            Background="{DynamicResource SystemControlBackgroundListMediumBrush}"
+                                                            BorderThickness="1">
+                                                        <Border.BorderBrush>
                                                             <Binding Path="LastTestSuccess">
                                                                 <Binding.Converter>
-                                                                    <converters:BoolToBrushConverter TrueBrush="#E8F5E9" FalseBrush="#FFEBEE"/>
+                                                                    <converters:BoolToBrushConverter TrueBrush="#4CAF50" FalseBrush="#D32F2F"/>
                                                                 </Binding.Converter>
                                                             </Binding>
-                                                        </Border.Background>
+                                                        </Border.BorderBrush>
                                                         <StackPanel Spacing="4">
                                                             <TextBlock FontSize="11" FontWeight="SemiBold">
+                                                                <TextBlock.Foreground>
+                                                                    <Binding Path="LastTestSuccess">
+                                                                        <Binding.Converter>
+                                                                            <converters:BoolToBrushConverter TrueBrush="#4CAF50" FalseBrush="#D32F2F"/>
+                                                                        </Binding.Converter>
+                                                                    </Binding>
+                                                                </TextBlock.Foreground>
                                                                 <TextBlock.Text>
                                                                     <Binding Path="LastTestSuccess">
                                                                         <Binding.Converter>
@@ -288,6 +301,7 @@
                                                                 </TextBlock.Text>
                                                             </TextBlock>
                                                             <TextBlock FontSize="11" Text="{Binding LastTestResult}"
+                                                                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                                                                        TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </Border>
@@ -347,6 +361,41 @@
                                                                       Height="32" Padding="8,4"
                                                                       VerticalContentAlignment="Center"
                                                                       HorizontalAlignment="Stretch"/>
+                                                        </Grid>
+
+                                                        <!-- 自定义 HTTP Headers — 用于 Authorization / X-Api-Key 等鉴权 -->
+                                                        <Grid ColumnDefinitions="100,*">
+                                                            <TextBlock Grid.Column="0" Text="自定义 Header"
+                                                                       FontSize="11" VerticalAlignment="Top"
+                                                                       Margin="0,8,0,0"
+                                                                       ToolTip.Tip="额外 HTTP Headers，常用于鉴权（Authorization / X-Api-Key 等）"/>
+                                                            <StackPanel Grid.Column="1" Spacing="4">
+                                                                <ItemsControl ItemsSource="{Binding HttpHeaders}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <Grid ColumnDefinitions="180,*,Auto" Margin="0,0,0,4">
+                                                                                <TextBox Grid.Column="0" Text="{Binding Key}"
+                                                                                         Watermark="Authorization"
+                                                                                         Padding="6,3" FontSize="11"/>
+                                                                                <TextBox Grid.Column="1" Text="{Binding Value}"
+                                                                                         Watermark="Bearer xxxxxx"
+                                                                                         Padding="6,3" FontSize="11" Margin="6,0"/>
+                                                                                <Button Grid.Column="2" Content="✕"
+                                                                                        Command="{Binding DeleteCommand}"
+                                                                                        Padding="6,2" FontSize="11"
+                                                                                        ToolTip.Tip="删除该 Header"/>
+                                                                            </Grid>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                                <Button Content="+ 添加 Header"
+                                                                        Command="{Binding AddHeaderCommand}"
+                                                                        HorizontalAlignment="Left"
+                                                                        Padding="8,3" FontSize="11"/>
+                                                                <TextBlock Text="提示：Authorization / X-Api-Key 等鉴权头放这里。值会原样发到 MES。"
+                                                                           FontSize="10" Opacity="0.55"
+                                                                           TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                            </StackPanel>
                                                         </Grid>
                                                     </StackPanel>
 

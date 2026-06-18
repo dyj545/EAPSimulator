@@ -289,8 +289,24 @@
                                 ToolTip.Tip="添加 Log 步骤 — 输出一条日志/状态文本"/>
                         <Button Content="⑂ Branch" Command="{Binding AddStepCommand}" CommandParameter="Branch"
                                 Background="#5C2B3D" Foreground="#F38BA8"
-                                Padding="8,2" FontSize="11" Margin="0,0,12,0"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
                                 ToolTip.Tip="添加 Branch 步骤 — 按上一条接收消息的字段值跳转到不同 Label"/>
+                        <Button Content="𝑥 SetVar" Command="{Binding AddStepCommand}" CommandParameter="SetVariable"
+                                Background="#3A4A2C" Foreground="#A6E3A1"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
+                                ToolTip.Tip="添加 SetVariable 步骤 — 给变量赋值，可用 ${name} 在模板中引用"/>
+                        <Button Content="⟳ Loop" Command="{Binding AddStepCommand}" CommandParameter="Loop"
+                                Background="#2C3E5C" Foreground="#74C7EC"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
+                                ToolTip.Tip="添加 Loop 步骤 — 与同 ID 的 EndLoop 配对，重复执行中间步骤"/>
+                        <Button Content="⤴ EndLoop" Command="{Binding AddStepCommand}" CommandParameter="EndLoop"
+                                Background="#2C3E5C" Foreground="#74C7EC"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
+                                ToolTip.Tip="添加 EndLoop 步骤 — 关闭最近的 Loop"/>
+                        <Button Content="⏎ Call" Command="{Binding AddStepCommand}" CommandParameter="CallScenario"
+                                Background="#4A2C5C" Foreground="#CBA6F7"
+                                Padding="8,2" FontSize="11" Margin="0,0,12,0"
+                                ToolTip.Tip="添加 CallScenario 步骤 — 调用另一个场景作为子例程"/>
                         <Button Content="删除" Command="{Binding DeleteStepCommand}"
                                 Padding="6,2" FontSize="11" Margin="0,0,3,0"/>
                         <Button Content="↑" Command="{Binding MoveStepUpCommand}"
@@ -640,6 +656,94 @@
                                                   Padding="4,2" FontSize="11"/>
                                     </StackPanel>
                                     <TextBlock Text="提示: 在 Branch 步骤里用 Path 指定 Host 字段名 (留空匹配消息名本身)。"
+                                               FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <!-- SetVariable: assign a literal or captured field value to a variable -->
+                                <StackPanel IsVisible="{Binding SelectedStep.IsSetVariableKind}" Margin="0,4,0,0">
+                                    <TextBlock Text="设置变量:" FontSize="11"
+                                               Foreground="#A6E3A1" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="变量名:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.VariableName}"
+                                                 Width="160" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"/>
+                                        <TextBlock Text="来源:" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                                        <ComboBox ItemsSource="{Binding SelectedStep.VariableSourceNames}"
+                                                  SelectedItem="{Binding SelectedStep.VariableSourceName}"
+                                                  Padding="4,2" FontSize="11" MinWidth="120"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="字面量:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.LiteralValue}"
+                                                 Width="280" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="支持嵌套 ${var} 引用其他变量"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="字段路径:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.VariablePath}"
+                                                 Width="200" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="LastSecsField 用 0/1/2;LastHostField 用字段名"/>
+                                    </StackPanel>
+                                    <TextBlock Text="提示: 之后在 Send/Reply/HostSend 模板里用 ${变量名} 引用。"
+                                               FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <!-- Loop: start of a loop body -->
+                                <StackPanel IsVisible="{Binding SelectedStep.IsLoopKind}" Margin="0,4,0,0">
+                                    <TextBlock Text="循环开始:" FontSize="11"
+                                               Foreground="#74C7EC" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="LoopId:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.LoopId}"
+                                                 Width="100" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="与配对的 EndLoop 用同一个 ID"/>
+                                        <TextBlock Text="次数:" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.LoopTimes}"
+                                                 Width="80" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="0 = 无限循环 (依赖手动停止)"/>
+                                    </StackPanel>
+                                    <TextBlock Text="提示: 当前轮次自动写入变量 ${$loop.&lt;LoopId&gt;.i} (从 1 开始)。"
+                                               FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <!-- EndLoop: close a loop body -->
+                                <StackPanel IsVisible="{Binding SelectedStep.IsEndLoopKind}" Margin="0,4,0,0">
+                                    <TextBlock Text="循环结束:" FontSize="11"
+                                               Foreground="#74C7EC" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="LoopId:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.LoopId}"
+                                                 Width="100" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="必须与匹配的 Loop 步骤相同"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- CallScenario: invoke another scenario as sub-routine -->
+                                <StackPanel IsVisible="{Binding SelectedStep.IsCallScenarioKind}" Margin="0,4,0,0">
+                                    <TextBlock Text="调用子场景:" FontSize="11"
+                                               Foreground="#CBA6F7" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="场景名:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <ComboBox ItemsSource="{Binding Scenarios}"
+                                                  SelectedValueBinding="{Binding Name}"
+                                                  SelectedValue="{Binding SelectedStep.SubScenarioName}"
+                                                  DisplayMemberBinding="{Binding Name}"
+                                                  Padding="4,2" FontSize="11" MinWidth="240"
+                                                  PlaceholderText="(选择子场景)"/>
+                                    </StackPanel>
+                                    <TextBlock Text="提示: 变量在父子场景间共享;最大递归深度 16。"
                                                FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </StackPanel>

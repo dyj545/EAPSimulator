@@ -206,7 +206,8 @@ public class EapServerWorker : BackgroundService
                 _loggerFactory.CreateLogger<ScenarioEngine>(),
                 templateLookup,
                 send: (msg, ct) => _secsProtocol!.SendSecsMessageAsync(msg, ct),
-                currentRole: _secsProtocol.Role);
+                currentRole: _secsProtocol.Role,
+                scenarioLookup: name => autoReplyConfig.Scenarios.FirstOrDefault(s => s.Name == name));
             _scenarioEngine.Log += text => _logger.LogInformation("[Scenario] {Text}", text);
             _secsProtocol.Router.SetScenarioEngine(_scenarioEngine);
             _logger.LogInformation("Scenario engine ready ({Count} scenarios available; start manually)",

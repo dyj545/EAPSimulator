@@ -17,4 +17,8 @@
     <PackageReference Include="RabbitMQ.Client" Version="7.*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="EAPSimulator.Core.Tests" />
+  </ItemGroup>
+
 </Project>

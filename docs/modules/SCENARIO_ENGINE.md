@@ -31,6 +31,10 @@
 | Branch | 根据条件跳转 | 否 |
 | HostSend | 向 Host 通道发送消息 | 否 |
 | HostReceive | 等待 Host 通道消息 | 是 |
+| SetVariable | 给变量赋值（字面量或上一条消息字段） | 否 |
+| Loop | 循环开始（与 EndLoop 用同 LoopId 配对） | 否 |
+| EndLoop | 循环结束，回跳到 Loop 后第 1 步 | 否 |
+| CallScenario | 把另一个场景作为子例程嵌入运行 | 否 |
 
 ### 2.3 多通道 Host 消息路由
 
@@ -116,6 +120,28 @@ _inbox.Reader.ReadAsync()  ← 阻塞
 - 支持 SECS 和 Host 消息的字段访问
 - `LastSource` 枚举跟踪最后收到的是 SECS 还是 Host 消息
 
+### 4.4 变量与模板渲染
+
+`ScenarioVariables` 是引擎内一份全局的字符串字典，每次 `Start()` 重建。
+
+- **赋值**：`SetVariable` 步骤；来源 `Literal` / `LastSecsField` / `LastHostField`
+- **引用**：在 `SecsMessageTemplate.ItemXml`、`HostField.Value`、`HostMessage.RawBody`、`Log.Message` 中用 `${name}` 占位符
+- **未定义变量**：保留原样（便于调试），不静默清空
+
+### 4.5 循环（Loop / EndLoop）
+
+`Loop` 与 `EndLoop` 通过 `LoopId` 配对。引擎在每个执行帧上维护一个循环栈（嵌套时多个循环同时存在）。每轮循环把当前迭代号写入 `${$loop.<LoopId>.i}`（从 1 开始），可在循环体内的模板里引用。
+
+```
+[Loop L1 ×3] ─┐
+   Send ${tag}-${$loop.L1.i}
+[EndLoop L1] ─┘   → 产生 3 条消息：tag-1 / tag-2 / tag-3
+```
+
+### 4.6 子场景（CallScenario）
+
+引擎用一份 `Stack<Frame>` 跑场景；`CallScenario` 步骤把目标场景作为新帧压栈，子场景执行完弹出，父场景从下一步继续。变量在父子场景间**共享**（即子场景里 `SetVariable` 影响父）。最大递归深度 16，超过抛错。子场景的 `Role` 与当前协议不兼容会阻止调用。
+
 ## 5. 踩过的坑
 
 ### 坑 1：CancellationToken 的传递
@@ -132,9 +158,11 @@ _inbox.Reader.ReadAsync()  ← 阻塞
 
 ## 6. 待办
 
-- [ ] 支持循环步骤（Loop / ForEach）
-- [ ] 支持子场景调用（SubScenario）
-- [ ] 支持变量赋值（SetVariable）
+- [x] 支持循环步骤（Loop / EndLoop） — 2026-06
+- [x] 支持子场景调用（CallScenario） — 2026-06
+- [x] 支持变量赋值（SetVariable） + `${var}` 模板渲染 — 2026-06
+- [ ] 支持 ForEach 步骤（需要列表型变量来源）
+- [ ] `LoopWhile` 表达式解析（字段已在模型上预留）
 - [ ] 图形化场景编辑器（拖拽式）
 - [ ] 条件表达式改用成熟的解析库
 
@@ -145,3 +173,4 @@ _inbox.Reader.ReadAsync()  ← 阻塞
 | 2025-04 | 初始版本：Send/Receive/Reply/Delay |
 | 2025-05 | 加入 Branch / Log / HostSend |
 | 2025-06 | 多通道 Host 消息路由 |
+| 2026-06-18 | 加入 SetVariable / Loop / EndLoop / CallScenario；引擎重构为帧栈；新建 EAPSimulator.Core.Tests 工程 |

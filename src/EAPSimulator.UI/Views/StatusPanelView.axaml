@@ -1,16 +1,21 @@
 <UserControl x:Class="EAPSimulator.UI.Views.StatusPanelView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:EAPSimulator.UI.Converters">
+    <UserControl.Resources>
+        <converters:HexToBrushConverter x:Key="HexToBrush"/>
+    </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="12">
             <!-- Title -->
             <TextBlock Text="Status Panel" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
             <Border Height="1" Opacity="0.2" Background="Gray" Margin="0,0,0,8"/>
 
-            <!-- Connection State -->
+            <!-- Connection State (主协议: SECS / Custom / 独立 Host 模式共用此灯) -->
             <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4">
                 <StackPanel Orientation="Horizontal">
                     <Ellipse Width="12" Height="12" Fill="{Binding ConnectionStateColor}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="Main: " Opacity="0.6" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding ConnectionState}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
@@ -52,6 +57,51 @@
                         <TextBlock Text="Role: " Opacity="0.6"/>
                         <TextBlock Text="{Binding Role}"/>
                     </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Host Channels — runtime status of every configured MES/RMS/WMS channel.
+                 Each row = dot + name + status text + endpoint summary + connect/disconnect.
+                 The whole card hides when no channels are configured. -->
+            <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,4"
+                    IsVisible="{Binding HostChannels.Count}">
+                <StackPanel>
+                    <TextBlock Text="Host Channels" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ItemsControl ItemsSource="{Binding HostChannels}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="0,3" ToolTip.Tip="{Binding StatusText}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Ellipse Grid.Column="0" Width="10" Height="10"
+                                                 Fill="{Binding StatusColor, Converter={StaticResource HexToBrush}}"
+                                                 Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Text="{Binding EndpointSummary}" Opacity="0.55"
+                                                       FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <!-- Toggle button: Connect when down, Disconnect when up.
+                                             Both commands live on HostChannelViewModel; MainViewModel
+                                             listens to ConnectRequested/DisconnectRequested events. -->
+                                        <Button Grid.Column="2" Content="Connect"
+                                                Command="{Binding ConnectCommand}"
+                                                IsVisible="{Binding !IsConnected}"
+                                                Padding="8,2" FontSize="11"/>
+                                        <Button Grid.Column="2" Content="Disconnect"
+                                                Command="{Binding DisconnectCommand}"
+                                                IsVisible="{Binding IsConnected}"
+                                                Classes="danger"
+                                                Padding="8,2" FontSize="11"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
 

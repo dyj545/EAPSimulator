@@ -74,6 +74,46 @@ public enum ScenarioStepKind
     /// with timeout. Use to consume RMS/MES replies (e.g. DAEAP_MAP_COUNT_REP/ERROR).
     /// </summary>
     HostReceive,
+
+    /// <summary>
+    /// Assign a value (literal or captured from the last received SECS/Host message)
+    /// to a named variable. Variables can be interpolated into Send/Reply/HostSend
+    /// templates with <c>${name}</c>.
+    /// </summary>
+    SetVariable,
+
+    /// <summary>
+    /// Mark the start of a loop body. A matching <see cref="EndLoop"/> with the same
+    /// <see cref="ScenarioStep.LoopId"/> closes it. <see cref="ScenarioStep.LoopTimes"/>
+    /// = N runs the body N times; 0 with no other guard means infinite (controlled by Stop).
+    /// </summary>
+    Loop,
+
+    /// <summary>
+    /// Mark the end of a loop body. Pairs with <see cref="Loop"/> by <see cref="ScenarioStep.LoopId"/>.
+    /// </summary>
+    EndLoop,
+
+    /// <summary>
+    /// Run another scenario inline as a sub-routine. Variables are shared with the parent.
+    /// Returns to the next step on completion. Recursion depth is bounded.
+    /// </summary>
+    CallScenario,
+}
+
+/// <summary>
+/// Source of the value assigned by a <see cref="ScenarioStepKind.SetVariable"/> step.
+/// </summary>
+public enum VariableSource
+{
+    /// <summary>Use <see cref="ScenarioStep.LiteralValue"/> verbatim (after <c>${var}</c> render).</summary>
+    Literal,
+
+    /// <summary>Read a path inside the most recently captured SECS message (Receive/Reply input).</summary>
+    LastSecsField,
+
+    /// <summary>Read a field name inside the most recently captured Host message (HostReceive input).</summary>
+    LastHostField,
 }
 
 /// <summary>
@@ -191,6 +231,54 @@ public class ScenarioStep
     [JsonProperty("defaultLabel")]
     public string DefaultLabel { get; set; } = "";
 
+    // ─── SetVariable ───
+
+    /// <summary>Target variable name (e.g. "lotId"). Required for SetVariable.</summary>
+    [JsonProperty("variableName")]
+    public string VariableName { get; set; } = "";
+
+    /// <summary>Where the value comes from.</summary>
+    [JsonProperty("variableSource")]
+    public VariableSource VariableSource { get; set; } = VariableSource.Literal;
+
+    /// <summary>Path / field name when <see cref="VariableSource"/> is a captured-field source.</summary>
+    [JsonProperty("variablePath")]
+    public string VariablePath { get; set; } = "";
+
+    /// <summary>Literal text when <see cref="VariableSource"/> is <see cref="VariableSource.Literal"/>. Supports nested <c>${var}</c>.</summary>
+    [JsonProperty("literalValue")]
+    public string LiteralValue { get; set; } = "";
+
+    // ─── Loop / EndLoop ───
+
+    /// <summary>
+    /// Pairing key between a <see cref="ScenarioStepKind.Loop"/> and its closing <see cref="ScenarioStepKind.EndLoop"/>.
+    /// Allows nested loops by giving each level a distinct id (e.g. "L1" outer, "L2" inner).
+    /// </summary>
+    [JsonProperty("loopId")]
+    public string LoopId { get; set; } = "";
+
+    /// <summary>
+    /// Iteration count for a Loop step. 0 = run until <see cref="LoopWhile"/> goes false (or
+    /// scenario stops if no guard is set — caller's responsibility to break out).
+    /// </summary>
+    [JsonProperty("loopTimes")]
+    public int LoopTimes { get; set; } = 0;
+
+    /// <summary>
+    /// Reserved for a future expression-based loop guard (e.g. <c>${count} &lt; 10</c>).
+    /// Currently unused by the engine; kept on the model so JSON written today survives
+    /// the upgrade without re-saves.
+    /// </summary>
+    [JsonProperty("loopWhile")]
+    public string LoopWhile { get; set; } = "";
+
+    // ─── CallScenario ───
+
+    /// <summary>Name of the scenario to invoke as a sub-routine.</summary>
+    [JsonProperty("subScenarioName")]
+    public string SubScenarioName { get; set; } = "";
+
     [JsonIgnore]
     public string DisplayText
     {
@@ -207,6 +295,10 @@ public class ScenarioStep
                 ScenarioStepKind.Branch => BuildBranchDisplay() + label,
                 ScenarioStepKind.HostSend => $"▶ HostSend [{(string.IsNullOrEmpty(HostChannelName) ? "*" : HostChannelName)}] {(string.IsNullOrEmpty(HostMessageName) ? "(未设置)" : HostMessageName)}{label}",
                 ScenarioStepKind.HostReceive => BuildHostReceiveDisplay() + label,
+                ScenarioStepKind.SetVariable => BuildSetVariableDisplay() + label,
+                ScenarioStepKind.Loop => BuildLoopDisplay() + label,
+                ScenarioStepKind.EndLoop => $"⤴ EndLoop {(string.IsNullOrEmpty(LoopId) ? "(无 LoopId)" : LoopId)}{label}",
+                ScenarioStepKind.CallScenario => $"⏎ Call {(string.IsNullOrEmpty(SubScenarioName) ? "(未设置)" : SubScenarioName)}{label}",
                 _ => $"? {Kind}{label}",
             };
         }
@@ -236,6 +328,27 @@ public class ScenarioStep
         if (Conditions.Count == 0) return $"◀ HostRecv [{ch}] {name}";
         var conds = string.Join(" & ", Conditions.Select(c => c.DisplayText));
         return $"◀ HostRecv [{ch}] {name} where {conds}";
+    }
+
+    private string BuildSetVariableDisplay()
+    {
+        var name = string.IsNullOrEmpty(VariableName) ? "?" : VariableName;
+        var rhs = VariableSource switch
+        {
+            VariableSource.Literal => $"\"{LiteralValue}\"",
+            VariableSource.LastSecsField => $"secs[{VariablePath}]",
+            VariableSource.LastHostField => $"host.{VariablePath}",
+            _ => "?",
+        };
+        return $"𝑥 Set {name} = {rhs}";
+    }
+
+    private string BuildLoopDisplay()
+    {
+        var id = string.IsNullOrEmpty(LoopId) ? "?" : LoopId;
+        if (LoopTimes > 0) return $"⟳ Loop {id} × {LoopTimes}";
+        if (!string.IsNullOrEmpty(LoopWhile)) return $"⟳ Loop {id} while {LoopWhile}";
+        return $"⟳ Loop {id} ∞";
     }
 }
 
@@ -351,6 +464,21 @@ internal class ScenarioStepConverter : JsonConverter<ScenarioStep>
         step.Message = obj.Value<string>("message") ?? "";
         step.Cases = obj["cases"]?.ToObject<List<BranchCase>>(serializer) ?? [];
         step.DefaultLabel = obj.Value<string>("defaultLabel") ?? "";
+        // Host channel name (added with multi-channel host routing).
+        step.HostMessageName = obj.Value<string>("hostMessageName") ?? "";
+        step.HostChannelName = obj.Value<string>("hostChannelName") ?? "";
+        // SetVariable / Loop / CallScenario fields. All optional — older files lack them.
+        step.VariableName = obj.Value<string>("variableName") ?? "";
+        step.VariableSource = obj.Value<string>("variableSource") is { } vsStr
+            && Enum.TryParse<VariableSource>(vsStr, true, out var vs)
+                ? vs
+                : VariableSource.Literal;
+        step.VariablePath = obj.Value<string>("variablePath") ?? "";
+        step.LiteralValue = obj.Value<string>("literalValue") ?? "";
+        step.LoopId = obj.Value<string>("loopId") ?? "";
+        step.LoopTimes = obj.Value<int?>("loopTimes") ?? 0;
+        step.LoopWhile = obj.Value<string>("loopWhile") ?? "";
+        step.SubScenarioName = obj.Value<string>("subScenarioName") ?? "";
     }
 
     public override void WriteJson(JsonWriter writer, ScenarioStep? value, JsonSerializer serializer)

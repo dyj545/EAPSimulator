@@ -192,10 +192,59 @@ public partial class AutoReplyViewModel : ObservableObject
                 // Seed with one empty case so the user can start filling immediately.
                 step.Cases.Add(new BranchCaseViewModel());
                 break;
+            case ScenarioStepKind.SetVariable:
+                step.VariableName = "var1";
+                step.VariableSource = VariableSource.Literal;
+                step.LiteralValue = "";
+                break;
+            case ScenarioStepKind.Loop:
+                // Auto-generate a fresh LoopId so two Loop steps in the same scenario don't clash.
+                step.LoopId = NextLoopId();
+                step.LoopTimes = 3;
+                break;
+            case ScenarioStepKind.EndLoop:
+                // Default to closing the most recent unclosed Loop, if any.
+                step.LoopId = OpenLoopId();
+                break;
+            case ScenarioStepKind.CallScenario:
+                step.SubScenarioName = Scenarios.FirstOrDefault(s => s != SelectedScenario)?.Name ?? "";
+                break;
         }
         step.UpdateDisplayText();
         SelectedScenario.Steps.Add(step);
         SelectedStep = step;
+    }
+
+    /// <summary>Pick the next free LoopId in the current scenario (L1, L2, ...).</summary>
+    private string NextLoopId()
+    {
+        if (SelectedScenario == null) return "L1";
+        var taken = new HashSet<string>(
+            SelectedScenario.Steps.Where(s => s.Kind == ScenarioStepKind.Loop)
+                .Select(s => s.LoopId), StringComparer.Ordinal);
+        for (int i = 1; ; i++)
+        {
+            var id = "L" + i;
+            if (!taken.Contains(id)) return id;
+        }
+    }
+
+    /// <summary>
+    /// Find the LoopId of the deepest still-open Loop (no matching EndLoop yet) in the
+    /// current scenario — handy default when the user adds an EndLoop right after a Loop.
+    /// </summary>
+    private string OpenLoopId()
+    {
+        if (SelectedScenario == null) return "";
+        var stack = new Stack<string>();
+        foreach (var s in SelectedScenario.Steps)
+        {
+            if (s.Kind == ScenarioStepKind.Loop && !string.IsNullOrEmpty(s.LoopId))
+                stack.Push(s.LoopId);
+            else if (s.Kind == ScenarioStepKind.EndLoop && stack.Count > 0)
+                stack.Pop();
+        }
+        return stack.Count > 0 ? stack.Peek() : "";
     }
 
     [RelayCommand]
@@ -599,8 +648,10 @@ public partial class AutoReplyViewModel : ObservableObject
         // Build a single engine for all scenarios; each Run picks one.
         // Pass CurrentRole so the engine refuses to run cross-role scripts (e.g. an EAP-side
         // scenario loaded on the equipment-side simulator).
+        // Sub-scenario lookup: by name, materialized from the current Scenarios list at call time.
         var engine = new ScenarioEngine(logger, FindTemplateByName, send, CurrentRole,
-            hostTemplateLookup, hostSend);
+            hostTemplateLookup, hostSend,
+            name => Scenarios.FirstOrDefault(s => s.Name == name)?.ToModel());
         engine.Log += text =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => StatusMessage = text);
         engine.ScenarioFinished += (sc, status) =>
@@ -996,6 +1047,36 @@ public partial class ScenarioStepViewModel : ObservableObject
     [ObservableProperty]
     private string _hostMessageName = "";
 
+    [ObservableProperty]
+    private string _hostChannelName = "";
+
+    // SetVariable
+    [ObservableProperty]
+    private string _variableName = "";
+
+    [ObservableProperty]
+    private VariableSource _variableSource = VariableSource.Literal;
+
+    [ObservableProperty]
+    private string _variablePath = "";
+
+    [ObservableProperty]
+    private string _literalValue = "";
+
+    // Loop / EndLoop
+    [ObservableProperty]
+    private string _loopId = "";
+
+    [ObservableProperty]
+    private int _loopTimes = 0;
+
+    [ObservableProperty]
+    private string _loopWhile = "";
+
+    // CallScenario
+    [ObservableProperty]
+    private string _subScenarioName = "";
+
     // Display
     [ObservableProperty]
     private string _displayText = "";
@@ -1010,6 +1091,10 @@ public partial class ScenarioStepViewModel : ObservableObject
     public bool IsBranchKind => Kind == ScenarioStepKind.Branch;
     public bool IsHostSendKind => Kind == ScenarioStepKind.HostSend;
     public bool IsHostReceiveKind => Kind == ScenarioStepKind.HostReceive;
+    public bool IsSetVariableKind => Kind == ScenarioStepKind.SetVariable;
+    public bool IsLoopKind => Kind == ScenarioStepKind.Loop;
+    public bool IsEndLoopKind => Kind == ScenarioStepKind.EndLoop;
+    public bool IsCallScenarioKind => Kind == ScenarioStepKind.CallScenario;
     public bool UsesTemplate => IsSendKind || IsReplyKind;
     public bool UsesHostMessage => IsHostSendKind || IsHostReceiveKind;
 
@@ -1024,6 +1109,7 @@ public partial class ScenarioStepViewModel : ObservableObject
 
     public string[] KindNames => Enum.GetNames<ScenarioStepKind>();
     public string[] OnTimeoutNames => Enum.GetNames<ReceiveTimeoutAction>();
+    public string[] VariableSourceNames => Enum.GetNames<VariableSource>();
 
     /// <summary>String adapter for binding <see cref="Kind"/> to a ComboBox of strings.</summary>
     public string KindName
@@ -1047,6 +1133,17 @@ public partial class ScenarioStepViewModel : ObservableObject
         }
     }
 
+    /// <summary>String adapter for binding <see cref="VariableSource"/> to a ComboBox of strings.</summary>
+    public string VariableSourceName
+    {
+        get => VariableSource.ToString();
+        set
+        {
+            if (Enum.TryParse<VariableSource>(value, true, out var vs))
+                VariableSource = vs;
+        }
+    }
+
     partial void OnKindChanged(ScenarioStepKind value)
     {
         OnPropertyChanged(nameof(IsSendKind));
@@ -1057,6 +1154,10 @@ public partial class ScenarioStepViewModel : ObservableObject
         OnPropertyChanged(nameof(IsBranchKind));
         OnPropertyChanged(nameof(IsHostSendKind));
         OnPropertyChanged(nameof(IsHostReceiveKind));
+        OnPropertyChanged(nameof(IsSetVariableKind));
+        OnPropertyChanged(nameof(IsLoopKind));
+        OnPropertyChanged(nameof(IsEndLoopKind));
+        OnPropertyChanged(nameof(IsCallScenarioKind));
         OnPropertyChanged(nameof(UsesTemplate));
         OnPropertyChanged(nameof(UsesHostMessage));
         OnPropertyChanged(nameof(KindName));
@@ -1066,12 +1167,26 @@ public partial class ScenarioStepViewModel : ObservableObject
     partial void OnOnTimeoutChanged(ReceiveTimeoutAction value)
         => OnPropertyChanged(nameof(OnTimeoutName));
 
+    partial void OnVariableSourceChanged(VariableSource value)
+    {
+        OnPropertyChanged(nameof(VariableSourceName));
+        UpdateDisplayText();
+    }
+
     partial void OnStreamChanged(byte value) => UpdateDisplayText();
     partial void OnFunctionChanged(byte value) => UpdateDisplayText();
     partial void OnDelayMsChanged(int value) => UpdateDisplayText();
     partial void OnMessageChanged(string value) => UpdateDisplayText();
     partial void OnLabelChanged(string value) => UpdateDisplayText();
     partial void OnHostMessageNameChanged(string value) => UpdateDisplayText();
+    partial void OnHostChannelNameChanged(string value) => UpdateDisplayText();
+    partial void OnVariableNameChanged(string value) => UpdateDisplayText();
+    partial void OnVariablePathChanged(string value) => UpdateDisplayText();
+    partial void OnLiteralValueChanged(string value) => UpdateDisplayText();
+    partial void OnLoopIdChanged(string value) => UpdateDisplayText();
+    partial void OnLoopTimesChanged(int value) => UpdateDisplayText();
+    partial void OnLoopWhileChanged(string value) => UpdateDisplayText();
+    partial void OnSubScenarioNameChanged(string value) => UpdateDisplayText();
 
     partial void OnTemplateNameChanged(string value)
     {
@@ -1105,6 +1220,10 @@ public partial class ScenarioStepViewModel : ObservableObject
             ScenarioStepKind.Branch => BuildBranchDisplay() + label,
             ScenarioStepKind.HostSend => $"▶ HostSend {(string.IsNullOrEmpty(HostMessageName) ? "(未设置)" : HostMessageName)}{label}",
             ScenarioStepKind.HostReceive => BuildHostReceiveDisplay() + label,
+            ScenarioStepKind.SetVariable => BuildSetVariableDisplay() + label,
+            ScenarioStepKind.Loop => BuildLoopDisplay() + label,
+            ScenarioStepKind.EndLoop => $"⤴ EndLoop {(string.IsNullOrEmpty(LoopId) ? "(无 LoopId)" : LoopId)}{label}",
+            ScenarioStepKind.CallScenario => $"⏎ Call {(string.IsNullOrEmpty(SubScenarioName) ? "(未设置)" : SubScenarioName)}{label}",
             _ => $"? {Kind}{label}",
         };
     }
@@ -1134,6 +1253,27 @@ public partial class ScenarioStepViewModel : ObservableObject
         return $"⑂ Branch {{ {string.Join(", ", parts)} }}";
     }
 
+    private string BuildSetVariableDisplay()
+    {
+        var name = string.IsNullOrEmpty(VariableName) ? "?" : VariableName;
+        var rhs = VariableSource switch
+        {
+            VariableSource.Literal => $"\"{LiteralValue}\"",
+            VariableSource.LastSecsField => $"secs[{VariablePath}]",
+            VariableSource.LastHostField => $"host.{VariablePath}",
+            _ => "?",
+        };
+        return $"𝑥 Set {name} = {rhs}";
+    }
+
+    private string BuildLoopDisplay()
+    {
+        var id = string.IsNullOrEmpty(LoopId) ? "?" : LoopId;
+        if (LoopTimes > 0) return $"⟳ Loop {id} × {LoopTimes}";
+        if (!string.IsNullOrEmpty(LoopWhile)) return $"⟳ Loop {id} while {LoopWhile}";
+        return $"⟳ Loop {id} ∞";
+    }
+
     public ScenarioStep ToModel()
     {
         return new ScenarioStep
@@ -1150,8 +1290,17 @@ public partial class ScenarioStepViewModel : ObservableObject
             DelayMs = DelayMs,
             Message = Message,
             HostMessageName = HostMessageName,
+            HostChannelName = HostChannelName,
             Cases = Cases.Select(c => c.ToModel()).ToList(),
             DefaultLabel = DefaultLabel,
+            VariableName = VariableName,
+            VariableSource = VariableSource,
+            VariablePath = VariablePath,
+            LiteralValue = LiteralValue,
+            LoopId = LoopId,
+            LoopTimes = LoopTimes,
+            LoopWhile = LoopWhile,
+            SubScenarioName = SubScenarioName,
         };
     }
 
@@ -1170,7 +1319,16 @@ public partial class ScenarioStepViewModel : ObservableObject
             DelayMs = step.DelayMs,
             Message = step.Message,
             HostMessageName = step.HostMessageName,
+            HostChannelName = step.HostChannelName,
             DefaultLabel = step.DefaultLabel,
+            VariableName = step.VariableName,
+            VariableSource = step.VariableSource,
+            VariablePath = step.VariablePath,
+            LiteralValue = step.LiteralValue,
+            LoopId = step.LoopId,
+            LoopTimes = step.LoopTimes,
+            LoopWhile = step.LoopWhile,
+            SubScenarioName = step.SubScenarioName,
         };
         foreach (var cond in step.Conditions.Select(FieldConditionViewModel.FromModel))
             vm.Conditions.Add(cond);

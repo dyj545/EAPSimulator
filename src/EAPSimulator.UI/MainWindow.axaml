@@ -35,6 +35,31 @@
 
                 <TextBlock Text="{Binding MessageEditor.StatusMessage, FallbackValue=''}"
                            Opacity="0.6" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="11"/>
+
+                <!-- Host channels indicator strip — compact dot+name per channel.
+                     Hover for status text; click-through to Config for edits. -->
+                <Border Width="1" Opacity="0.2" Background="Gray" Margin="12,2,8,2" Height="20"
+                        IsVisible="{Binding Config.HostChannels.Count}"/>
+                <ItemsControl ItemsSource="{Binding Config.HostChannels}"
+                              VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="10"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                        ToolTip.Tip="{Binding StatusText}">
+                                <Ellipse Width="9" Height="9"
+                                         Fill="{Binding StatusColor, Converter={StaticResource HexToBrush}}"
+                                         Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Name}" FontSize="11"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </Border>
 

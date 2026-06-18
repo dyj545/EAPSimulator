@@ -10,7 +10,7 @@ public partial class StatusPanelViewModel : ObservableObject
     private string _connectionState = "Disconnected";
 
     [ObservableProperty]
-    private string _connectionStateColor = "#F44336";
+    private string _connectionStateColor = "#D32F2F";
 
     [ObservableProperty]
     private string _gemState = "Offline";
@@ -44,6 +44,16 @@ public partial class StatusPanelViewModel : ObservableObject
     public ObservableCollection<CollectionEventViewModel> CollectionEvents { get; } = new();
 
     /// <summary>
+    /// Host channels list shared with <see cref="ConfigViewModel.HostChannels"/>. Set by
+    /// MainViewModel after Config has loaded the channel definitions; rendered as a row
+    /// of indicator lights in the status panel and main toolbar. Each
+    /// <see cref="HostChannelViewModel"/> drives its own connect / disconnect commands
+    /// and runtime <c>IsConnected</c>/<c>StatusText</c>/<c>StatusColor</c> already.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<HostChannelViewModel>? _hostChannels;
+
+    /// <summary>
     /// Event fired when user clicks a state transition button.
     /// MainViewModel subscribes to this to trigger GEM state machine and send SECS messages.
     /// </summary>
@@ -61,7 +71,7 @@ public partial class StatusPanelViewModel : ObservableObject
     public void UpdateConnectionState(bool connected)
     {
         ConnectionState = connected ? "Connected" : "Disconnected";
-        ConnectionStateColor = connected ? "#4CAF50" : "#F44336";
+        ConnectionStateColor = connected ? "#4CAF50" : "#D32F2F";
         CanSwitchState = connected;
     }
 
@@ -96,7 +106,7 @@ public class AlarmViewModel
     public string Name { get; set; } = string.Empty;
     public bool IsSet { get; set; }
     public string Status => IsSet ? "SET" : "CLEAR";
-    public string StatusColor => IsSet ? "#F44336" : "#4CAF50";
+    public string StatusColor => IsSet ? "#D32F2F" : "#4CAF50";
 }
 
 public class CollectionEventViewModel

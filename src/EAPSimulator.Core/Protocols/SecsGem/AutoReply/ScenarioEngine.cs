@@ -10,18 +10,28 @@ namespace EAPSimulator.Core.Protocols.SecsGem.AutoReply;
 
 /// <summary>
 /// Famate-style scenario interpreter. Drives a script of heterogeneous steps
-/// (Send/Receive/Reply/Delay/Log/Branch/HostSend/HostReceive) and lets the user
-/// run/stop/single-step. Implements <see cref="ISecsMessageHandler"/> so an active
-/// Receive step can consume an inbound SECS message off the router pipeline.
-/// Host messages are forwarded via <see cref="OnHostMessageReceived"/>; wire it up
-/// to <c>HostProtocol.MessageReceived</c>.
+/// (Send/Receive/Reply/Delay/Log/Branch/HostSend/HostReceive/SetVariable/Loop/EndLoop/CallScenario)
+/// and lets the user run/stop/single-step. Implements <see cref="ISecsMessageHandler"/> so an
+/// active Receive step can consume an inbound SECS message off the router pipeline.
+/// Host messages are forwarded via <see cref="OnHostMessageReceived"/>; wire it up to
+/// <c>HostProtocol.MessageReceived</c>.
+///
+/// Variable interpolation: any string template field that supports <c>${name}</c> is
+/// rendered through <see cref="ScenarioVariables.Render"/> just before send/build.
+///
+/// Sub-scenario calls run on a per-engine frame stack with a recursion depth bound to
+/// avoid runaway A→B→A loops. Variables are shared across all frames.
 /// </summary>
 public class ScenarioEngine : ISecsMessageHandler
 {
+    /// <summary>Maximum sub-scenario nesting depth — prevents runaway recursion.</summary>
+    public const int MaxCallDepth = 16;
+
     private readonly ILogger _logger;
     private readonly Func<string, SecsMessageTemplate?> _templateLookup;
     private readonly Func<SecsMessage, CancellationToken, Task>? _send;
     private readonly ProtocolRole _currentRole;
+    private readonly Func<string, ScenarioDefinition?>? _scenarioLookup;
 
     // Per-channel host wiring. Key "" = default channel (used when a step omits HostChannelName).
     private readonly Dictionary<string, Func<string, HostMessageTemplate?>> _hostTemplateLookups = new();
@@ -42,6 +52,9 @@ public class ScenarioEngine : ISecsMessageHandler
 
     // Last-received Host message — used by a subsequent Branch evaluating Host fields.
     private HostMessage? _lastHostReceived;
+
+    /// <summary>Variable bag shared across loops and sub-scenarios for the active run.</summary>
+    private ScenarioVariables _vars = new();
 
     /// <summary>
     /// Tracks which side fed <see cref="_lastReceived"/> / <see cref="_lastHostReceived"/> last,
@@ -67,12 +80,14 @@ public class ScenarioEngine : ISecsMessageHandler
         Func<SecsMessage, CancellationToken, Task>? send = null,
         ProtocolRole currentRole = ProtocolRole.Equipment,
         Func<string, HostMessageTemplate?>? hostTemplateLookup = null,
-        Func<HostMessage, CancellationToken, Task>? hostSend = null)
+        Func<HostMessage, CancellationToken, Task>? hostSend = null,
+        Func<string, ScenarioDefinition?>? scenarioLookup = null)
     {
         _logger = logger;
         _templateLookup = templateLookup;
         _send = send;
         _currentRole = currentRole;
+        _scenarioLookup = scenarioLookup;
         // Backwards-compat: ctor lookup + send register under default channel.
         if (hostTemplateLookup != null) _hostTemplateLookups[""] = hostTemplateLookup;
         if (hostSend != null) _hostSends[""] = hostSend;
@@ -140,6 +155,7 @@ public class ScenarioEngine : ISecsMessageHandler
             _lastReceived = null;
             _lastHostReceived = null;
             _lastSource = LastSource.None;
+            _vars = new ScenarioVariables();
             _inbox = Channel.CreateUnbounded<SecsMessage>();
             // Lazily create host inboxes per channel as steps reference them.
             _hostInboxes.Clear();
@@ -157,6 +173,28 @@ public class ScenarioEngine : ISecsMessageHandler
     }
 
     /// <summary>
+    /// Run a one-shot scenario synchronously to completion. Wires up no role check (the caller
+    /// already vetted) and exposes the final status. Used by tests.
+    /// </summary>
+    internal async Task<string> RunOnceAsync(ScenarioDefinition scenario, CancellationToken ct)
+    {
+        _vars = new ScenarioVariables();
+        _inbox = Channel.CreateUnbounded<SecsMessage>();
+        _hostInboxes.Clear();
+        _lastReceived = null;
+        _lastHostReceived = null;
+        _lastSource = LastSource.None;
+        RunningScenario = scenario;
+        string? finishStatus = null;
+        ScenarioFinished += Capture;
+        try { await RunLoopAsync(scenario, ct).ConfigureAwait(false); }
+        finally { ScenarioFinished -= Capture; }
+        return finishStatus ?? "Completed";
+
+        void Capture(ScenarioDefinition _, string status) => finishStatus = status;
+    }
+
+    /// <summary>
     /// Match a scenario's authored role against the simulator's current protocol role.
     /// <see cref="ScenarioRole.Any"/> matches both sides.
     /// </summary>
@@ -168,45 +206,96 @@ public class ScenarioEngine : ISecsMessageHandler
         _ => false,
     };
 
+    // ─── Frame stack ───
+
+    private sealed class Frame
+    {
+        public required ScenarioDefinition Scenario;
+        public int Pc;
+        public required Dictionary<string, int> LabelIndex;
+        public Dictionary<string, int> LoopStartByLoopId = new(StringComparer.Ordinal);
+        public Dictionary<string, int> LoopEndByLoopId = new(StringComparer.Ordinal);
+        public Stack<LoopFrame> Loops = new();
+    }
+
+    private sealed class LoopFrame
+    {
+        public required string LoopId;
+        public int StartPc;       // pc of the Loop step
+        public int EndPc;         // pc of the matching EndLoop step
+        public int Iteration;     // 1-based once running
+        public int Times;         // 0 = unbounded (relies on cancellation)
+    }
+
+    private static Frame BuildFrame(ScenarioDefinition scenario, ILogger logger)
+    {
+        var labelIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        var loopStart = new Dictionary<string, int>(StringComparer.Ordinal);
+        var loopEnd = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < scenario.Steps.Count; i++)
+        {
+            var s = scenario.Steps[i];
+            if (!string.IsNullOrEmpty(s.Label) && !labelIndex.TryAdd(s.Label, i))
+                logger.LogWarning("Scenario '{Name}' duplicate label '{Lbl}' at step {I}; first wins",
+                    scenario.Name, s.Label, i);
+            if (s.Kind == ScenarioStepKind.Loop && !string.IsNullOrEmpty(s.LoopId))
+            {
+                if (!loopStart.TryAdd(s.LoopId, i))
+                    logger.LogWarning("Scenario '{Name}' duplicate Loop id '{Id}' at step {I}; first wins",
+                        scenario.Name, s.LoopId, i);
+            }
+            else if (s.Kind == ScenarioStepKind.EndLoop && !string.IsNullOrEmpty(s.LoopId))
+            {
+                if (!loopEnd.TryAdd(s.LoopId, i))
+                    logger.LogWarning("Scenario '{Name}' duplicate EndLoop id '{Id}' at step {I}; first wins",
+                        scenario.Name, s.LoopId, i);
+            }
+        }
+        return new Frame
+        {
+            Scenario = scenario,
+            Pc = 0,
+            LabelIndex = labelIndex,
+            LoopStartByLoopId = loopStart,
+            LoopEndByLoopId = loopEnd,
+        };
+    }
+
     private async Task RunLoopAsync(ScenarioDefinition scenario, CancellationToken ct)
     {
         try
         {
-            // Build label → step-index map. Earlier definition wins on duplicates; warn the rest.
-            var labelIndex = new Dictionary<string, int>(StringComparer.Ordinal);
-            for (int i = 0; i < scenario.Steps.Count; i++)
-            {
-                var lbl = scenario.Steps[i].Label;
-                if (string.IsNullOrEmpty(lbl)) continue;
-                if (!labelIndex.TryAdd(lbl, i))
-                    _logger.LogWarning("Scenario '{Name}' duplicate label '{Lbl}' at step {I}; first wins",
-                        scenario.Name, lbl, i);
-            }
-
             do
             {
-                int pc = 0;
-                while (pc < scenario.Steps.Count)
+                var frames = new Stack<Frame>();
+                frames.Push(BuildFrame(scenario, _logger));
+                while (frames.Count > 0)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    CurrentStepIndex = pc;
-                    var step = scenario.Steps[pc];
-                    StepStarted?.Invoke(scenario, pc, step);
-                    EmitLog($"Scenario '{scenario.Name}' step {pc}: {step.DisplayText}");
+                    var frame = frames.Peek();
+                    if (frame.Pc >= frame.Scenario.Steps.Count)
+                    {
+                        frames.Pop();
+                        if (frames.Count > 0)
+                        {
+                            // Returning from a sub-scenario — advance the caller past CallScenario.
+                            frames.Peek().Pc++;
+                        }
+                        continue;
+                    }
 
-                    // Branch is the only step that can change PC; everything else falls through to pc+1.
-                    if (step.Kind == ScenarioStepKind.Branch)
-                    {
-                        var (status, nextPc) = ExecuteBranch(step, pc, labelIndex);
-                        StepCompleted?.Invoke(scenario, pc, step, status);
-                        pc = nextPc;
-                    }
-                    else
-                    {
-                        var status = await ExecuteStepAsync(step, ct).ConfigureAwait(false);
-                        StepCompleted?.Invoke(scenario, pc, step, status);
-                        pc++;
-                    }
+                    ct.ThrowIfCancellationRequested();
+                    var step = frame.Scenario.Steps[frame.Pc];
+                    // For UI: report step against the active (top) frame's scenario, so highlight
+                    // follows control flow into sub-scenarios. UIs that only know the root will
+                    // ignore frames they didn't load.
+                    CurrentStepIndex = frame.Pc;
+                    RunningScenario = frame.Scenario;
+                    StepStarted?.Invoke(frame.Scenario, frame.Pc, step);
+                    EmitLog($"Scenario '{frame.Scenario.Name}' step {frame.Pc}: {step.DisplayText}");
+
+                    var (status, advance) = await DispatchAsync(frame, frames, step, ct).ConfigureAwait(false);
+                    StepCompleted?.Invoke(frame.Scenario, frame.Pc, step, status);
+                    if (advance) frame.Pc++;
                 }
             } while (scenario.Loop && !ct.IsCancellationRequested);
 
@@ -235,6 +324,58 @@ public class ScenarioEngine : ISecsMessageHandler
                     inbox.Writer.TryComplete();
                 _hostInboxes.Clear();
             }
+        }
+    }
+
+    /// <summary>
+    /// Execute one step. Returns (statusText, advancePc). Steps that manage their own PC
+    /// (Branch / Loop / EndLoop / CallScenario) return advancePc=false.
+    /// </summary>
+    private async Task<(string status, bool advance)> DispatchAsync(
+        Frame frame, Stack<Frame> frames, ScenarioStep step, CancellationToken ct)
+    {
+        switch (step.Kind)
+        {
+            case ScenarioStepKind.Send:
+                return (await ExecuteSendAsync(step, ct).ConfigureAwait(false), true);
+            case ScenarioStepKind.Receive:
+                return (await ExecuteReceiveAsync(step, ct).ConfigureAwait(false), true);
+            case ScenarioStepKind.Reply:
+                return (await ExecuteReplyAsync(step, ct).ConfigureAwait(false), true);
+            case ScenarioStepKind.Delay:
+                await Task.Delay(Math.Max(0, step.DelayMs), ct).ConfigureAwait(false);
+                return ($"Slept {step.DelayMs} ms", true);
+            case ScenarioStepKind.Log:
+                EmitLog(_vars.Render(step.Message));
+                return ("logged", true);
+            case ScenarioStepKind.Branch:
+            {
+                var (status, nextPc) = ExecuteBranch(step, frame.Pc, frame.LabelIndex);
+                frame.Pc = nextPc;
+                return (status, false);
+            }
+            case ScenarioStepKind.HostSend:
+                return (await ExecuteHostSendAsync(step, ct).ConfigureAwait(false), true);
+            case ScenarioStepKind.HostReceive:
+                return (await ExecuteHostReceiveAsync(step, ct).ConfigureAwait(false), true);
+            case ScenarioStepKind.SetVariable:
+                return (ExecuteSetVariable(step), true);
+            case ScenarioStepKind.Loop:
+            {
+                var (status, nextPc) = ExecuteLoopStart(frame, step);
+                frame.Pc = nextPc;
+                return (status, false);
+            }
+            case ScenarioStepKind.EndLoop:
+            {
+                var (status, nextPc) = ExecuteEndLoop(frame, step);
+                frame.Pc = nextPc;
+                return (status, false);
+            }
+            case ScenarioStepKind.CallScenario:
+                return (ExecuteCallScenario(frame, frames, step), false);
+            default:
+                return ($"unknown kind {step.Kind}", true);
         }
     }
 
@@ -282,41 +423,111 @@ public class ScenarioEngine : ISecsMessageHandler
         return ("no case matched → fall through", pc + 1);
     }
 
-    private async Task<string> ExecuteStepAsync(ScenarioStep step, CancellationToken ct)
+    private string ExecuteSetVariable(ScenarioStep step)
     {
-        switch (step.Kind)
+        if (string.IsNullOrEmpty(step.VariableName))
+            throw new InvalidOperationException("SetVariable step requires a variable name.");
+        string? value = step.VariableSource switch
         {
-            case ScenarioStepKind.Send:
-                return await ExecuteSendAsync(step, ct).ConfigureAwait(false);
-            case ScenarioStepKind.Receive:
-                return await ExecuteReceiveAsync(step, ct).ConfigureAwait(false);
-            case ScenarioStepKind.Reply:
-                return await ExecuteReplyAsync(step, ct).ConfigureAwait(false);
-            case ScenarioStepKind.Delay:
-                await Task.Delay(Math.Max(0, step.DelayMs), ct).ConfigureAwait(false);
-                return $"Slept {step.DelayMs} ms";
-            case ScenarioStepKind.Log:
-                EmitLog(step.Message);
-                return "logged";
-            case ScenarioStepKind.Branch:
-                // Should never reach here — Branch is handled in RunLoopAsync directly so it can change PC.
-                throw new InvalidOperationException("Branch step must be handled by RunLoopAsync");
-            case ScenarioStepKind.HostSend:
-                return await ExecuteHostSendAsync(step, ct).ConfigureAwait(false);
-            case ScenarioStepKind.HostReceive:
-                return await ExecuteHostReceiveAsync(step, ct).ConfigureAwait(false);
-            default:
-                return $"unknown kind {step.Kind}";
+            VariableSource.Literal => _vars.Render(step.LiteralValue),
+            VariableSource.LastSecsField =>
+                ScenarioVariables.ReadSecsPath(_lastReceived?.RootItem, step.VariablePath),
+            VariableSource.LastHostField =>
+                ScenarioVariables.ReadHostField(_lastHostReceived, step.VariablePath),
+            _ => "",
+        };
+        _vars.Set(step.VariableName, value ?? "");
+        return $"set {step.VariableName} = \"{value ?? ""}\"";
+    }
+
+    private (string status, int nextPc) ExecuteLoopStart(Frame frame, ScenarioStep step)
+    {
+        if (string.IsNullOrEmpty(step.LoopId))
+            throw new InvalidOperationException("Loop step requires a LoopId.");
+        if (!frame.LoopEndByLoopId.TryGetValue(step.LoopId, out var endPc))
+            throw new InvalidOperationException($"Loop '{step.LoopId}' has no matching EndLoop.");
+
+        // First entry pushes a new LoopFrame; the engine never re-executes the Loop step head
+        // — EndLoop jumps back to startPc+1, skipping the head — so this branch is only the
+        // initial entry path.
+        var lf = new LoopFrame
+        {
+            LoopId = step.LoopId,
+            StartPc = frame.Pc,
+            EndPc = endPc,
+            Iteration = 0,
+            Times = step.LoopTimes,
+        };
+        frame.Loops.Push(lf);
+
+        // Zero-times Loop with no other guard should still execute the body indefinitely
+        // (matches the model documentation). Zero-times *and* the user pressed "skip"? No,
+        // there's no such mode — fall through to the body.
+        if (lf.Times > 0 && lf.Iteration >= lf.Times)
+        {
+            // 0-shot loop — pop and skip past EndLoop.
+            frame.Loops.Pop();
+            return ($"loop {lf.LoopId} skipped (times=0 effective)", endPc + 1);
         }
+
+        lf.Iteration = 1;
+        _vars.Set($"$loop.{lf.LoopId}.i", lf.Iteration.ToString());
+        return ($"loop {lf.LoopId} iter 1/{(lf.Times > 0 ? lf.Times.ToString() : "∞")}", frame.Pc + 1);
+    }
+
+    private (string status, int nextPc) ExecuteEndLoop(Frame frame, ScenarioStep step)
+    {
+        if (frame.Loops.Count == 0)
+            throw new InvalidOperationException("EndLoop without an active Loop.");
+        var lf = frame.Loops.Peek();
+        if (!string.IsNullOrEmpty(step.LoopId) && step.LoopId != lf.LoopId)
+            throw new InvalidOperationException(
+                $"EndLoop '{step.LoopId}' does not match the active loop '{lf.LoopId}'.");
+
+        lf.Iteration++;
+        if (lf.Times > 0 && lf.Iteration > lf.Times)
+        {
+            frame.Loops.Pop();
+            return ($"loop {lf.LoopId} done after {lf.Times} iterations", frame.Pc + 1);
+        }
+
+        _vars.Set($"$loop.{lf.LoopId}.i", lf.Iteration.ToString());
+        // Jump back to the step *after* the Loop head — re-executing the head would push a
+        // second LoopFrame for the same logical loop.
+        return ($"loop {lf.LoopId} iter {lf.Iteration}/{(lf.Times > 0 ? lf.Times.ToString() : "∞")}",
+            lf.StartPc + 1);
+    }
+
+    private string ExecuteCallScenario(Frame frame, Stack<Frame> frames, ScenarioStep step)
+    {
+        if (string.IsNullOrEmpty(step.SubScenarioName))
+            throw new InvalidOperationException("CallScenario step requires a sub-scenario name.");
+        if (_scenarioLookup == null)
+            throw new InvalidOperationException(
+                "ScenarioEngine has no scenario lookup; CallScenario unavailable.");
+        if (frames.Count >= MaxCallDepth)
+            throw new InvalidOperationException(
+                $"CallScenario depth exceeded ({MaxCallDepth}); refusing to recurse further.");
+        var sub = _scenarioLookup(step.SubScenarioName)
+            ?? throw new InvalidOperationException(
+                $"Sub-scenario '{step.SubScenarioName}' not found.");
+        if (!RoleAllows(sub.Role, _currentRole))
+            throw new InvalidOperationException(
+                $"Sub-scenario '{sub.Name}' role {sub.Role} incompatible with {_currentRole}.");
+
+        // Push the child frame; do NOT advance the caller's PC — the post-return logic in
+        // RunLoopAsync (frames pop branch) bumps it once when the child completes.
+        frames.Push(BuildFrame(sub, _logger));
+        return $"call {sub.Name}";
     }
 
     private async Task<string> ExecuteSendAsync(ScenarioStep step, CancellationToken ct)
     {
         if (_send == null)
             throw new InvalidOperationException("ScenarioEngine has no send delegate; cannot execute Send step.");
-        var tpl = _templateLookup(step.TemplateName)
+        var raw = _templateLookup(step.TemplateName)
             ?? throw new InvalidOperationException($"Template '{step.TemplateName}' not found for Send step.");
-        var msg = tpl.BuildMessage();
+        var msg = BuildRenderedSecs(raw);
         await _send(msg, ct).ConfigureAwait(false);
         return $"sent S{msg.Stream}F{msg.Function}";
     }
@@ -366,13 +577,33 @@ public class ScenarioEngine : ISecsMessageHandler
             throw new InvalidOperationException("ScenarioEngine has no send delegate; cannot execute Reply step.");
         if (_lastReceived == null)
             throw new InvalidOperationException("Reply step requires a preceding Receive that captured a message.");
-        var tpl = _templateLookup(step.TemplateName)
+        var raw = _templateLookup(step.TemplateName)
             ?? throw new InvalidOperationException($"Template '{step.TemplateName}' not found for Reply step.");
-        var reply = tpl.BuildMessage();
+        var reply = BuildRenderedSecs(raw);
         reply.SystemBytes = _lastReceived.SystemBytes;
         reply.WBit = false;
         await _send(reply, ct).ConfigureAwait(false);
         return $"replied S{reply.Stream}F{reply.Function}";
+    }
+
+    /// <summary>
+    /// Build a SECS message from a template, but interpolate <c>${var}</c> in the
+    /// <see cref="SecsMessageTemplate.ItemXml"/> first. The original template is left intact —
+    /// the engine clones the template's value-bearing fields onto a transient instance.
+    /// </summary>
+    private SecsMessage BuildRenderedSecs(SecsMessageTemplate raw)
+    {
+        var rendered = new SecsMessageTemplate
+        {
+            Name = raw.Name,
+            Stream = raw.Stream,
+            Function = raw.Function,
+            WBit = raw.WBit,
+            Description = raw.Description,
+            ItemXml = _vars.Render(raw.ItemXml),
+            FieldMetadata = raw.FieldMetadata,
+        };
+        return rendered.BuildMessage();
     }
 
     private static bool MatchesReceiveStep(ScenarioStep step, SecsMessage msg)
@@ -395,6 +626,7 @@ public class ScenarioEngine : ISecsMessageHandler
         var tpl = lookup(step.HostMessageName)
             ?? throw new InvalidOperationException($"Host template '{step.HostMessageName}' not found on channel '{channelKey}' for HostSend step.");
         var msg = tpl.BuildMessage();
+        _vars.RenderInPlace(msg);
         await send(msg, ct).ConfigureAwait(false);
         return $"host-sent [{channelKey}] {msg.Name}";
     }

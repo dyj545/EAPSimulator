@@ -700,6 +700,14 @@ public partial class HostChannelViewModel : ObservableObject
     [ObservableProperty] private string _httpUrl = "";
     [ObservableProperty] private string _contentType = "application/json";
 
+    /// <summary>
+    /// Custom HTTP headers attached to every outbound request (Active mode). Most users
+    /// fill this in to add bearer / api-key authentication, e.g.
+    /// <c>Authorization: Bearer xxx</c> or <c>X-Api-Key: xxx</c>. Empty rows are ignored
+    /// when serialized to <see cref="HostChannelConfig.HttpHeaders"/>.
+    /// </summary>
+    public ObservableCollection<HttpHeaderViewModel> HttpHeaders { get; } = new();
+
     // ─── TCP ───
     [ObservableProperty] private string _remoteHost = "127.0.0.1";
     [ObservableProperty] private int _remotePort = 8080;
@@ -864,6 +872,9 @@ public partial class HostChannelViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleExpand() => IsExpanded = !IsExpanded;
+
+    [RelayCommand]
+    private void AddHeader() => HttpHeaders.Add(new HttpHeaderViewModel(HttpHeaders));
 
     /// <summary>Raised when the user clicks the channel's Connect button.</summary>
     public event Func<HostChannelViewModel, Task>? ConnectRequested;
@@ -1045,6 +1056,9 @@ public partial class HostChannelViewModel : ObservableObject
         // HTTP
         HttpUrl = HttpUrl,
         ContentType = ContentType,
+        HttpHeaders = HttpHeaders
+            .Where(h => !string.IsNullOrWhiteSpace(h.Key))
+            .ToDictionary(h => h.Key.Trim(), h => h.Value ?? "", StringComparer.OrdinalIgnoreCase),
         // TCP
         RemoteHost = RemoteHost,
         RemotePort = RemotePort,
@@ -1077,45 +1091,80 @@ public partial class HostChannelViewModel : ObservableObject
         OpcUaEndpoint = OpcUaEndpoint,
     };
 
-    public static HostChannelViewModel FromModel(HostChannelConfig c) => new()
+    public static HostChannelViewModel FromModel(HostChannelConfig c)
     {
-        Name = c.Name,
-        TransportType = c.TransportType,
-        IsActiveMode = c.IsActiveMode,
-        BodyFormat = c.BodyFormat,
-        TemplatePath = c.TemplatePath,
-        // HTTP
-        HttpUrl = c.HttpUrl,
-        ContentType = string.IsNullOrEmpty(c.ContentType) ? "application/json" : c.ContentType,
-        // TCP
-        RemoteHost = c.RemoteHost,
-        RemotePort = c.RemotePort,
-        LocalHost = c.LocalHost,
-        LocalPort = c.LocalPort,
-        // MQTT
-        MqttBroker = c.MqttBroker,
-        MqttPort = c.MqttPort,
-        MqttTopic = c.MqttTopic,
-        MqttClientId = c.MqttClientId,
-        // Kafka
-        KafkaBootstrapServers = c.KafkaBootstrapServers,
-        KafkaTopic = c.KafkaTopic,
-        KafkaGroupId = c.KafkaGroupId,
-        // RabbitMQ
-        RabbitMqHost = c.RabbitMqHost,
-        RabbitMqPort = c.RabbitMqPort,
-        RabbitMqExchange = c.RabbitMqExchange,
-        RabbitMqRoutingKey = c.RabbitMqRoutingKey,
-        RabbitMqQueue = c.RabbitMqQueue,
-        // ActiveMQ
-        ActiveMqBrokerUri = c.ActiveMqBrokerUri,
-        ActiveMqQueue = c.ActiveMqQueue,
-        ActiveMqResponseQueue = c.ActiveMqResponseQueue,
-        Username = c.Username,
-        Password = c.Password,
-        // gRPC
-        GrpcEndpoint = c.GrpcEndpoint,
-        // OPC UA
-        OpcUaEndpoint = c.OpcUaEndpoint,
-    };
+        var vm = new HostChannelViewModel
+        {
+            Name = c.Name,
+            TransportType = c.TransportType,
+            IsActiveMode = c.IsActiveMode,
+            BodyFormat = c.BodyFormat,
+            TemplatePath = c.TemplatePath,
+            // HTTP
+            HttpUrl = c.HttpUrl,
+            ContentType = string.IsNullOrEmpty(c.ContentType) ? "application/json" : c.ContentType,
+            // TCP
+            RemoteHost = c.RemoteHost,
+            RemotePort = c.RemotePort,
+            LocalHost = c.LocalHost,
+            LocalPort = c.LocalPort,
+            // MQTT
+            MqttBroker = c.MqttBroker,
+            MqttPort = c.MqttPort,
+            MqttTopic = c.MqttTopic,
+            MqttClientId = c.MqttClientId,
+            // Kafka
+            KafkaBootstrapServers = c.KafkaBootstrapServers,
+            KafkaTopic = c.KafkaTopic,
+            KafkaGroupId = c.KafkaGroupId,
+            // RabbitMQ
+            RabbitMqHost = c.RabbitMqHost,
+            RabbitMqPort = c.RabbitMqPort,
+            RabbitMqExchange = c.RabbitMqExchange,
+            RabbitMqRoutingKey = c.RabbitMqRoutingKey,
+            RabbitMqQueue = c.RabbitMqQueue,
+            // ActiveMQ
+            ActiveMqBrokerUri = c.ActiveMqBrokerUri,
+            ActiveMqQueue = c.ActiveMqQueue,
+            ActiveMqResponseQueue = c.ActiveMqResponseQueue,
+            Username = c.Username,
+            Password = c.Password,
+            // gRPC
+            GrpcEndpoint = c.GrpcEndpoint,
+            // OPC UA
+            OpcUaEndpoint = c.OpcUaEndpoint,
+        };
+        // Headers list is a getter-only ObservableCollection — populate after construction.
+        if (c.HttpHeaders != null)
+        {
+            foreach (var (k, v) in c.HttpHeaders)
+                vm.HttpHeaders.Add(new HttpHeaderViewModel(vm.HttpHeaders) { Key = k, Value = v ?? "" });
+        }
+        return vm;
+    }
+}
+
+/// <summary>
+/// One HTTP header row (Key + Value) shown in the channel's Headers table. Empty Key
+/// rows are filtered out at <see cref="HostChannelViewModel.ToModel"/> time, so the user
+/// can leave a placeholder row open while editing without polluting the saved config.
+/// Owns a delete command bound to its parent collection so the per-row "✕" button can
+/// fire without crawling up the visual tree to find the channel VM.
+/// </summary>
+public partial class HttpHeaderViewModel : ObservableObject
+{
+    [ObservableProperty] private string _key = "";
+    [ObservableProperty] private string _value = "";
+
+    private readonly ObservableCollection<HttpHeaderViewModel>? _owner;
+
+    public HttpHeaderViewModel() { }
+
+    public HttpHeaderViewModel(ObservableCollection<HttpHeaderViewModel> owner)
+    {
+        _owner = owner;
+    }
+
+    [RelayCommand]
+    private void Delete() => _owner?.Remove(this);
 }

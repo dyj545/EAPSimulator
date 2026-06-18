@@ -70,7 +70,7 @@ public partial class MainViewModel : ObservableObject
         else if (IsConnected && isHost)
         {
             ConnectButtonText = "Disconnect Host";
-            ConnectButtonColor = "#F44747";
+            ConnectButtonColor = "#D32F2F";
         }
         else if (IsListening)
         {
@@ -146,6 +146,9 @@ public partial class MainViewModel : ObservableObject
 
         // Multi-channel host: load saved channels + wire each channel's Connect/Disconnect.
         Config.LoadHostChannels();
+        // Share the channel list with StatusPanel so the right-side panel and toolbar can
+        // bind directly — channels drive their own runtime status fields, no extra plumbing.
+        StatusPanel.HostChannels = Config.HostChannels;
         foreach (var ch in Config.HostChannels)
             WireChannelEvents(ch);
         SyncChannelNames();
@@ -181,6 +184,7 @@ public partial class MainViewModel : ObservableObject
     {
         ch.ConnectRequested += ConnectHostChannelAsync;
         ch.DisconnectRequested += DisconnectHostChannelAsync;
+        ch.TestConnectionRequested += TestHostChannelAsync;
     }
 
     /// <summary>
@@ -662,7 +666,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             ch.StatusText = $"Error: {ex.Message}";
-            ch.StatusColor = "#F44747";
+            ch.StatusColor = "#D32F2F";
             LogSystem($"[{ch.Name}] connect failed: {ex.Message}");
         }
     }
@@ -681,6 +685,44 @@ public partial class MainViewModel : ObservableObject
         ch.StatusText = "Disconnected";
         ch.StatusColor = "#888";
         LogSystem($"[{ch.Name}] disconnected.");
+    }
+
+    /// <summary>
+    /// Build a throwaway HostProtocol with the channel's current settings, connect, then
+    /// immediately disconnect — proves end-to-end reachability without touching the
+    /// running <see cref="_hostChannels"/> map. Returns (success, message) for the
+    /// inline banner in <see cref="ConfigViewModel"/>.
+    /// </summary>
+    private async Task<(bool success, string message)> TestHostChannelAsync(HostChannelViewModel ch)
+    {
+        var logger = _loggerFactory.CreateLogger<EAPSimulator.Core.Protocols.HostProtocol.HostProtocol>();
+        var hp = new EAPSimulator.Core.Protocols.HostProtocol.HostProtocol(logger);
+        try
+        {
+            hp.Configure(ch.ToModel().ToTransportConfig());
+            // Tight timeout — Test should fail fast rather than hang on a dead endpoint.
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await hp.StartAsync(cts.Token);
+            await hp.StopAsync(CancellationToken.None);
+            LogSystem($"[{ch.Name}] test ok ({ch.TransportType})");
+            return (true, $"{ch.TransportType} 连通正常");
+        }
+        catch (OperationCanceledException)
+        {
+            try { await hp.StopAsync(CancellationToken.None); } catch { }
+            LogSystem($"[{ch.Name}] test timeout");
+            return (false, "连接超时（5s）");
+        }
+        catch (Exception ex)
+        {
+            try { await hp.StopAsync(CancellationToken.None); } catch { }
+            LogSystem($"[{ch.Name}] test failed: {ex.Message}");
+            return (false, ex.Message);
+        }
+        finally
+        {
+            try { await hp.DisposeAsync(); } catch { }
+        }
     }
 
     /// <summary>Send a host message via the named channel (used by Host editor "发送测试").</summary>
