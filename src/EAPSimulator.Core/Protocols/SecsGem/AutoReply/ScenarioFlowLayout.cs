@@ -105,11 +105,12 @@ public static class ScenarioFlowLayout
                 case ScenarioStepKind.Branch:
                     // Each case is one labelled edge; default label is a separate edge; if neither
                     // matched, control falls through to the next step (a Sequential edge).
-                    foreach (var c in s.Cases)
+                    for (int ci = 0; ci < s.Cases.Count; ci++)
                     {
+                        var c = s.Cases[ci];
                         if (string.IsNullOrEmpty(c.TargetLabel)) continue;
                         if (labelToIndex.TryGetValue(c.TargetLabel, out var target))
-                            edges.Add(new FlowEdge(i, target, FlowEdgeKind.BranchCase, c.Summary));
+                            edges.Add(new FlowEdge(i, target, FlowEdgeKind.BranchCase, c.Summary, ci));
                     }
                     if (!string.IsNullOrEmpty(s.DefaultLabel) && labelToIndex.TryGetValue(s.DefaultLabel, out var defTarget))
                         edges.Add(new FlowEdge(i, defTarget, FlowEdgeKind.BranchDefault, "else"));
@@ -180,11 +181,19 @@ public sealed class FlowEdge
     public FlowEdgeKind Kind { get; }
     public string Caption { get; }
 
-    public FlowEdge(int from, int to, FlowEdgeKind kind, string caption)
+    /// <summary>
+    /// For <see cref="FlowEdgeKind.BranchCase"/>: which case index of the source step (0-based)
+    /// this edge represents. -1 for any other edge kind. Used by the canvas to update the
+    /// correct <c>BranchCase.TargetLabel</c> when the user drags the edge to a new node.
+    /// </summary>
+    public int CaseIndex { get; }
+
+    public FlowEdge(int from, int to, FlowEdgeKind kind, string caption, int caseIndex = -1)
     {
         FromIndex = from;
         ToIndex = to;
         Kind = kind;
         Caption = caption ?? "";
+        CaseIndex = caseIndex;
     }
 }

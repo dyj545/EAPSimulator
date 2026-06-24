@@ -250,6 +250,23 @@ num(vars["count"]) < 5 && host.Name == "MAP_COUNT_REP" // 与/或组合
 - 保存场景时，所有非零位置写入 `ScenarioDefinition.Layout.Nodes`；旧 JSON（无 layout 字段）正常加载
 - 工具栏 `↺ 重置布局` 清空 overrides，回到默认列布局
 
+**节点右键菜单**：
+
+- 插入到此之前 / 插入到此之后 → 二级菜单覆盖全部 14 种 step kind
+- 删除此步骤
+- `LayoutOverrides` 在插入/删除/移动时通过 `ShiftLayoutOverrides` 同步索引，避免拖过的位置跟错节点
+
+**连线编辑（拖箭头改跳转）**：
+
+可编辑边（BranchCase / BranchDefault / OnError）在目标端画一个小圆点 thumb。
+
+- 按住 thumb 拖动 → 出现虚线幽灵线跟随鼠标
+- 拖到任意节点 → 该节点高亮橙边；松开即提交
+- 拖到空白 → 取消
+- 提交规则：BranchCase 改 `Cases[i].TargetLabel`；BranchDefault 改 `DefaultLabel`；OnError 改 `OnErrorLabel`
+- 目标节点没有 Label 时自动起一个（`L<idx>`，冲突则递增后缀）
+- 顺序边 / Loop/ForEach 回弧没有 thumb（这些拓扑由步骤顺序与 Loop/EndLoop 配对决定，画布上拖没地方写回）
+
 ## 5. 踩过的坑
 
 ### 坑 1：CancellationToken 的传递

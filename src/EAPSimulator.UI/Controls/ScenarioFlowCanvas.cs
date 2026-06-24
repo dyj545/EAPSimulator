@@ -63,6 +63,8 @@ public partial class ScenarioFlowCanvas : UserControl
     private readonly Canvas _canvas;
     private readonly ScrollViewer _scroll;
     private readonly Dictionary<int, Border> _nodeShells = new();
+    /// <summary>Node bounding rects keyed by step index — used by edge-drag hit-testing.</summary>
+    private readonly Dictionary<int, Rect> _nodeBounds = new();
     private ScenarioViewModel? _wiredScenario;
 
     // Drag state
@@ -71,6 +73,14 @@ public partial class ScenarioFlowCanvas : UserControl
     private Point _dragStart;
     private double _dragOrigX;
     private double _dragOrigY;
+
+    // Edge re-targeting state: when an edge thumb is being dragged, this carries the source
+    // step + which kind of edge we're editing so PointerReleased knows what to mutate.
+    private Ellipse? _draggingThumb;
+    private Line? _ghostLine;
+    private int _edgeSourceStep = -1;
+    private int _edgeCaseIndex = -1;     // -1 = not a BranchCase edge
+    private FlowEdgeKind _edgeKind;
 
     public ScenarioFlowCanvas()
     {
@@ -159,6 +169,7 @@ public partial class ScenarioFlowCanvas : UserControl
     {
         _canvas.Children.Clear();
         _nodeShells.Clear();
+        _nodeBounds.Clear();
         _sideFan.Clear();
         var vm = Scenario;
         if (vm == null) return;
@@ -344,6 +355,8 @@ public partial class ScenarioFlowCanvas : UserControl
 
         _canvas.Children.Add(shell);
         _nodeShells[node.StepIndex] = shell;
+        _nodeBounds[node.StepIndex] = new Rect(node.X, node.Y,
+            ScenarioFlowLayout.NodeWidth, ScenarioFlowLayout.NodeHeight);
     }
 
     /// <summary>
@@ -575,6 +588,183 @@ public partial class ScenarioFlowCanvas : UserControl
             Canvas.SetLeft(caption, capX);
             Canvas.SetTop(caption, capY);
             _canvas.Children.Add(caption);
+        }
+
+        // 6) Drag thumb on the destination end of editable edges. The thumb is a small disc
+        //    the user can grab to reroute the edge to a different node. We only attach it to
+        //    BranchCase / BranchDefault / OnError edges — sequential and loop-back edges are
+        //    derived from the step ordering itself, dragging them wouldn't have anywhere to
+        //    write the change.
+        if (IsEditableEdge(edge.Kind))
+            AddEdgeThumb(edge, p2, n2, brush);
+    }
+
+    private static bool IsEditableEdge(FlowEdgeKind kind) =>
+        kind is FlowEdgeKind.BranchCase or FlowEdgeKind.BranchDefault or FlowEdgeKind.OnError;
+
+    private void AddEdgeThumb(FlowEdge edge, Point tip, Point normal, IBrush brush)
+    {
+        // Position the thumb just outside the destination node so it doesn't overlap the arrow
+        // head. We use the same outward-normal offset used by DrawArrowHead.
+        const double Offset = 10;
+        const double Size = 9;
+        var cx = tip.X + normal.X * Offset;
+        var cy = tip.Y + normal.Y * Offset;
+        var thumb = new Ellipse
+        {
+            Width = Size,
+            Height = Size,
+            Stroke = brush,
+            StrokeThickness = 1.5,
+            Fill = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x1A)),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            ZIndex = 6,
+        };
+        Canvas.SetLeft(thumb, cx - Size / 2);
+        Canvas.SetTop(thumb, cy - Size / 2);
+        ToolTip.SetTip(thumb, "拖动到目标节点以更改跳转;松开在空白处取消");
+
+        thumb.PointerPressed += (_, e) =>
+        {
+            if (!e.GetCurrentPoint(thumb).Properties.IsLeftButtonPressed) return;
+            _draggingThumb = thumb;
+            _edgeSourceStep = edge.FromIndex;
+            _edgeCaseIndex = edge.CaseIndex;
+            _edgeKind = edge.Kind;
+            // Lay down a ghost line that follows the pointer.
+            var src = AnchorCenter(_nodeBounds[edge.FromIndex]);
+            _ghostLine = new Line
+            {
+                StartPoint = src,
+                EndPoint = new Point(cx, cy),
+                Stroke = brush,
+                StrokeThickness = 2,
+                StrokeDashArray = new AvaloniaList<double>(new[] { 5.0, 4.0 }),
+                ZIndex = 7,
+            };
+            _canvas.Children.Add(_ghostLine);
+            e.Pointer.Capture(thumb);
+            e.Handled = true;
+        };
+        thumb.PointerMoved += (_, e) =>
+        {
+            if (_draggingThumb != thumb || _ghostLine == null) return;
+            var pos = e.GetPosition(_canvas);
+            _ghostLine.EndPoint = pos;
+            // Highlight the node currently under the pointer (if any) by a brief border accent.
+            HighlightDropTarget(pos);
+        };
+        thumb.PointerReleased += (_, e) =>
+        {
+            if (_draggingThumb != thumb) return;
+            var pos = e.GetPosition(_canvas);
+            var target = HitTestNode(pos);
+            ClearDropTargetHighlight();
+            if (_ghostLine != null) { _canvas.Children.Remove(_ghostLine); _ghostLine = null; }
+            _draggingThumb = null;
+            e.Pointer.Capture(null);
+            if (target >= 0 && target != _edgeSourceStep)
+                CommitEdgeRetarget(target);
+        };
+    }
+
+    /// <summary>Centre point of a node rect — used as the ghost line's start during drag.</summary>
+    private static Point AnchorCenter(Rect r) => new Point(r.X + r.Width / 2, r.Y + r.Height / 2);
+
+    /// <summary>Return the step index whose bounding rect contains <paramref name="p"/>, or -1.</summary>
+    private int HitTestNode(Point p)
+    {
+        foreach (var (idx, r) in _nodeBounds)
+            if (r.Contains(p)) return idx;
+        return -1;
+    }
+
+    private int _highlightedDropTarget = -1;
+
+    private void HighlightDropTarget(Point p)
+    {
+        var hit = HitTestNode(p);
+        if (hit == _highlightedDropTarget) return;
+        ClearDropTargetHighlight();
+        if (hit >= 0 && hit != _edgeSourceStep && _nodeShells.TryGetValue(hit, out var shell))
+        {
+            shell.BorderBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xB4, 0x54));
+            shell.BorderThickness = new Thickness(2);
+            _highlightedDropTarget = hit;
+        }
+    }
+
+    private void ClearDropTargetHighlight()
+    {
+        if (_highlightedDropTarget < 0) return;
+        if (_nodeShells.TryGetValue(_highlightedDropTarget, out var shell))
+        {
+            // Restore normal border. HighlightSelected() will repaint the green outline if this
+            // node happens to be the SelectedStep.
+            shell.BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
+            shell.BorderThickness = new Thickness(1);
+        }
+        _highlightedDropTarget = -1;
+        HighlightSelected();
+    }
+
+    /// <summary>
+    /// Mutate the underlying scenario to point the edge at <paramref name="targetStepIdx"/>.
+    /// Three kinds of edits are supported (mirrors <see cref="IsEditableEdge"/>):
+    /// <list type="bullet">
+    ///   <item>BranchCase → set the corresponding <c>Cases[i].TargetLabel</c></item>
+    ///   <item>BranchDefault → set the step's <c>DefaultLabel</c></item>
+    ///   <item>OnError → set the step's <c>OnErrorLabel</c></item>
+    /// </list>
+    /// If the target node has no Label, we auto-generate one (<c>L{stepIdx}</c>) so the edge
+    /// has somewhere to resolve to. Otherwise the existing Label is reused.
+    /// </summary>
+    private void CommitEdgeRetarget(int targetStepIdx)
+    {
+        var vm = Scenario;
+        if (vm == null) return;
+        if (_edgeSourceStep < 0 || _edgeSourceStep >= vm.Steps.Count) return;
+        if (targetStepIdx < 0 || targetStepIdx >= vm.Steps.Count) return;
+
+        var srcStep = vm.Steps[_edgeSourceStep];
+        var dstStep = vm.Steps[targetStepIdx];
+        var label = string.IsNullOrEmpty(dstStep.Label) ? AutoLabel(targetStepIdx, vm) : dstStep.Label;
+        if (dstStep.Label != label)
+        {
+            dstStep.Label = label;       // triggers RefreshAvailableLabels via ScenarioViewModel
+        }
+
+        switch (_edgeKind)
+        {
+            case FlowEdgeKind.BranchCase:
+                if (_edgeCaseIndex >= 0 && _edgeCaseIndex < srcStep.Cases.Count)
+                    srcStep.Cases[_edgeCaseIndex].TargetLabel = label;
+                break;
+            case FlowEdgeKind.BranchDefault:
+                srcStep.DefaultLabel = label;
+                break;
+            case FlowEdgeKind.OnError:
+                srcStep.OnErrorLabel = label;
+                break;
+        }
+        // Branch case Summary / step display caches are derived; nudge them so the canvas
+        // caption and ListBox refresh.
+        srcStep.UpdateDisplayText();
+        Rebuild();
+    }
+
+    /// <summary>Pick an unused short label name for a step that doesn't have one yet.</summary>
+    private static string AutoLabel(int stepIdx, ScenarioViewModel vm)
+    {
+        var taken = new HashSet<string>(
+            vm.Steps.Where(s => !string.IsNullOrEmpty(s.Label)).Select(s => s.Label),
+            StringComparer.Ordinal);
+        var prefix = $"L{stepIdx}";
+        if (!taken.Contains(prefix)) return prefix;
+        for (int i = 2; ; i++)
+        {
+            var candidate = $"{prefix}_{i}";
+            if (!taken.Contains(candidate)) return candidate;
         }
     }
 

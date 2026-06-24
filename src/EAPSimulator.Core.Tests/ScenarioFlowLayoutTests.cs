@@ -151,4 +151,51 @@ public class ScenarioFlowLayoutTests
         // Step 0 unaffected — still at default column position.
         Assert.Equal(0, layout.Nodes[0].X);
     }
+
+    [Fact]
+    public void Branch_CaseIndex_PreservedOnEdges()
+    {
+        // The canvas needs to know which Cases[i] each BranchCase edge represents so dragging
+        // the edge updates the right TargetLabel. Verify the index round-trips through layout.
+        var scenario = new ScenarioDefinition
+        {
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.Branch,
+                    Cases =
+                    {
+                        new BranchCase { TargetLabel = "a" },
+                        new BranchCase { TargetLabel = "b" },
+                    },
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, Label = "a" },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, Label = "b" },
+            },
+        };
+        var layout = ScenarioFlowLayout.Build(scenario);
+        var branchEdges = layout.Edges.Where(e => e.Kind == FlowEdgeKind.BranchCase).ToList();
+        Assert.Equal(2, branchEdges.Count);
+        // Case 0 → label "a" → step 1; case 1 → label "b" → step 2.
+        Assert.Equal(0, branchEdges.Single(e => e.ToIndex == 1).CaseIndex);
+        Assert.Equal(1, branchEdges.Single(e => e.ToIndex == 2).CaseIndex);
+    }
+
+    [Fact]
+    public void NonBranchEdges_HaveCaseIndexMinusOne()
+    {
+        // Anything that isn't a BranchCase should report -1 — the edge editor uses this to
+        // decide whether to update Cases[i] or DefaultLabel / OnErrorLabel.
+        var scenario = new ScenarioDefinition
+        {
+            Steps =
+            {
+                new ScenarioStep { Kind = ScenarioStepKind.Send, OnErrorLabel = "rescue" },
+                new ScenarioStep { Kind = ScenarioStepKind.Log, Label = "rescue" },
+            },
+        };
+        var layout = ScenarioFlowLayout.Build(scenario);
+        Assert.All(layout.Edges, e => Assert.Equal(-1, e.CaseIndex));
+    }
 }
