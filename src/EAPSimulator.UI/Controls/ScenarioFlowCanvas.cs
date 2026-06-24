@@ -159,8 +159,7 @@ public partial class ScenarioFlowCanvas : UserControl
     {
         _canvas.Children.Clear();
         _nodeShells.Clear();
-        _outFan.Clear();
-        _inFan.Clear();
+        _sideFan.Clear();
         var vm = Scenario;
         if (vm == null) return;
 
@@ -168,9 +167,15 @@ public partial class ScenarioFlowCanvas : UserControl
         var overrides = vm.LayoutOverrides;
         var layout = ScenarioFlowLayout.Build(def, overrides);
 
+        // Pre-compute the anchor side each edge will use. We need both endpoints' picks up
+        // front so we can detect "in and out edges on the same side of the same node" and
+        // route one of them away — otherwise the entry arrow and the exit arrow stack on top
+        // of each other and you can't tell which direction is which.
+        var pickedSides = ResolveAnchorSides(layout);
+
         // Edges first so node rectangles render on top.
         foreach (var edge in layout.Edges)
-            DrawEdge(layout, edge);
+            DrawEdge(layout, edge, pickedSides);
 
         foreach (var node in layout.Nodes)
             DrawNode(vm, node);
@@ -186,6 +191,67 @@ public partial class ScenarioFlowCanvas : UserControl
         _canvas.Height = Math.Max(800, maxY + 200);
 
         HighlightSelected();
+    }
+
+    /// <summary>
+    /// First pass: pick each edge's tentative (fromSide, toSide) via <see cref="PickAnchors"/>.
+    /// Second pass: for every node, if its incoming and outgoing edges land on the same side,
+    /// reroute one of them to the orthogonal side that's closer to the other endpoint —
+    /// turning a stacked entry/exit pair into a clear in-from-left / out-to-bottom layout.
+    /// </summary>
+    private static Dictionary<int, (AnchorSide From, AnchorSide To)> ResolveAnchorSides(ScenarioFlowLayoutResult layout)
+    {
+        var sides = new Dictionary<int, (AnchorSide From, AnchorSide To)>();
+        for (int i = 0; i < layout.Edges.Count; i++)
+        {
+            var e = layout.Edges[i];
+            var (fs, ts) = PickAnchors(layout.Nodes[e.FromIndex], layout.Nodes[e.ToIndex], e.Kind);
+            sides[i] = (fs, ts);
+        }
+
+        // Build per-node entry/exit side maps so we can detect collisions cheaply.
+        var entrySidesPerNode = new Dictionary<int, List<int>>();   // stepIndex -> edge indices entering
+        var exitSidesPerNode = new Dictionary<int, List<int>>();
+        for (int i = 0; i < layout.Edges.Count; i++)
+        {
+            var e = layout.Edges[i];
+            if (!exitSidesPerNode.TryGetValue(e.FromIndex, out var outs))
+                exitSidesPerNode[e.FromIndex] = outs = new List<int>();
+            outs.Add(i);
+            if (!entrySidesPerNode.TryGetValue(e.ToIndex, out var ins))
+                entrySidesPerNode[e.ToIndex] = ins = new List<int>();
+            ins.Add(i);
+        }
+
+        // For each node that has both an entry and an exit landing on the same side, divert
+        // the entry to the orthogonal axis closer to its peer. We touch the entry rather than
+        // the exit because outgoing direction is usually more meaningful to the reader
+        // ("which way does this step send control next?").
+        foreach (var (nodeIdx, entryEdges) in entrySidesPerNode)
+        {
+            if (!exitSidesPerNode.TryGetValue(nodeIdx, out var exitEdges)) continue;
+            foreach (var entryEdgeIdx in entryEdges)
+            {
+                var entrySide = sides[entryEdgeIdx].To;
+                bool collides = exitEdges.Any(ex => ex != entryEdgeIdx && sides[ex].From == entrySide);
+                if (!collides) continue;
+                // Re-route this entry to a side not already used by an exit. Prefer the side
+                // perpendicular to the current one for the most natural turn.
+                var occupied = new HashSet<AnchorSide>(exitEdges.Select(ex => sides[ex].From));
+                AnchorSide? candidate = entrySide switch
+                {
+                    AnchorSide.Left or AnchorSide.Right => occupied.Contains(AnchorSide.Top) ? AnchorSide.Bottom : AnchorSide.Top,
+                    AnchorSide.Top or AnchorSide.Bottom => occupied.Contains(AnchorSide.Left) ? AnchorSide.Right : AnchorSide.Left,
+                    _ => null,
+                };
+                if (candidate is { } newSide)
+                {
+                    var s = sides[entryEdgeIdx];
+                    sides[entryEdgeIdx] = (s.From, newSide);
+                }
+            }
+        }
+        return sides;
     }
 
     private void DrawNode(ScenarioViewModel vm, FlowNode node)
@@ -230,6 +296,10 @@ public partial class ScenarioFlowCanvas : UserControl
         };
         Canvas.SetLeft(shell, node.X);
         Canvas.SetTop(shell, node.Y);
+
+        // Right-click menu: insert before / after, delete. Lets the user grow the scenario from
+        // the canvas itself instead of bouncing back to the toolbar.
+        shell.ContextMenu = BuildNodeContextMenu(vm, node.StepIndex);
 
         // Pointer wiring: click selects the step, drag moves the node.
         shell.PointerPressed += (_, e) =>
@@ -342,30 +412,24 @@ public partial class ScenarioFlowCanvas : UserControl
     }
 
     /// <summary>
-    /// Per-side fan-out counters keyed by (stepIndex, side) — used so that when one node has
-    /// multiple outgoing edges leaving the same side they fan out instead of overlap.
-    /// Reset per Rebuild().
+    /// Single per-(stepIdx, side) counter shared between incoming and outgoing edges. Earlier
+    /// we kept separate in/out counters, but that gave an entry edge and an exit edge on the
+    /// same side identical rank=0 → they landed at the same anchor point and the arrow tips
+    /// stacked on top of each other. One pool ensures every anchor on a side gets a unique
+    /// rank regardless of direction.
     /// </summary>
-    private readonly Dictionary<(int, AnchorSide), int> _outFan = new();
-    private readonly Dictionary<(int, AnchorSide), int> _inFan = new();
+    private readonly Dictionary<(int, AnchorSide), int> _sideFan = new();
 
-    private double NextOutRank(int stepIdx, AnchorSide side)
+    /// <summary>
+    /// Allocate the next rank for an anchor on (stepIdx, side). Ranks step outward from centre:
+    /// 0, +1, -1, +2, -2, … Each rank corresponds to a 14px offset along the side, so multiple
+    /// edges sharing a side fan out symmetrically.
+    /// </summary>
+    private double NextRank(int stepIdx, AnchorSide side)
     {
         var key = (stepIdx, side);
-        _outFan.TryGetValue(key, out var n);
-        _outFan[key] = n + 1;
-        // 0, +1, -1, +2, -2, ... — keeps the first edge centred, fans alternately.
-        return n switch
-        {
-            0 => 0,
-            _ => ((n + 1) / 2) * (n % 2 == 1 ? 1 : -1),
-        };
-    }
-    private double NextInRank(int stepIdx, AnchorSide side)
-    {
-        var key = (stepIdx, side);
-        _inFan.TryGetValue(key, out var n);
-        _inFan[key] = n + 1;
+        _sideFan.TryGetValue(key, out var n);
+        _sideFan[key] = n + 1;
         return n switch
         {
             0 => 0,
@@ -373,19 +437,23 @@ public partial class ScenarioFlowCanvas : UserControl
         };
     }
 
-    private void DrawEdge(ScenarioFlowLayoutResult layout, FlowEdge edge)
+    private void DrawEdge(ScenarioFlowLayoutResult layout, FlowEdge edge,
+        Dictionary<int, (AnchorSide From, AnchorSide To)> pickedSides)
     {
         var from = layout.Nodes[edge.FromIndex];
         var to = layout.Nodes[edge.ToIndex];
         bool isBackArc = edge.ToIndex < edge.FromIndex
             && (edge.Kind == FlowEdgeKind.LoopBack || edge.Kind == FlowEdgeKind.ForEachBack);
 
-        // 1) Pick the two anchor sides based on relative geometry.
-        var (fromSide, toSide) = PickAnchors(from, to, edge.Kind);
+        // 1) Look up the anchor sides chosen by the pre-pass (which already broke entry/exit
+        //    ties so they don't land on the same side).
+        var edgeIdx = layout.Edges.IndexOf(edge);
+        var (fromSide, toSide) = pickedSides[edgeIdx];
 
-        // 2) Per-side fan ranks so multiple edges on the same side don't overlap.
-        var fromRank = NextOutRank(edge.FromIndex, fromSide);
-        var toRank = NextInRank(edge.ToIndex, toSide);
+        // 2) Per-side fan ranks so multiple edges on the same side don't overlap, regardless
+        //    of whether they are entries or exits.
+        var fromRank = NextRank(edge.FromIndex, fromSide);
+        var toRank = NextRank(edge.ToIndex, toSide);
 
         var (p1, n1) = AnchorOn(from, fromSide, fromRank);
         var (p2, n2) = AnchorOn(to, toSide, toRank);
@@ -631,12 +699,15 @@ public partial class ScenarioFlowCanvas : UserControl
 
     private void DrawArrowHead(Point tip, Point normal, IBrush brush)
     {
-        // Tip is on the edge of the destination rect; normal points outwards. We draw the
-        // triangle's base 8px back along -normal, with 4px shoulders perpendicular to it.
-        const double Len = 8;
-        const double Half = 4;
-        var bx = tip.X - normal.X * Len;
-        var by = tip.Y - normal.Y * Len;
+        // Tip sits on the destination rectangle's edge with `normal` pointing outwards (away
+        // from the node centre). The arrow visually points into the node, so the triangle's
+        // base must extend outward — bx,by = tip + normal*Len. Earlier this used `tip - normal*Len`
+        // which put the base inside the rectangle, where DrawNode then painted over it; that's
+        // why arrows disappeared after the smart-anchor refactor.
+        const double Len = 9;
+        const double Half = 4.5;
+        var bx = tip.X + normal.X * Len;
+        var by = tip.Y + normal.Y * Len;
         // Perpendicular vector (rotate normal 90°)
         var px = -normal.Y * Half;
         var py = normal.X * Half;
@@ -649,6 +720,9 @@ public partial class ScenarioFlowCanvas : UserControl
                 new Point(bx - px, by - py),
             },
             Fill = brush,
+            // Render the arrow above any node rectangle — without this, arrows whose tip sits on
+            // a node edge can get visually clipped if rendering order ever puts the node on top.
+            ZIndex = 5,
         };
         _canvas.Children.Add(arrow);
     }
@@ -701,5 +775,59 @@ public partial class ScenarioFlowCanvas : UserControl
     {
         Scenario?.LayoutOverrides.Clear();
         Rebuild();
+    }
+
+    /// <summary>
+    /// Build the right-click menu for a single node: insert before / after with a kind picker,
+    /// plus delete. The kind list mirrors the toolbar order; selecting one calls back into the
+    /// top-level <see cref="AutoReplyViewModel"/> which already owns the insert/delete helpers
+    /// (they need the scenario lookup that ScenarioViewModel alone doesn't have).
+    /// </summary>
+    private static ContextMenu BuildNodeContextMenu(ScenarioViewModel vm, int stepIndex)
+    {
+        var menu = new ContextMenu();
+        var parent = AutoReplyViewModel.Instance;
+        menu.Items.Add(BuildInsertSubmenu("插入到此之前", k =>
+        {
+            parent?.InsertStepBefore(stepIndex, k);
+        }));
+        menu.Items.Add(BuildInsertSubmenu("插入到此之后", k =>
+        {
+            parent?.InsertStepAfter(stepIndex, k);
+        }));
+        menu.Items.Add(new Separator());
+        var del = new MenuItem { Header = "删除此步骤" };
+        del.Click += (_, _) =>
+        {
+            if (stepIndex >= 0 && stepIndex < vm.Steps.Count)
+            {
+                vm.Steps.RemoveAt(stepIndex);
+                vm.RemoveLayoutOverrideAndShift(stepIndex);
+            }
+        };
+        menu.Items.Add(del);
+        return menu;
+    }
+
+    private static MenuItem BuildInsertSubmenu(string header, Action<ScenarioStepKind> onPick)
+    {
+        var root = new MenuItem { Header = header };
+        // Order matches the toolbar so the muscle memory carries over.
+        foreach (var k in new[]
+        {
+            ScenarioStepKind.Send, ScenarioStepKind.Receive, ScenarioStepKind.Reply,
+            ScenarioStepKind.Delay, ScenarioStepKind.Log, ScenarioStepKind.Branch,
+            ScenarioStepKind.SetVariable, ScenarioStepKind.Loop, ScenarioStepKind.EndLoop,
+            ScenarioStepKind.ForEach, ScenarioStepKind.EndForEach,
+            ScenarioStepKind.HostSend, ScenarioStepKind.HostReceive,
+            ScenarioStepKind.CallScenario,
+        })
+        {
+            var kind = k; // capture
+            var item = new MenuItem { Header = kind.ToString() };
+            item.Click += (_, _) => onPick(kind);
+            root.Items.Add(item);
+        }
+        return root;
     }
 }

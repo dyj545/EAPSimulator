@@ -234,8 +234,96 @@ public partial class AutoReplyViewModel : ObservableObject
                 break;
         }
         step.UpdateDisplayText();
+        // Insert immediately AFTER the currently selected step (most natural "add next step"
+        // gesture). With no selection — e.g. brand-new scenario — append to the end.
+        var sel = SelectedStep;
+        if (sel != null)
+        {
+            var idx = SelectedScenario.Steps.IndexOf(sel);
+            if (idx >= 0)
+            {
+                SelectedScenario.ShiftLayoutOverrides(idx + 1, +1);
+                SelectedScenario.Steps.Insert(idx + 1, step);
+                SelectedStep = step;
+                return;
+            }
+        }
         SelectedScenario.Steps.Add(step);
         SelectedStep = step;
+    }
+
+    /// <summary>
+    /// Insert a step of the given kind at <paramref name="insertAfterIndex"/> + 1 (i.e. immediately
+    /// after that step). Used by the flow-canvas right-click menu so the user can drop a node
+    /// into the middle of the flow without first selecting and then clicking a toolbar button.
+    /// </summary>
+    public void InsertStepAfter(int insertAfterIndex, ScenarioStepKind kind)
+    {
+        if (SelectedScenario == null) return;
+        var step = BuildStepWithDefaults(kind);
+        var insertAt = Math.Clamp(insertAfterIndex + 1, 0, SelectedScenario.Steps.Count);
+        SelectedScenario.ShiftLayoutOverrides(insertAt, +1);
+        SelectedScenario.Steps.Insert(insertAt, step);
+        SelectedStep = step;
+    }
+
+    public void InsertStepBefore(int insertBeforeIndex, ScenarioStepKind kind)
+    {
+        if (SelectedScenario == null) return;
+        var step = BuildStepWithDefaults(kind);
+        var insertAt = Math.Clamp(insertBeforeIndex, 0, SelectedScenario.Steps.Count);
+        SelectedScenario.ShiftLayoutOverrides(insertAt, +1);
+        SelectedScenario.Steps.Insert(insertAt, step);
+        SelectedStep = step;
+    }
+
+    /// <summary>Centralised per-kind defaults so both append and insert paths agree.</summary>
+    private ScenarioStepViewModel BuildStepWithDefaults(ScenarioStepKind kind)
+    {
+        var step = new ScenarioStepViewModel { Kind = kind };
+        switch (kind)
+        {
+            case ScenarioStepKind.Send:
+                step.TemplateName = TemplateNames.FirstOrDefault() ?? "";
+                break;
+            case ScenarioStepKind.Receive:
+                step.TimeoutMs = 30_000;
+                break;
+            case ScenarioStepKind.Reply:
+                step.TemplateName = TemplateNames.FirstOrDefault() ?? "";
+                break;
+            case ScenarioStepKind.Delay:
+                step.DelayMs = 1_000;
+                break;
+            case ScenarioStepKind.Branch:
+                step.Cases.Add(new BranchCaseViewModel());
+                break;
+            case ScenarioStepKind.SetVariable:
+                step.VariableName = "var1";
+                step.VariableSource = VariableSource.Literal;
+                break;
+            case ScenarioStepKind.Loop:
+                step.LoopId = NextLoopId();
+                step.LoopTimes = 3;
+                break;
+            case ScenarioStepKind.EndLoop:
+                step.LoopId = OpenLoopId();
+                break;
+            case ScenarioStepKind.CallScenario:
+                step.SubScenarioName = Scenarios.FirstOrDefault(s => s != SelectedScenario)?.Name ?? "";
+                break;
+            case ScenarioStepKind.ForEach:
+                step.ForEachId = NextForEachId();
+                step.ForEachSource = ForEachSource.Variable;
+                step.ForEachItemVariable = "item";
+                step.ForEachSeparator = ",";
+                break;
+            case ScenarioStepKind.EndForEach:
+                step.ForEachId = OpenForEachId();
+                break;
+        }
+        step.UpdateDisplayText();
+        return step;
     }
 
     /// <summary>Pick the next free LoopId in the current scenario (L1, L2, ...).</summary>
@@ -354,6 +442,7 @@ public partial class AutoReplyViewModel : ObservableObject
         if (SelectedScenario == null || SelectedStep == null) return;
         var idx = SelectedScenario.Steps.IndexOf(SelectedStep);
         SelectedScenario.Steps.Remove(SelectedStep);
+        SelectedScenario.RemoveLayoutOverrideAndShift(idx);
         SelectedStep = SelectedScenario.Steps.Count > 0
             ? SelectedScenario.Steps[Math.Min(idx, SelectedScenario.Steps.Count - 1)]
             : null;
@@ -364,7 +453,11 @@ public partial class AutoReplyViewModel : ObservableObject
     {
         if (SelectedScenario == null || SelectedStep == null) return;
         var idx = SelectedScenario.Steps.IndexOf(SelectedStep);
-        if (idx > 0) SelectedScenario.Steps.Move(idx, idx - 1);
+        if (idx > 0)
+        {
+            SelectedScenario.Steps.Move(idx, idx - 1);
+            SelectedScenario.SwapLayoutOverrides(idx, idx - 1);
+        }
     }
 
     [RelayCommand]
@@ -372,7 +465,11 @@ public partial class AutoReplyViewModel : ObservableObject
     {
         if (SelectedScenario == null || SelectedStep == null) return;
         var idx = SelectedScenario.Steps.IndexOf(SelectedStep);
-        if (idx < SelectedScenario.Steps.Count - 1) SelectedScenario.Steps.Move(idx, idx + 1);
+        if (idx < SelectedScenario.Steps.Count - 1)
+        {
+            SelectedScenario.Steps.Move(idx, idx + 1);
+            SelectedScenario.SwapLayoutOverrides(idx, idx + 1);
+        }
     }
 
     [RelayCommand]
@@ -1021,6 +1118,46 @@ public partial class ScenarioViewModel : ObservableObject
     /// step-property change while still letting <see cref="ScenarioFlowLayout"/> see fresh data.
     /// </summary>
     public ScenarioDefinition ToModelLayoutPreview() => ToModel();
+
+    /// <summary>
+    /// Shift every layout override at or after <paramref name="fromIndex"/> by <paramref name="delta"/>.
+    /// Call BEFORE inserting (with +1) so the new index slot is empty, or AFTER deleting
+    /// (with -1) so the gap closes. Without this the dragged positions stay attached to
+    /// step indices that no longer exist (or wrong ones).
+    /// </summary>
+    public void ShiftLayoutOverrides(int fromIndex, int delta)
+    {
+        if (LayoutOverrides.Count == 0 || delta == 0) return;
+        var keys = LayoutOverrides.Keys.Where(k => k >= fromIndex).OrderBy(k => -delta).ToList();
+        // Sort direction matters: when delta=+1 process highest first so we don't overwrite
+        // a pending key. When delta=-1 process lowest first for the same reason.
+        if (delta > 0) keys.Sort((a, b) => b.CompareTo(a));
+        else           keys.Sort();
+        foreach (var k in keys)
+        {
+            var v = LayoutOverrides[k];
+            LayoutOverrides.Remove(k);
+            LayoutOverrides[k + delta] = v;
+        }
+    }
+
+    /// <summary>Remove the override for <paramref name="removedIndex"/> and shift the tail down.</summary>
+    public void RemoveLayoutOverrideAndShift(int removedIndex)
+    {
+        LayoutOverrides.Remove(removedIndex);
+        ShiftLayoutOverrides(removedIndex + 1, -1);
+    }
+
+    /// <summary>Swap the overrides of two adjacent steps (used by Move Up / Down).</summary>
+    public void SwapLayoutOverrides(int a, int b)
+    {
+        var hasA = LayoutOverrides.TryGetValue(a, out var va);
+        var hasB = LayoutOverrides.TryGetValue(b, out var vb);
+        LayoutOverrides.Remove(a);
+        LayoutOverrides.Remove(b);
+        if (hasA) LayoutOverrides[b] = va;
+        if (hasB) LayoutOverrides[a] = vb;
+    }
 
     public ScenarioViewModel()
     {

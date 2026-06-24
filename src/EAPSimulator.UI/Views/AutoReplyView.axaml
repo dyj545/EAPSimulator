@@ -282,7 +282,10 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="4,2">
+                    <ScrollViewer Grid.Row="0"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <StackPanel Orientation="Horizontal" Margin="4,2">
                         <TextBlock Text="步骤:" FontSize="11" FontWeight="SemiBold"
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <Button Content="▶ Send" Command="{Binding AddStepCommand}" CommandParameter="Send"
@@ -351,7 +354,8 @@
                         <Button Content="↺ 重置布局" Click="OnResetLayoutClick"
                                 Padding="6,2" FontSize="11"
                                 ToolTip.Tip="把流程图节点位置恢复到默认列布局"/>
-                    </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
                     <ListBox Grid.Row="1"
                              ItemsSource="{Binding SelectedScenario.Steps}"
                              SelectedItem="{Binding SelectedStep}"
