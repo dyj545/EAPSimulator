@@ -159,6 +159,8 @@ public partial class ScenarioFlowCanvas : UserControl
     {
         _canvas.Children.Clear();
         _nodeShells.Clear();
+        _outFan.Clear();
+        _inFan.Clear();
         var vm = Scenario;
         if (vm == null) return;
 
@@ -274,108 +276,227 @@ public partial class ScenarioFlowCanvas : UserControl
         _nodeShells[node.StepIndex] = shell;
     }
 
+    /// <summary>
+    /// Side of a node rectangle where an edge anchors. Encodes the outward normal direction
+    /// the line / curve should leave or enter at — used to keep arrows perpendicular to the
+    /// rectangle and to compute bezier control points that don't backtrack into the box.
+    /// </summary>
+    private enum AnchorSide { Top, Right, Bottom, Left }
+
+    /// <summary>
+    /// Pick anchor sides for an edge based on the relative geometry of the two nodes.
+    /// Greedy: whichever axis has the larger gap chooses the side; ties prefer vertical
+    /// (matches the column-style default layout). Back-arcs are forced to right-side so the
+    /// curve has room to bow out without crossing the spine of the diagram.
+    /// </summary>
+    private static (AnchorSide fromSide, AnchorSide toSide) PickAnchors(FlowNode from, FlowNode to, FlowEdgeKind kind)
+    {
+        if (kind is FlowEdgeKind.LoopBack or FlowEdgeKind.ForEachBack)
+            return (AnchorSide.Right, AnchorSide.Right);
+
+        var fromCenterX = from.X + ScenarioFlowLayout.NodeWidth / 2;
+        var fromCenterY = from.Y + ScenarioFlowLayout.NodeHeight / 2;
+        var toCenterX = to.X + ScenarioFlowLayout.NodeWidth / 2;
+        var toCenterY = to.Y + ScenarioFlowLayout.NodeHeight / 2;
+        var dx = toCenterX - fromCenterX;
+        var dy = toCenterY - fromCenterY;
+
+        // Bias slightly toward vertical so a small horizontal offset (e.g. user nudged a node
+        // 30px right) doesn't immediately flip the wire to side-anchored — that flicker is more
+        // distracting than a slightly off-axis arrow.
+        if (Math.Abs(dx) > Math.Abs(dy) * 1.5)
+        {
+            return dx >= 0
+                ? (AnchorSide.Right, AnchorSide.Left)
+                : (AnchorSide.Left, AnchorSide.Right);
+        }
+        return dy >= 0
+            ? (AnchorSide.Bottom, AnchorSide.Top)
+            : (AnchorSide.Top, AnchorSide.Bottom);
+    }
+
+    /// <summary>
+    /// Compute the anchor point on a node's rectangle for a given side, plus the outward
+    /// normal vector. <paramref name="rank"/> is used to fan multiple edges out along the
+    /// same side (e.g. two Branch cases leaving the bottom of one node) so they don't
+    /// overlap visually.
+    /// </summary>
+    private static (Point Point, Point Normal) AnchorOn(FlowNode node, AnchorSide side, double rank)
+    {
+        // rank: 0 = centre; ±1, ±2 … step outwards by 14px along the side.
+        const double Spread = 14;
+        var w = ScenarioFlowLayout.NodeWidth;
+        var h = ScenarioFlowLayout.NodeHeight;
+        switch (side)
+        {
+            case AnchorSide.Top:
+                return (new Point(node.X + w / 2 + rank * Spread, node.Y), new Point(0, -1));
+            case AnchorSide.Bottom:
+                return (new Point(node.X + w / 2 + rank * Spread, node.Y + h), new Point(0, 1));
+            case AnchorSide.Left:
+                return (new Point(node.X, node.Y + h / 2 + rank * Spread), new Point(-1, 0));
+            case AnchorSide.Right:
+            default:
+                return (new Point(node.X + w, node.Y + h / 2 + rank * Spread), new Point(1, 0));
+        }
+    }
+
+    /// <summary>
+    /// Per-side fan-out counters keyed by (stepIndex, side) — used so that when one node has
+    /// multiple outgoing edges leaving the same side they fan out instead of overlap.
+    /// Reset per Rebuild().
+    /// </summary>
+    private readonly Dictionary<(int, AnchorSide), int> _outFan = new();
+    private readonly Dictionary<(int, AnchorSide), int> _inFan = new();
+
+    private double NextOutRank(int stepIdx, AnchorSide side)
+    {
+        var key = (stepIdx, side);
+        _outFan.TryGetValue(key, out var n);
+        _outFan[key] = n + 1;
+        // 0, +1, -1, +2, -2, ... — keeps the first edge centred, fans alternately.
+        return n switch
+        {
+            0 => 0,
+            _ => ((n + 1) / 2) * (n % 2 == 1 ? 1 : -1),
+        };
+    }
+    private double NextInRank(int stepIdx, AnchorSide side)
+    {
+        var key = (stepIdx, side);
+        _inFan.TryGetValue(key, out var n);
+        _inFan[key] = n + 1;
+        return n switch
+        {
+            0 => 0,
+            _ => ((n + 1) / 2) * (n % 2 == 1 ? 1 : -1),
+        };
+    }
+
     private void DrawEdge(ScenarioFlowLayoutResult layout, FlowEdge edge)
     {
         var from = layout.Nodes[edge.FromIndex];
         var to = layout.Nodes[edge.ToIndex];
+        bool isBackArc = edge.ToIndex < edge.FromIndex
+            && (edge.Kind == FlowEdgeKind.LoopBack || edge.Kind == FlowEdgeKind.ForEachBack);
 
-        // Anchor points: bottom-center of source for forward edges, side anchors for back-arcs.
-        bool isBackArc = edge.ToIndex < edge.FromIndex && (edge.Kind == FlowEdgeKind.LoopBack || edge.Kind == FlowEdgeKind.ForEachBack);
-        double x1, y1, x2, y2;
-        if (isBackArc)
-        {
-            // Exit right side of source, re-enter right side of target.
-            x1 = from.X + ScenarioFlowLayout.NodeWidth;
-            y1 = from.Y + ScenarioFlowLayout.NodeHeight / 2;
-            x2 = to.X + ScenarioFlowLayout.NodeWidth;
-            y2 = to.Y + ScenarioFlowLayout.NodeHeight / 2;
-        }
-        else
-        {
-            x1 = from.X + ScenarioFlowLayout.NodeWidth / 2;
-            y1 = from.Y + ScenarioFlowLayout.NodeHeight;
-            x2 = to.X + ScenarioFlowLayout.NodeWidth / 2;
-            y2 = to.Y;
-        }
+        // 1) Pick the two anchor sides based on relative geometry.
+        var (fromSide, toSide) = PickAnchors(from, to, edge.Kind);
+
+        // 2) Per-side fan ranks so multiple edges on the same side don't overlap.
+        var fromRank = NextOutRank(edge.FromIndex, fromSide);
+        var toRank = NextInRank(edge.ToIndex, toSide);
+
+        var (p1, n1) = AnchorOn(from, fromSide, fromRank);
+        var (p2, n2) = AnchorOn(to, toSide, toRank);
 
         var brush = EdgeBrush(edge.Kind);
-        var thickness = edge.Kind == FlowEdgeKind.OnError ? 1.5 : 1.5;
+        const double thickness = 1.5;
         var dash = edge.Kind == FlowEdgeKind.OnError ? new AvaloniaList<double>(new[] { 4.0, 3.0 }) : null;
 
-        Shape path;
+        // 3) Build the geometry.
+        //    - Pure-axial short hops use a straight Line (cheap, crisp).
+        //    - Back-arcs bow out along the +X side.
+        //    - Everything else uses a cubic bezier whose control points "exit"/"enter" along the
+        //      anchor normals; the longer the gap the further out the controls reach, which
+        //      naturally routes the wire around any rectangles in between.
+        Shape shape;
         if (isBackArc)
         {
-            // Cubic bezier curving out to the right, then back to the target.
-            var bend = 60 + Math.Abs(y1 - y2) * 0.2;
-            var fig = new PathFigure
-            {
-                StartPoint = new Point(x1, y1),
-                IsClosed = false,
-                Segments = new PathSegments
-                {
-                    new BezierSegment
-                    {
-                        Point1 = new Point(x1 + bend, y1),
-                        Point2 = new Point(x2 + bend, y2),
-                        Point3 = new Point(x2, y2),
-                    },
-                },
-            };
-            path = new AvPath
-            {
-                Stroke = brush,
-                StrokeThickness = thickness,
-                Data = new PathGeometry { Figures = new PathFigures { fig } },
-            };
-        }
-        else if (edge.Kind == FlowEdgeKind.BranchCase || edge.Kind == FlowEdgeKind.BranchDefault || edge.Kind == FlowEdgeKind.OnError)
-        {
-            // Branch / OnError jumps that aren't a strict downward line — curve through a midpoint
-            // offset to avoid overlapping the rectangle.
-            var midX = (x1 + x2) / 2 + 80;
-            var fig = new PathFigure
-            {
-                StartPoint = new Point(x1, y1),
-                IsClosed = false,
-                Segments = new PathSegments
-                {
-                    new BezierSegment
-                    {
-                        Point1 = new Point(midX, y1 + 20),
-                        Point2 = new Point(midX, y2 - 20),
-                        Point3 = new Point(x2, y2),
-                    },
-                },
-            };
-            path = new AvPath
+            var bend = 60 + Math.Abs(p1.Y - p2.Y) * 0.25 + Math.Abs(fromRank) * 6;
+            shape = new AvPath
             {
                 Stroke = brush,
                 StrokeThickness = thickness,
                 StrokeDashArray = dash,
-                Data = new PathGeometry { Figures = new PathFigures { fig } },
+                Data = new PathGeometry
+                {
+                    Figures = new PathFigures
+                    {
+                        new PathFigure
+                        {
+                            StartPoint = p1,
+                            IsClosed = false,
+                            Segments = new PathSegments
+                            {
+                                new BezierSegment
+                                {
+                                    Point1 = new Point(p1.X + bend, p1.Y),
+                                    Point2 = new Point(p2.X + bend, p2.Y),
+                                    Point3 = p2,
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+        }
+        else if (CanUseStraightLine(p1, n1, p2, n2) && !StraightLineHitsObstacle(layout, edge, p1, p2))
+        {
+            shape = new Line
+            {
+                StartPoint = p1,
+                EndPoint = p2,
+                Stroke = brush,
+                StrokeThickness = thickness,
+                StrokeDashArray = dash,
             };
         }
         else
         {
-            // Plain straight line — the most common case (sequential flow).
-            path = new Line
+            // Cubic bezier with control points extruded along the anchor normals.
+            // Reach scales with the gap so short jumps stay tight, long ones bow generously.
+            var gap = Math.Max(Math.Abs(p2.X - p1.X), Math.Abs(p2.Y - p1.Y));
+            var reach = Math.Clamp(gap * 0.4, 40, 160);
+            var c1 = new Point(p1.X + n1.X * reach, p1.Y + n1.Y * reach);
+            var c2 = new Point(p2.X + n2.X * reach, p2.Y + n2.Y * reach);
+
+            // Obstacle avoidance: if any unrelated node sits on the straight line between
+            // p1 and p2, nudge the bezier sideways so the curve clearly bows around it.
+            // The offset direction is chosen to point away from the obstacle's centre.
+            var offset = ComputeAvoidanceOffset(layout, edge, p1, p2);
+            if (offset != default)
             {
-                StartPoint = new Point(x1, y1),
-                EndPoint = new Point(x2, y2),
+                c1 = new Point(c1.X + offset.X, c1.Y + offset.Y);
+                c2 = new Point(c2.X + offset.X, c2.Y + offset.Y);
+            }
+
+            shape = new AvPath
+            {
                 Stroke = brush,
                 StrokeThickness = thickness,
+                StrokeDashArray = dash,
+                Data = new PathGeometry
+                {
+                    Figures = new PathFigures
+                    {
+                        new PathFigure
+                        {
+                            StartPoint = p1,
+                            IsClosed = false,
+                            Segments = new PathSegments
+                            {
+                                new BezierSegment { Point1 = c1, Point2 = c2, Point3 = p2 },
+                            },
+                        },
+                    },
+                },
             };
         }
-        _canvas.Children.Add(path);
+        _canvas.Children.Add(shape);
 
-        // Tip arrowhead — a small filled triangle pointing into the destination.
-        DrawArrowHead(x2, y2, brush, isBackArc);
+        // 4) Arrowhead — perpendicular to the destination anchor normal.
+        DrawArrowHead(p2, n2, brush);
 
-        // Caption — small text near the source, only when non-empty.
+        // 5) Caption — placed a bit off the source anchor so it stays clear of the line.
         if (!string.IsNullOrEmpty(edge.Caption))
         {
-            var capX = isBackArc ? x1 + 30 : (x1 + x2) / 2 + 6;
-            var capY = isBackArc ? (y1 + y2) / 2 : (y1 + y2) / 2 - 8;
+            // Offset the caption along a vector that's mostly along the line direction so it
+            // doesn't sit on top of the curve. For side-anchored edges we drop it just below
+            // the source; for top/bottom-anchored ones we shift it sideways.
+            double capX, capY;
+            if (n1.Y != 0) { capX = p1.X + 6; capY = p1.Y + n1.Y * 6; }
+            else            { capX = p1.X + n1.X * 6; capY = p1.Y + 4; }
             var caption = new TextBlock
             {
                 Text = edge.Caption,
@@ -389,26 +510,146 @@ public partial class ScenarioFlowCanvas : UserControl
         }
     }
 
-    private void DrawArrowHead(double x, double y, IBrush brush, bool fromSide)
+    /// <summary>
+    /// Lightweight wrapper around <see cref="SegmentIntersectsRect"/>: any unrelated node
+    /// blocks the straight path? Used to demote a Sequential line to a bezier when the user
+    /// has dragged nodes into the wire's way.
+    /// </summary>
+    private static bool StraightLineHitsObstacle(
+        ScenarioFlowLayoutResult layout, FlowEdge edge, Point p1, Point p2)
     {
-        // 8x8 triangle pointing down for top-edge anchors; left for side anchors.
-        Polygon arrow;
-        if (fromSide)
+        const double Padding = 4;
+        foreach (var node in layout.Nodes)
         {
-            arrow = new Polygon
-            {
-                Points = new Points { new Point(x, y), new Point(x + 8, y - 4), new Point(x + 8, y + 4) },
-                Fill = brush,
-            };
+            if (node.StepIndex == edge.FromIndex || node.StepIndex == edge.ToIndex) continue;
+            var rect = new Rect(node.X - Padding, node.Y - Padding,
+                ScenarioFlowLayout.NodeWidth + 2 * Padding,
+                ScenarioFlowLayout.NodeHeight + 2 * Padding);
+            if (SegmentIntersectsRect(p1, p2, rect)) return true;
         }
-        else
+        return false;
+    }
+
+    /// <summary>
+    /// True when the two anchors are roughly co-axial on the side they leave — e.g. both
+    /// vertical anchors with nearly the same X coord — so a straight line looks fine and a
+    /// bezier would be wasted curve.
+    /// </summary>
+    private static bool CanUseStraightLine(Point p1, Point n1, Point p2, Point n2)
+    {
+        // Opposite normals required (top↔bottom or left↔right) — otherwise the line would
+        // exit the source in the wrong direction.
+        var opposing = (n1.X == -n2.X && n1.Y == -n2.Y);
+        if (!opposing) return false;
+        // Vertical pair: nearly identical X
+        if (n1.Y != 0 && Math.Abs(p1.X - p2.X) < 4) return true;
+        // Horizontal pair: nearly identical Y
+        if (n1.X != 0 && Math.Abs(p1.Y - p2.Y) < 4) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// If a node other than the edge's endpoints intersects the straight segment p1→p2,
+    /// return a perpendicular offset to apply to the bezier control points so the curve bows
+    /// around it. Returns <see cref="default"/> (zero offset) when the path is clear.
+    /// <para>This is intentionally a one-pass nudge rather than full A* routing: cheap, runs
+    /// per-rebuild, handles the common "long jump grazes an intermediate step" case. Heavy
+    /// scenarios with many overlaps will still look busy but won't have lines disappear
+    /// behind nodes.</para>
+    /// </summary>
+    private static Point ComputeAvoidanceOffset(
+        ScenarioFlowLayoutResult layout, FlowEdge edge, Point p1, Point p2)
+    {
+        const double Padding = 8;
+        const double NudgeBase = 90;     // base sideways shift if a hit is found
+        double dx = p2.X - p1.X;
+        double dy = p2.Y - p1.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1) return default;
+        // Perpendicular unit vector — sign is decided by which side of the line the obstacle
+        // centre lies on (cross product sign).
+        double nx = -dy / len;
+        double ny = dx / len;
+
+        double accumulatedSign = 0;
+        int hitCount = 0;
+        foreach (var node in layout.Nodes)
         {
-            arrow = new Polygon
-            {
-                Points = new Points { new Point(x, y), new Point(x - 4, y - 8), new Point(x + 4, y - 8) },
-                Fill = brush,
-            };
+            if (node.StepIndex == edge.FromIndex || node.StepIndex == edge.ToIndex) continue;
+            var rect = new Rect(node.X - Padding, node.Y - Padding,
+                ScenarioFlowLayout.NodeWidth + 2 * Padding,
+                ScenarioFlowLayout.NodeHeight + 2 * Padding);
+            if (!SegmentIntersectsRect(p1, p2, rect)) continue;
+            // Decide which side of the line the node centre falls on.
+            double cx = node.X + ScenarioFlowLayout.NodeWidth / 2;
+            double cy = node.Y + ScenarioFlowLayout.NodeHeight / 2;
+            double cross = (cx - p1.X) * dy - (cy - p1.Y) * dx;
+            accumulatedSign += cross >= 0 ? -1 : 1;
+            hitCount++;
         }
+        if (hitCount == 0) return default;
+        // Sign: push to the opposite side from the obstacle centre(s). If hits cancel out,
+        // default to +1 (right of the line direction).
+        double signed = accumulatedSign == 0 ? 1 : Math.Sign(accumulatedSign);
+        double magnitude = NudgeBase + (hitCount - 1) * 30;
+        return new Point(nx * signed * magnitude, ny * signed * magnitude);
+    }
+
+    /// <summary>
+    /// Cheap segment-vs-rect intersection: true if the line p1→p2 enters the rectangle. Uses
+    /// the Liang-Barsky-style parameter clipping; precise enough for "is this node in the way?".
+    /// </summary>
+    private static bool SegmentIntersectsRect(Point p1, Point p2, Rect r)
+    {
+        // Quick reject: both endpoints on the same outside half-plane.
+        if (p1.X < r.X && p2.X < r.X) return false;
+        if (p1.X > r.Right && p2.X > r.Right) return false;
+        if (p1.Y < r.Y && p2.Y < r.Y) return false;
+        if (p1.Y > r.Bottom && p2.Y > r.Bottom) return false;
+        // If either endpoint is inside, it definitely intersects.
+        if (r.Contains(p1) || r.Contains(p2)) return true;
+        // Else clip against the rectangle bounds parametrically.
+        double t0 = 0, t1 = 1;
+        double dx = p2.X - p1.X, dy = p2.Y - p1.Y;
+        double[] p = { -dx, dx, -dy, dy };
+        double[] q = { p1.X - r.X, r.Right - p1.X, p1.Y - r.Y, r.Bottom - p1.Y };
+        for (int i = 0; i < 4; i++)
+        {
+            if (p[i] == 0)
+            {
+                if (q[i] < 0) return false;
+            }
+            else
+            {
+                double t = q[i] / p[i];
+                if (p[i] < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+                else          { if (t < t0) return false; if (t < t1) t1 = t; }
+            }
+        }
+        return true;
+    }
+
+    private void DrawArrowHead(Point tip, Point normal, IBrush brush)
+    {
+        // Tip is on the edge of the destination rect; normal points outwards. We draw the
+        // triangle's base 8px back along -normal, with 4px shoulders perpendicular to it.
+        const double Len = 8;
+        const double Half = 4;
+        var bx = tip.X - normal.X * Len;
+        var by = tip.Y - normal.Y * Len;
+        // Perpendicular vector (rotate normal 90°)
+        var px = -normal.Y * Half;
+        var py = normal.X * Half;
+        var arrow = new Polygon
+        {
+            Points = new Points
+            {
+                tip,
+                new Point(bx + px, by + py),
+                new Point(bx - px, by - py),
+            },
+            Fill = brush,
+        };
         _canvas.Children.Add(arrow);
     }
 
