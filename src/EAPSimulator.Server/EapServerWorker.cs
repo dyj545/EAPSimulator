@@ -297,6 +297,21 @@ public class EapServerWorker : BackgroundService
 
             _bridge.AttachSecsProtocol(_secsProtocol);
             _bridge.AttachHostProtocol(_hostProtocol);
+
+            // Apply any persisted bridge field mappings authored in the UI editor. Missing
+            // file is OK — the mapper just stays empty and the EapBridge falls back to its
+            // hardcoded CEID/RCMD routing.
+            try
+            {
+                var mappingCfg = MappingConfig.Load();
+                mappingCfg.ApplyTo(_bridge.Mapper);
+                _logger.LogInformation("[Bridge] Loaded {Count} mapping groups from {Path}",
+                    mappingCfg.Groups.Count, MappingConfig.GetDefaultPath());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Bridge] Failed to load mapping config — continuing without");
+            }
             _logger.LogInformation("EAP Bridge established (SECS <-> Host)");
         }
     }

@@ -66,8 +66,53 @@ public class DataMapper
 ```
 src/EAPSimulator.Core/Protocols/Bridge/
 ├── EapBridge.cs                ← 桥接主类
-└── DataMapper.cs               ← 字段映射器
+├── DataMapper.cs               ← 字段映射器
+└── MappingConfig.cs            ← 字段映射的 JSON 持久化 (MappingGroup + MappingConfig)
+
+src/EAPSimulator.UI/
+├── ViewModels/BridgeMappingViewModel.cs   ← 桥接映射编辑器 VM
+└── Views/BridgeMappingView.axaml          ← 三列布局: 组列表 / 映射列表 / 详情
 ```
+
+## 3.1 映射编辑 UI（2026-06-24）
+
+主窗口左侧 Tab 加 **"桥接映射"** —— 按业务事件分组管理 SECS↔Host 字段映射。
+
+**结构**：
+
+| 元素 | 内容 |
+|---|---|
+| 第 1 列 | 映射组列表，启用/禁用图标 + 组名 + 映射条数 |
+| 第 2 列 | 选中组的详情头（名称/SECS模板/Host模板/启用/描述）+ 映射条目列表 |
+| 第 3 列 | 选中映射的字段编辑（来源/去向/SECS路径/Host字段/转换/描述） |
+| 顶栏 | + 映射组 / 删除组 / 💾 保存 / 📂 加载 |
+
+**持久化**：`bridge_mappings.json` 与可执行同目录。
+
+```json
+{
+  "groups": [
+    {
+      "name": "EventReport",
+      "secsTemplate": "S6F11",
+      "hostTemplate": "EventReport",
+      "enabled": true,
+      "description": "wafer move",
+      "mappings": [
+        { "source": "Secs", "target": "Host",
+          "secsPath": "1/0", "hostFieldName": "lotId",
+          "conversion": "Trim", "description": "lot id" }
+      ]
+    }
+  ]
+}
+```
+
+**应用到运行中的 Bridge**：
+
+- UI 保存按钮：写文件 + 立刻 `MappingConfig.ApplyTo(bridge.Mapper)`（如已 AttachBridge）
+- `EapServerWorker` 启动 Bridge 时自动 `MappingConfig.Load().ApplyTo(_bridge.Mapper)`
+- BridgeMapping VM 构造时自动 `LoadConfig`；SECS/Host 模板下拉名由 MainViewModel 从 MessageEditor / HostEditor 同步
 
 ## 4. 数据流
 

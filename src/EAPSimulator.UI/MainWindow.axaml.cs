@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         EditorView.IsVisible = true;
         AutoReplyView.IsVisible = false;
         HostEditorView.IsVisible = false;
+        BridgeMappingView.IsVisible = false;
         RestorePanels();
     }
 
@@ -47,6 +48,7 @@ public partial class MainWindow : Window
         EditorView.IsVisible = false;
         AutoReplyView.IsVisible = true;
         HostEditorView.IsVisible = false;
+        BridgeMappingView.IsVisible = false;
         ExpandLeftPanel();
     }
 
@@ -55,8 +57,18 @@ public partial class MainWindow : Window
         EditorView.IsVisible = false;
         AutoReplyView.IsVisible = false;
         HostEditorView.IsVisible = true;
+        BridgeMappingView.IsVisible = false;
         ExpandLeftPanel();
         ViewModel.HostEditor.RefreshPreview();
+    }
+
+    private void OnBridgeMappingTabClick(object? sender, RoutedEventArgs e)
+    {
+        EditorView.IsVisible = false;
+        AutoReplyView.IsVisible = false;
+        HostEditorView.IsVisible = false;
+        BridgeMappingView.IsVisible = true;
+        ExpandLeftPanel();
     }
 
     private void RestorePanels()

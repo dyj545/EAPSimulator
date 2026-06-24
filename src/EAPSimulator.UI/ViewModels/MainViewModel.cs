@@ -32,6 +32,7 @@ public partial class MainViewModel : ObservableObject
     public MessageEditorViewModel MessageEditor { get; } = new();
     public AutoReplyViewModel AutoReply { get; } = new();
     public HostMessageEditorViewModel HostEditor { get; } = new();
+    public BridgeMappingViewModel BridgeMapping { get; } = new();
 
     [ObservableProperty]
     private bool _isConnected;
@@ -233,6 +234,9 @@ public partial class MainViewModel : ObservableObject
             AutoReply.SetTemplates(MessageEditor.AllMessages.Select(m => m.ToTemplate()));
             AutoReply.SetAllMessages(MessageEditor.AllMessages);
             AutoReply.LoadDefault();
+
+            // Feed SECS template names to the Bridge Mapping editor's dropdown.
+            RefreshBridgeSecsTemplates();
         }
         else
         {
@@ -344,6 +348,7 @@ public partial class MainViewModel : ObservableObject
         AutoReply.HostMessageNames.Clear();
         foreach (var t in HostEditor.Templates)
             AutoReply.HostMessageNames.Add(t.Name);
+        RefreshBridgeHostTemplates();
 
         var hostLogger = _loggerFactory.CreateLogger<EAPSimulator.Core.Protocols.HostProtocol.HostProtocol>();
         _hostProtocol = new EAPSimulator.Core.Protocols.HostProtocol.HostProtocol(hostLogger);
@@ -590,6 +595,7 @@ public partial class MainViewModel : ObservableObject
         AutoReply.HostMessageNames.Clear();
         foreach (var t in HostEditor.Templates)
             AutoReply.HostMessageNames.Add(t.Name);
+        RefreshBridgeHostTemplates();
 
         // Rebuild typed template list from editor.
         _hostTemplates = HostEditor.Templates.Select(t => t.ToModel()).ToList();
@@ -1179,5 +1185,33 @@ public partial class MainViewModel : ObservableObject
         }
 
         return string.Join(Environment.NewLine, lines);
+    }
+
+    /// <summary>
+    /// Push the current SECS template name list into the bridge mapping editor's dropdown.
+    /// Called after loading the SECS template file so the user immediately sees options
+    /// rather than having to manually type a template name.
+    /// </summary>
+    private void RefreshBridgeSecsTemplates()
+    {
+        BridgeMapping.SecsTemplateNames.Clear();
+        foreach (var name in MessageEditor.AllMessages
+            .Select(m => m.Name)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.Ordinal))
+            BridgeMapping.SecsTemplateNames.Add(name);
+    }
+
+    /// <summary>Mirror of <see cref="RefreshBridgeSecsTemplates"/> for Host templates.</summary>
+    private void RefreshBridgeHostTemplates()
+    {
+        BridgeMapping.HostTemplateNames.Clear();
+        foreach (var name in HostEditor.Templates
+            .Select(t => t.Name)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.Ordinal))
+            BridgeMapping.HostTemplateNames.Add(name);
     }
 }

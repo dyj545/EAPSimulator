@@ -1,0 +1,230 @@
+<UserControl x:Class="EAPSimulator.UI.Views.BridgeMappingView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:EAPSimulator.UI.ViewModels"
+             FontSize="12">
+    <DockPanel>
+        <!-- Top toolbar: load/save + status -->
+        <Border DockPanel.Dock="Top" Background="#2D2D2D" Padding="6,4">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                    <Button Content="+ 映射组" Command="{Binding AddGroupCommand}"
+                            Classes="accent" Padding="8,2" FontSize="11" Margin="0,0,4,0"/>
+                    <Button Content="删除组" Command="{Binding DeleteGroupCommand}"
+                            Padding="8,2" FontSize="11" Margin="0,0,12,0"/>
+                    <Button Content="💾 保存" Command="{Binding SaveConfigCommand}"
+                            Padding="8,2" FontSize="11" Margin="0,0,4,0"
+                            ToolTip.Tip="保存映射到 JSON 文件,并应用到运行中的桥接"/>
+                    <Button Content="📂 加载" Command="{Binding LoadConfigCommand}"
+                            Padding="8,2" FontSize="11" Margin="0,0,12,0"/>
+                </StackPanel>
+                <TextBlock Text="{Binding StatusMessage}" FontSize="11" Opacity="0.6"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Margin="8,0,0,0"/>
+            </DockPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" MinWidth="160" MaxWidth="350"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="280"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="340" MinWidth="240" MaxWidth="500"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Column 0: Groups -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="映射组" FontSize="11" FontWeight="SemiBold"
+                           Foreground="#4CAF50" Margin="6,4"/>
+                <ListBox Grid.Row="1"
+                         ItemsSource="{Binding Groups}"
+                         SelectedItem="{Binding SelectedGroup}"
+                         Padding="2"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="●" Foreground="#A6E3A1" Margin="0,0,4,0"
+                                           IsVisible="{Binding Enabled}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="○" Foreground="#888" Margin="0,0,4,0"
+                                           IsVisible="{Binding !Enabled}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock Text=" (" FontSize="11" Opacity="0.5"/>
+                                <TextBlock Text="{Binding Mappings.Count}" FontSize="11"/>
+                                <TextBlock Text=")" FontSize="11" Opacity="0.5"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <GridSplitter Grid.Column="1" Width="4"
+                          HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- Column 2: Mappings within selected group -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Group header: name + templates + enabled -->
+                <Border Grid.Row="0" Background="#252525" Padding="8,6" Margin="0,0,0,4"
+                        IsVisible="{Binding SelectedGroup, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel>
+                        <TextBlock Text="映射组详情" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="#4CAF50" Margin="0,0,0,6"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="名称:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding SelectedGroup.Name}" Padding="4,2"
+                                     VerticalContentAlignment="Center"/>
+                            <CheckBox Grid.Column="2" IsChecked="{Binding SelectedGroup.Enabled}"
+                                      Content="启用" Margin="8,0,0,0"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="SECS 模板:" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding SecsTemplateNames}"
+                                      SelectedItem="{Binding SelectedGroup.SecsTemplate}"
+                                      Padding="4,2" FontSize="11"/>
+                            <TextBlock Grid.Column="2" Text="Host 模板:" VerticalAlignment="Center"
+                                       Margin="8,0,6,0"/>
+                            <ComboBox Grid.Column="3"
+                                      ItemsSource="{Binding HostTemplateNames}"
+                                      SelectedItem="{Binding SelectedGroup.HostTemplate}"
+                                      Padding="4,2" FontSize="11"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="描述:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding SelectedGroup.Description}"
+                                     Padding="4,2" VerticalContentAlignment="Center"
+                                     Watermark="可选"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Mapping list toolbar -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="4,2"
+                            IsVisible="{Binding SelectedGroup, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="字段映射:" FontSize="11" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Button Content="+ 映射" Command="{Binding AddMappingCommand}"
+                            Classes="accent" Padding="6,2" FontSize="11" Margin="0,0,4,0"/>
+                    <Button Content="删除" Command="{Binding DeleteMappingCommand}"
+                            Padding="6,2" FontSize="11"/>
+                </StackPanel>
+
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding SelectedGroup.Mappings}"
+                         SelectedItem="{Binding SelectedMapping}"
+                         IsVisible="{Binding SelectedGroup, Converter={x:Static ObjectConverters.IsNotNull}}"
+                         Padding="2">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayText}" FontFamily="Consolas,monospace"
+                                       FontSize="11" TextTrimming="CharacterEllipsis"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <GridSplitter Grid.Column="3" Width="4"
+                          HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- Column 4: Mapping detail -->
+            <ScrollViewer Grid.Column="4" Padding="6">
+                <StackPanel>
+                    <TextBlock Text="映射详情" FontSize="11" FontWeight="SemiBold"
+                               Foreground="#4CAF50" Margin="0,0,0,6"/>
+
+                    <Border Background="#252525" CornerRadius="4" Padding="8,6"
+                            IsVisible="{Binding SelectedMapping, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="来源:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox ItemsSource="{Binding SelectedMapping.SourceNames}"
+                                          SelectedItem="{Binding SelectedMapping.SourceName}"
+                                          Padding="4,2" FontSize="11" MinWidth="80"
+                                          Margin="0,0,12,0"/>
+                                <TextBlock Text="去向:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox ItemsSource="{Binding SelectedMapping.TargetNames}"
+                                          SelectedItem="{Binding SelectedMapping.TargetName}"
+                                          Padding="4,2" FontSize="11" MinWidth="80"/>
+                            </StackPanel>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="SECS 路径:" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1" Text="{Binding SelectedMapping.SecsPath}"
+                                         FontFamily="Consolas,monospace" Padding="4,2"
+                                         VerticalContentAlignment="Center"
+                                         ToolTip.Tip="如 1/0 表示 root[1][0]"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Host 字段:" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1" Text="{Binding SelectedMapping.HostFieldName}"
+                                         Padding="4,2" VerticalContentAlignment="Center"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="转换:" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1"
+                                          ItemsSource="{Binding SelectedMapping.ConversionNames}"
+                                          SelectedItem="{Binding SelectedMapping.ConversionName}"
+                                          Padding="4,2" FontSize="11"/>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="描述:" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1" Text="{Binding SelectedMapping.Description}"
+                                         Padding="4,2" VerticalContentAlignment="Center"
+                                         Watermark="可选"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="← 选择左侧的映射进行编辑"
+                               Opacity="0.4" FontSize="12"
+                               HorizontalAlignment="Center"
+                               Margin="0,40,0,0"
+                               IsVisible="{Binding SelectedMapping, Converter={x:Static ObjectConverters.IsNull}}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</UserControl>

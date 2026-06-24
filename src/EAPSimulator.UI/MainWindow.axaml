@@ -73,7 +73,7 @@
                 <ColumnDefinition Width="300" MinWidth="200" MaxWidth="500"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Toggle button for Editor/AutoReply -->
+            <!-- Toggle button for Editor/AutoReply/Host/Bridge -->
             <DockPanel x:Name="LeftPanel" Grid.Column="0">
                 <Border DockPanel.Dock="Top" Padding="4,2" Background="#2D2D2D">
                     <StackPanel Orientation="Horizontal">
@@ -82,13 +82,16 @@
                         <RadioButton x:Name="AutoReplyTab" Content="自动回复"
                                      Click="OnAutoReplyTabClick" FontSize="11" Margin="0,0,8,0"/>
                         <RadioButton x:Name="HostEditorTab" Content="Host"
-                                     Click="OnHostEditorTabClick" FontSize="11"/>
+                                     Click="OnHostEditorTabClick" FontSize="11" Margin="0,0,8,0"/>
+                        <RadioButton x:Name="BridgeMappingTab" Content="桥接映射"
+                                     Click="OnBridgeMappingTabClick" FontSize="11"/>
                     </StackPanel>
                 </Border>
                 <Panel>
                     <views:MessageEditorView x:Name="EditorView" DataContext="{Binding MessageEditor}"/>
                     <views:AutoReplyView x:Name="AutoReplyView" DataContext="{Binding AutoReply}" IsVisible="False"/>
                     <views:HostMessageEditorView x:Name="HostEditorView" DataContext="{Binding HostEditor}" IsVisible="False"/>
+                    <views:BridgeMappingView x:Name="BridgeMappingView" DataContext="{Binding BridgeMapping}" IsVisible="False"/>
                 </Panel>
             </DockPanel>
 
