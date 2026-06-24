@@ -114,6 +114,27 @@ src/EAPSimulator.UI/
 - `EapServerWorker` 启动 Bridge 时自动 `MappingConfig.Load().ApplyTo(_bridge.Mapper)`
 - BridgeMapping VM 构造时自动 `LoadConfig`；SECS/Host 模板下拉名由 MainViewModel 从 MessageEditor / HostEditor 同步
 
+## 3.2 拖拽连线视图（2026-06-24）
+
+顶栏切换按钮 `📋 表格` / `🌐 拖拽连线`，默认表格。
+
+`MappingCanvas` 控件（`src/EAPSimulator.UI/Controls/MappingCanvas.cs`）：
+
+- **左列**：当前组的 SECS 模板字段树（深度优先展开 SecsItem，叶子可拖拽）
+- **右列**：当前组的 Host 模板字段树（嵌套 HostField 用点号拼路径，叶子可拖拽）
+- **中间 Canvas**：每条 mapping 一根 bezier 连线（绿色，控制点沿水平方向延伸）
+
+**叶子锚点**：
+
+- SECS 叶子右侧、Host 叶子左侧各画一个 9px 圆点
+- 按住圆点拖拽 → 跟随鼠标的虚线幽灵线
+- 松开时命中对侧叶子的圆点（容差 14px） → 新建 mapping（重复的跳过）
+- 松开时没命中 → 取消
+
+**右键连线** → 删除映射。
+
+**布局响应**：监听 SECS/Host 两个 ScrollViewer 的 `ScrollChanged` 与 `_wireCanvas.LayoutUpdated`，滚动 / 拖列宽都会重算锚点 + 重画线。
+
 ## 4. 数据流
 
 ### 4.1 SECS → Host 流程

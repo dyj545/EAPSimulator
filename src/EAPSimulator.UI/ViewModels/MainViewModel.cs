@@ -1195,11 +1195,16 @@ public partial class MainViewModel : ObservableObject
     private void RefreshBridgeSecsTemplates()
     {
         BridgeMapping.SecsTemplateNames.Clear();
-        foreach (var name in MessageEditor.AllMessages
-            .Select(m => m.Name)
-            .Where(n => !string.IsNullOrEmpty(n))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(n => n, StringComparer.Ordinal))
+        BridgeMapping.SecsTemplateLookup.Clear();
+        foreach (var m in MessageEditor.AllMessages)
+        {
+            if (string.IsNullOrEmpty(m.Name)) continue;
+            // Same Name may appear once per (S,F) pair in the editor; the lookup keeps the
+            // first occurrence — fine for the editor, which just needs *a* tree to render.
+            if (!BridgeMapping.SecsTemplateLookup.ContainsKey(m.Name))
+                BridgeMapping.SecsTemplateLookup[m.Name] = m.ToTemplate();
+        }
+        foreach (var name in BridgeMapping.SecsTemplateLookup.Keys.OrderBy(n => n, StringComparer.Ordinal))
             BridgeMapping.SecsTemplateNames.Add(name);
     }
 
@@ -1207,11 +1212,14 @@ public partial class MainViewModel : ObservableObject
     private void RefreshBridgeHostTemplates()
     {
         BridgeMapping.HostTemplateNames.Clear();
-        foreach (var name in HostEditor.Templates
-            .Select(t => t.Name)
-            .Where(n => !string.IsNullOrEmpty(n))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(n => n, StringComparer.Ordinal))
+        BridgeMapping.HostTemplateLookup.Clear();
+        foreach (var t in HostEditor.Templates)
+        {
+            if (string.IsNullOrEmpty(t.Name)) continue;
+            if (!BridgeMapping.HostTemplateLookup.ContainsKey(t.Name))
+                BridgeMapping.HostTemplateLookup[t.Name] = t.ToModel();
+        }
+        foreach (var name in BridgeMapping.HostTemplateLookup.Keys.OrderBy(n => n, StringComparer.Ordinal))
             BridgeMapping.HostTemplateNames.Add(name);
     }
 }

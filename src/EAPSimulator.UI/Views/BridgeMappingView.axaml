@@ -2,6 +2,7 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:EAPSimulator.UI.ViewModels"
+             xmlns:controls="using:EAPSimulator.UI.Controls"
              FontSize="12">
     <DockPanel>
         <!-- Top toolbar: load/save + status -->
@@ -17,6 +18,12 @@
                             ToolTip.Tip="保存映射到 JSON 文件,并应用到运行中的桥接"/>
                     <Button Content="📂 加载" Command="{Binding LoadConfigCommand}"
                             Padding="8,2" FontSize="11" Margin="0,0,12,0"/>
+                    <Button Content="📋 表格" Click="OnTableViewClick"
+                            Padding="6,2" FontSize="11" Margin="0,0,3,0"
+                            ToolTip.Tip="表格视图:直接编辑每条映射的字段"/>
+                    <Button Content="🌐 拖拽连线" Click="OnCanvasViewClick"
+                            Padding="6,2" FontSize="11"
+                            ToolTip.Tip="可视化视图:拖动 SECS/Host 字段间生成映射"/>
                 </StackPanel>
                 <TextBlock Text="{Binding StatusMessage}" FontSize="11" Opacity="0.6"
                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -140,8 +147,13 @@
                 <ListBox Grid.Row="2"
                          ItemsSource="{Binding SelectedGroup.Mappings}"
                          SelectedItem="{Binding SelectedMapping}"
-                         IsVisible="{Binding SelectedGroup, Converter={x:Static ObjectConverters.IsNotNull}}"
                          Padding="2">
+                    <ListBox.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="SelectedGroup" Converter="{x:Static ObjectConverters.IsNotNull}"/>
+                            <Binding Path="IsTableView"/>
+                        </MultiBinding>
+                    </ListBox.IsVisible>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding DisplayText}" FontFamily="Consolas,monospace"
@@ -149,6 +161,14 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+
+                <!-- Visual drag-drop canvas: SECS tree | wires | Host tree. Shown when
+                     the user picks the 🌐 view mode; coexists with the table ListBox in
+                     the same Grid row via IsVisible. -->
+                <controls:MappingCanvas Grid.Row="2"
+                                        x:Name="MappingCanvas"
+                                        ViewModel="{Binding}"
+                                        IsVisible="{Binding IsCanvasView}"/>
             </Grid>
 
             <GridSplitter Grid.Column="3" Width="4"

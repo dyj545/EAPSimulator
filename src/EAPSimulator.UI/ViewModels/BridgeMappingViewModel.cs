@@ -3,6 +3,8 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EAPSimulator.Core.Protocols.Bridge;
+using EAPSimulator.Core.Protocols.HostProtocol;
+using EAPSimulator.Core.Protocols.SecsGem;
 
 namespace EAPSimulator.UI.ViewModels;
 
@@ -50,6 +52,23 @@ public partial class BridgeMappingViewModel : ObservableObject
 
     /// <summary>Host template name suggestions for the Group editor.</summary>
     public ObservableCollection<string> HostTemplateNames { get; } = [];
+
+    /// <summary>
+    /// Lookup of SECS templates by name — fed by MainViewModel after loading the template
+    /// file. The canvas resolves <see cref="MappingGroupViewModel.SecsTemplate"/> via this
+    /// so it can render the item tree without re-parsing JSON each time.
+    /// </summary>
+    public Dictionary<string, SecsMessageTemplate> SecsTemplateLookup { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Host template lookup, same purpose as <see cref="SecsTemplateLookup"/>.</summary>
+    public Dictionary<string, HostMessageTemplate> HostTemplateLookup { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>True = show the drag-and-drop canvas; false = show the table editor.</summary>
+    [ObservableProperty]
+    private bool _isCanvasView;
+
+    public bool IsTableView => !IsCanvasView;
+    partial void OnIsCanvasViewChanged(bool value) => OnPropertyChanged(nameof(IsTableView));
 
     /// <summary>Conversion options exposed to the detail combo-box.</summary>
     public string[] ConversionNames => Enum.GetNames<DataConversion>();
