@@ -34,6 +34,8 @@
 | SetVariable | 给变量赋值（字面量或上一条消息字段） | 否 |
 | Loop | 循环开始（与 EndLoop 用同 LoopId 配对） | 否 |
 | EndLoop | 循环结束，回跳到 Loop 后第 1 步 | 否 |
+| ForEach | 遍历列表（SECS子项 / Host数组 / 变量分隔），与 EndForEach 用同 ForEachId 配对 | 否 |
+| EndForEach | 遍历结束，下一项继续或跳出 | 否 |
 | CallScenario | 把另一个场景作为子例程嵌入运行 | 否 |
 
 ### 2.3 多通道 Host 消息路由
@@ -110,15 +112,21 @@ _inbox.Reader.ReadAsync()  ← 阻塞
 ```json
 {
   "type": "Branch",
-  "condition": "lastReceived.Stream == 1",
-  "trueStep": 5,
-  "falseStep": 10
+  "cases": [
+    {
+      "conditions": [
+        { "expression": "num(secs[\"1/0\"]) > 10 && contains(vars[\"lot\"], \"WAFER\")" }
+      ],
+      "targetLabel": "big"
+    }
+  ],
+  "defaultLabel": "small"
 }
 ```
 
-- 条件表达式用简单语法（`lastReceived.Stream == 1`）
-- 支持 SECS 和 Host 消息的字段访问
-- `LastSource` 枚举跟踪最后收到的是 SECS 还是 Host 消息
+- 每个 `case` 的 conditions 是 AND 关系；首个命中的跳到对应 Label
+- Condition 支持两种格式：表达式（`expression` 非空时优先）或旧的 `path/operator/value` 三件套
+- `LastSource` 枚举跟踪最后收到的是 SECS 还是 Host 消息，决定字段访问的对象
 
 ### 4.4 变量与模板渲染
 
@@ -138,9 +146,79 @@ _inbox.Reader.ReadAsync()  ← 阻塞
 [EndLoop L1] ─┘   → 产生 3 条消息：tag-1 / tag-2 / tag-3
 ```
 
+**循环条件 (LoopWhile)**：可在 `Loop` 上填写布尔表达式（见 4.7）。进入循环前和每轮结束后各评估一次；为 false 即退出。表达式里 `loop["LoopId"]` 始终是即将执行的迭代号（1, 2, 3 …）。
+
+- `LoopTimes > 0` 时优先按次数；`LoopTimes = 0` 且 `LoopWhile` 非空时按表达式控制；都不填则无限循环。
+- 表达式语法错误会被记录到日志并视为 false（安全退出），不会让整个场景失败。
+
 ### 4.6 子场景（CallScenario）
 
 引擎用一份 `Stack<Frame>` 跑场景；`CallScenario` 步骤把目标场景作为新帧压栈，子场景执行完弹出，父场景从下一步继续。变量在父子场景间**共享**（即子场景里 `SetVariable` 影响父）。最大递归深度 16，超过抛错。子场景的 `Role` 与当前协议不兼容会阻止调用。
+
+### 4.6.1 遍历（ForEach / EndForEach）
+
+`ForEach` 与 `EndForEach` 通过 `ForEachId` 配对，与 Loop 同样支持嵌套。集合在**进入**循环时一次性物化，运行期间源数据被改也不影响迭代序列。
+
+| ForEachSource | ForEachPath 含义 | 物化方式 |
+|---|---|---|
+| `SecsList` | 上一条 SECS 消息的路径（如 `1/0`，空 = 根） | 取 `SecsList.Items` 的字符串值；非 List 节点视为 1 元素 |
+| `HostArrayList` | 上一条 Host 消息的字段名 | 取 `field.Children` 的 `Value`；叶子非空时视为 1 元素 |
+| `Variable` | 变量名（不带 `${}`） | 用 `ForEachSeparator`（默认 `,`）切分；为空 = 0 元素 |
+
+每轮迭代写入：
+
+- `${$foreach.<Id>.item}` — 当前项
+- `${$foreach.<Id>.index}` — 0 基下标
+- `${<ForEachItemVariable>}` — 可选别名（非空才设置）
+- 表达式上下文：`foreach["<Id>"]` / `foreachIndex["<Id>"]`
+
+空集合会跳过整段 body 并打印 `foreach <Id> skipped (0 items)`。
+
+### 4.6.2 错误分支（OnErrorLabel）
+
+任何步骤都可以填 `OnErrorLabel`。一旦步骤抛异常（包括 Receive/HostReceive 在 `OnTimeout=Fail` 下的 `TimeoutException`），引擎不再 abort 场景，而是：
+
+1. 把异常信息写到三个变量：`$error.message` / `$error.kind` / `$error.step`
+2. 跳到该 Label 对应的步骤继续执行
+
+```
+[Receive S1F1, timeout=2s, OnError=rescue]
+[Send ok]
+...
+[Label: rescue]
+[Log "${$error.kind}: ${$error.message} (step ${$error.step})"]
+```
+
+注意点：
+
+- `OnErrorLabel` **找不到对应 Label** 时，引擎仍按旧行为 Failed 终止，不会吞掉原异常——配置错本身比脚本运行错更值得暴露
+- 用户主动 Stop 触发的 `OperationCanceledException` 不走错误分支
+- `Skip` / `Continue` 仍是 Receive/HostReceive 的"软失败"语义，与 `OnErrorLabel` 不冲突
+
+### 4.7 表达式引擎（ScenarioExpression）
+
+Branch case 条件、Receive/HostReceive 字段条件、Loop 的 `LoopWhile`、AutoReply 规则条件统一走 `ScenarioExpression`，底层是 [DynamicExpresso](https://github.com/davideicardi/DynamicExpresso)。
+
+**沙箱标识符**：
+
+| 名称 | 含义 |
+|---|---|
+| `vars["name"]` | 场景变量值（缺失返回 `""`） |
+| `secs["0/1/2"]` | 最近一条匹配的 SECS 消息中 path 处的字符串值 |
+| `host["fieldName"]` / `host.Name` | 最近一条 Host 消息的字段 / 消息名 |
+| `loop["LoopId"]` | 该 Loop 当前迭代号（未活跃返回 `"0"`） |
+| `num(x)` | 把字符串解析为 double（失败返回 0） |
+| `contains(s, t)` / `startsWith` / `endsWith` | 大小写无关字符串匹配 |
+
+**示例**：
+
+```
+num(secs["1/0"]) > 10                                  // 数值比较
+contains(host["LotID"], "WAFER")                       // 字符串包含
+num(vars["count"]) < 5 && host.Name == "MAP_COUNT_REP" // 与/或组合
+```
+
+**向后兼容**：`FieldCondition` 同时保留旧的 `Path/Operator/Value` 三件套。UI 里通过 `ƒx` 按钮在两种模式间切换；JSON 反序列化时，`expression` 字段为空就回退到旧字段。
 
 ## 5. 踩过的坑
 
@@ -154,17 +232,18 @@ _inbox.Reader.ReadAsync()  ← 阻塞
 
 ### 坑 3：Branch 条件的解析
 
-最初用 `DataTable.Compute()` 解析表达式，但无法访问 `lastReceived.Stream` 这样的对象属性。解决：自己实现简单表达式解析器（或改用 `DynamicExpresso` 库）。
+最初用 `DataTable.Compute()` 解析表达式，但无法访问 `lastReceived.Stream` 这样的对象属性。曾自己写了简化版字符串字段匹配器（path/operator/value）凑合用了大半年，最终（2026-06-24）切到 `DynamicExpresso.Core` 统一了 Branch / Receive / LoopWhile / AutoReply 的条件语义。解决方案落在 `ScenarioExpression.cs`：用 `Interpreter` + 受限标识符集（`vars/secs/host/loop/num/contains/...`），既拿到 C# 表达式的表达力，又避免暴露 `System.IO` 之类的危险面。
 
 ## 6. 待办
 
 - [x] 支持循环步骤（Loop / EndLoop） — 2026-06
 - [x] 支持子场景调用（CallScenario） — 2026-06
 - [x] 支持变量赋值（SetVariable） + `${var}` 模板渲染 — 2026-06
-- [ ] 支持 ForEach 步骤（需要列表型变量来源）
-- [ ] `LoopWhile` 表达式解析（字段已在模型上预留）
+- [x] 条件表达式改用成熟的解析库（DynamicExpresso） — 2026-06-24
+- [x] `LoopWhile` 表达式 — 2026-06-24
+- [x] 支持 ForEach 步骤（SECS子项 / Host数组 / 变量分隔） — 2026-06-24
+- [x] 异常/超时分支（OnErrorLabel） — 2026-06-24
 - [ ] 图形化场景编辑器（拖拽式）
-- [ ] 条件表达式改用成熟的解析库
 
 ## 7. 变更记录
 
@@ -174,3 +253,6 @@ _inbox.Reader.ReadAsync()  ← 阻塞
 | 2025-05 | 加入 Branch / Log / HostSend |
 | 2025-06 | 多通道 Host 消息路由 |
 | 2026-06-18 | 加入 SetVariable / Loop / EndLoop / CallScenario；引擎重构为帧栈；新建 EAPSimulator.Core.Tests 工程 |
+| 2026-06-24 | 引入 ScenarioExpression（基于 DynamicExpresso）；Branch/Receive/HostReceive/AutoReply 条件支持表达式模式；启用 LoopWhile；UI 上每条条件加 ƒx 模式切换 |
+| 2026-06-24 | 加入 ForEach / EndForEach：支持 SECS 列表、Host ArrayList、变量分隔 3 种来源；嵌套与空集合处理；UI 提供专用编辑面板 |
+| 2026-06-24 | 每个步骤可声明 OnErrorLabel：步骤抛异常或 Receive 超时(Fail) 时跳到指定 Label，并写入 `$error.message/kind/step` 变量；UI 在步骤详情头部统一加入入口 |

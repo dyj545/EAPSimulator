@@ -209,6 +209,15 @@ public partial class AutoReplyViewModel : ObservableObject
             case ScenarioStepKind.CallScenario:
                 step.SubScenarioName = Scenarios.FirstOrDefault(s => s != SelectedScenario)?.Name ?? "";
                 break;
+            case ScenarioStepKind.ForEach:
+                step.ForEachId = NextForEachId();
+                step.ForEachSource = ForEachSource.Variable;
+                step.ForEachItemVariable = "item";
+                step.ForEachSeparator = ",";
+                break;
+            case ScenarioStepKind.EndForEach:
+                step.ForEachId = OpenForEachId();
+                break;
         }
         step.UpdateDisplayText();
         SelectedScenario.Steps.Add(step);
@@ -242,6 +251,35 @@ public partial class AutoReplyViewModel : ObservableObject
             if (s.Kind == ScenarioStepKind.Loop && !string.IsNullOrEmpty(s.LoopId))
                 stack.Push(s.LoopId);
             else if (s.Kind == ScenarioStepKind.EndLoop && stack.Count > 0)
+                stack.Pop();
+        }
+        return stack.Count > 0 ? stack.Peek() : "";
+    }
+
+    /// <summary>Pick the next free ForEachId in the current scenario (F1, F2, ...).</summary>
+    private string NextForEachId()
+    {
+        if (SelectedScenario == null) return "F1";
+        var taken = new HashSet<string>(
+            SelectedScenario.Steps.Where(s => s.Kind == ScenarioStepKind.ForEach)
+                .Select(s => s.ForEachId), StringComparer.Ordinal);
+        for (int i = 1; ; i++)
+        {
+            var id = "F" + i;
+            if (!taken.Contains(id)) return id;
+        }
+    }
+
+    /// <summary>ForEach counterpart to <see cref="OpenLoopId"/> — innermost unclosed ForEach.</summary>
+    private string OpenForEachId()
+    {
+        if (SelectedScenario == null) return "";
+        var stack = new Stack<string>();
+        foreach (var s in SelectedScenario.Steps)
+        {
+            if (s.Kind == ScenarioStepKind.ForEach && !string.IsNullOrEmpty(s.ForEachId))
+                stack.Push(s.ForEachId);
+            else if (s.Kind == ScenarioStepKind.EndForEach && stack.Count > 0)
                 stack.Pop();
         }
         return stack.Count > 0 ? stack.Peek() : "";
@@ -820,6 +858,14 @@ public partial class FieldConditionViewModel : ObservableObject
     [ObservableProperty]
     private string _value = "";
 
+    /// <summary>
+    /// Expression-mode body. When non-empty, the engine ignores Path/Operator/Value and
+    /// runs this string through <see cref="ScenarioExpression"/>. UI shows a separate
+    /// "expression" row that swaps in for the legacy three-field row when in expression mode.
+    /// </summary>
+    [ObservableProperty]
+    private string _expression = "";
+
     [ObservableProperty]
     private FieldOption? _selectedFieldOption;
 
@@ -829,6 +875,16 @@ public partial class FieldConditionViewModel : ObservableObject
     public ObservableCollection<FieldOption> TemplateFields { get; } = [];
 
     public string[] Operators => FieldCondition.SupportedOperators;
+
+    /// <summary>True when <see cref="Expression"/> is non-empty — UI uses this to swap rows.</summary>
+    public bool IsExpressionMode => !string.IsNullOrWhiteSpace(Expression);
+    public bool IsLegacyMode => !IsExpressionMode;
+
+    partial void OnExpressionChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsExpressionMode));
+        OnPropertyChanged(nameof(IsLegacyMode));
+    }
 
     partial void OnSelectedFieldOptionChanged(FieldOption? value)
     {
@@ -843,13 +899,20 @@ public partial class FieldConditionViewModel : ObservableObject
             SelectedFieldOption = TemplateFields.FirstOrDefault(f => f.Path == value);
     }
 
-    public FieldCondition ToModel() => new() { Path = Path, Operator = Operator, Value = Value };
+    public FieldCondition ToModel() => new()
+    {
+        Path = Path,
+        Operator = Operator,
+        Value = Value,
+        Expression = Expression,
+    };
 
     public static FieldConditionViewModel FromModel(FieldCondition cond) => new()
     {
         Path = cond.Path,
         Operator = cond.Operator ?? "==",
         Value = cond.Value,
+        Expression = cond.Expression ?? "",
     };
 }
 
@@ -1033,6 +1096,13 @@ public partial class ScenarioStepViewModel : ObservableObject
     [ObservableProperty]
     private ReceiveTimeoutAction _onTimeout = ReceiveTimeoutAction.Fail;
 
+    /// <summary>
+    /// Optional label to jump to when the step throws (timeout, IO failure, missing template,
+    /// unknown sub-scenario, expression error, …). Empty = fail the scenario the legacy way.
+    /// </summary>
+    [ObservableProperty]
+    private string _onErrorLabel = "";
+
     public ObservableCollection<FieldConditionViewModel> Conditions { get; } = [];
 
     // Delay
@@ -1077,6 +1147,22 @@ public partial class ScenarioStepViewModel : ObservableObject
     [ObservableProperty]
     private string _subScenarioName = "";
 
+    // ForEach / EndForEach
+    [ObservableProperty]
+    private string _forEachId = "";
+
+    [ObservableProperty]
+    private ForEachSource _forEachSource = ForEachSource.SecsList;
+
+    [ObservableProperty]
+    private string _forEachPath = "";
+
+    [ObservableProperty]
+    private string _forEachItemVariable = "";
+
+    [ObservableProperty]
+    private string _forEachSeparator = ",";
+
     // Display
     [ObservableProperty]
     private string _displayText = "";
@@ -1095,6 +1181,8 @@ public partial class ScenarioStepViewModel : ObservableObject
     public bool IsLoopKind => Kind == ScenarioStepKind.Loop;
     public bool IsEndLoopKind => Kind == ScenarioStepKind.EndLoop;
     public bool IsCallScenarioKind => Kind == ScenarioStepKind.CallScenario;
+    public bool IsForEachKind => Kind == ScenarioStepKind.ForEach;
+    public bool IsEndForEachKind => Kind == ScenarioStepKind.EndForEach;
     public bool UsesTemplate => IsSendKind || IsReplyKind;
     public bool UsesHostMessage => IsHostSendKind || IsHostReceiveKind;
 
@@ -1110,6 +1198,7 @@ public partial class ScenarioStepViewModel : ObservableObject
     public string[] KindNames => Enum.GetNames<ScenarioStepKind>();
     public string[] OnTimeoutNames => Enum.GetNames<ReceiveTimeoutAction>();
     public string[] VariableSourceNames => Enum.GetNames<VariableSource>();
+    public string[] ForEachSourceNames => Enum.GetNames<ForEachSource>();
 
     /// <summary>String adapter for binding <see cref="Kind"/> to a ComboBox of strings.</summary>
     public string KindName
@@ -1144,6 +1233,17 @@ public partial class ScenarioStepViewModel : ObservableObject
         }
     }
 
+    /// <summary>String adapter for binding <see cref="ForEachSource"/> to a ComboBox of strings.</summary>
+    public string ForEachSourceName
+    {
+        get => ForEachSource.ToString();
+        set
+        {
+            if (Enum.TryParse<ForEachSource>(value, true, out var fs))
+                ForEachSource = fs;
+        }
+    }
+
     partial void OnKindChanged(ScenarioStepKind value)
     {
         OnPropertyChanged(nameof(IsSendKind));
@@ -1158,6 +1258,8 @@ public partial class ScenarioStepViewModel : ObservableObject
         OnPropertyChanged(nameof(IsLoopKind));
         OnPropertyChanged(nameof(IsEndLoopKind));
         OnPropertyChanged(nameof(IsCallScenarioKind));
+        OnPropertyChanged(nameof(IsForEachKind));
+        OnPropertyChanged(nameof(IsEndForEachKind));
         OnPropertyChanged(nameof(UsesTemplate));
         OnPropertyChanged(nameof(UsesHostMessage));
         OnPropertyChanged(nameof(KindName));
@@ -1187,6 +1289,16 @@ public partial class ScenarioStepViewModel : ObservableObject
     partial void OnLoopTimesChanged(int value) => UpdateDisplayText();
     partial void OnLoopWhileChanged(string value) => UpdateDisplayText();
     partial void OnSubScenarioNameChanged(string value) => UpdateDisplayText();
+    partial void OnForEachIdChanged(string value) => UpdateDisplayText();
+    partial void OnForEachSourceChanged(ForEachSource value)
+    {
+        OnPropertyChanged(nameof(ForEachSourceName));
+        UpdateDisplayText();
+    }
+    partial void OnForEachPathChanged(string value) => UpdateDisplayText();
+    partial void OnForEachItemVariableChanged(string value) => UpdateDisplayText();
+    partial void OnForEachSeparatorChanged(string value) => UpdateDisplayText();
+    partial void OnOnErrorLabelChanged(string value) => UpdateDisplayText();
 
     partial void OnTemplateNameChanged(string value)
     {
@@ -1210,7 +1322,8 @@ public partial class ScenarioStepViewModel : ObservableObject
     public void UpdateDisplayText()
     {
         var label = string.IsNullOrEmpty(Label) ? "" : $" — {Label}";
-        DisplayText = Kind switch
+        var onErr = string.IsNullOrEmpty(OnErrorLabel) ? "" : $"  ⚠→{OnErrorLabel}";
+        DisplayText = (Kind switch
         {
             ScenarioStepKind.Send => $"▶ Send {(string.IsNullOrEmpty(TemplateName) ? "(未设置)" : TemplateName)}{label}",
             ScenarioStepKind.Receive => BuildReceiveDisplay() + label,
@@ -1224,8 +1337,10 @@ public partial class ScenarioStepViewModel : ObservableObject
             ScenarioStepKind.Loop => BuildLoopDisplay() + label,
             ScenarioStepKind.EndLoop => $"⤴ EndLoop {(string.IsNullOrEmpty(LoopId) ? "(无 LoopId)" : LoopId)}{label}",
             ScenarioStepKind.CallScenario => $"⏎ Call {(string.IsNullOrEmpty(SubScenarioName) ? "(未设置)" : SubScenarioName)}{label}",
+            ScenarioStepKind.ForEach => BuildForEachDisplay() + label,
+            ScenarioStepKind.EndForEach => $"⤴ EndForEach {(string.IsNullOrEmpty(ForEachId) ? "(无 ForEachId)" : ForEachId)}{label}",
             _ => $"? {Kind}{label}",
-        };
+        }) + onErr;
     }
 
     private string BuildHostReceiveDisplay()
@@ -1274,6 +1389,20 @@ public partial class ScenarioStepViewModel : ObservableObject
         return $"⟳ Loop {id} ∞";
     }
 
+    private string BuildForEachDisplay()
+    {
+        var id = string.IsNullOrEmpty(ForEachId) ? "?" : ForEachId;
+        var src = ForEachSource switch
+        {
+            ForEachSource.SecsList => $"secs[{(string.IsNullOrEmpty(ForEachPath) ? "*" : ForEachPath)}]",
+            ForEachSource.HostArrayList => $"host[{(string.IsNullOrEmpty(ForEachPath) ? "*" : ForEachPath)}]",
+            ForEachSource.Variable => $"split(${{{ForEachPath}}}, \"{ForEachSeparator}\")",
+            _ => "?",
+        };
+        var alias = string.IsNullOrEmpty(ForEachItemVariable) ? "" : $" as ${ForEachItemVariable}";
+        return $"⟳⃗ ForEach {id} ← {src}{alias}";
+    }
+
     public ScenarioStep ToModel()
     {
         return new ScenarioStep
@@ -1301,6 +1430,12 @@ public partial class ScenarioStepViewModel : ObservableObject
             LoopTimes = LoopTimes,
             LoopWhile = LoopWhile,
             SubScenarioName = SubScenarioName,
+            ForEachId = ForEachId,
+            ForEachSource = ForEachSource,
+            ForEachPath = ForEachPath,
+            ForEachItemVariable = ForEachItemVariable,
+            ForEachSeparator = ForEachSeparator,
+            OnErrorLabel = OnErrorLabel,
         };
     }
 
@@ -1329,6 +1464,12 @@ public partial class ScenarioStepViewModel : ObservableObject
             LoopTimes = step.LoopTimes,
             LoopWhile = step.LoopWhile,
             SubScenarioName = step.SubScenarioName,
+            ForEachId = step.ForEachId,
+            ForEachSource = step.ForEachSource,
+            ForEachPath = step.ForEachPath,
+            ForEachItemVariable = step.ForEachItemVariable,
+            ForEachSeparator = string.IsNullOrEmpty(step.ForEachSeparator) ? "," : step.ForEachSeparator,
+            OnErrorLabel = step.OnErrorLabel,
         };
         foreach (var cond in step.Conditions.Select(FieldConditionViewModel.FromModel))
             vm.Conditions.Add(cond);

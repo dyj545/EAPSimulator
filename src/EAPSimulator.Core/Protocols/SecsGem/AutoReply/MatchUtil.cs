@@ -9,6 +9,40 @@ namespace EAPSimulator.Core.Protocols.SecsGem.AutoReply;
 /// </summary>
 internal static class MatchUtil
 {
+    /// <summary>
+    /// Expression-aware match against a SECS root item. When the condition is in expression mode,
+    /// runs it through <paramref name="evaluator"/>; otherwise falls back to the legacy
+    /// Path/Operator/Value comparison.
+    /// </summary>
+    public static bool MatchesCondition(FieldCondition condition, SecsItem? rootItem, ScenarioExpression? evaluator)
+    {
+        if (condition.IsExpressionMode)
+        {
+            if (evaluator == null)
+                throw new InvalidOperationException(
+                    "Expression-mode condition needs a ScenarioExpression evaluator, but none was supplied.");
+            evaluator.UpdateLastSecs(rootItem);
+            return evaluator.EvaluateBool(condition.Expression);
+        }
+        return MatchesCondition(condition, rootItem);
+    }
+
+    /// <summary>
+    /// Expression-aware match against a Host message — same dual-form semantics.
+    /// </summary>
+    public static bool MatchesCondition(FieldCondition condition, HostMessage? msg, ScenarioExpression? evaluator)
+    {
+        if (condition.IsExpressionMode)
+        {
+            if (evaluator == null)
+                throw new InvalidOperationException(
+                    "Expression-mode condition needs a ScenarioExpression evaluator, but none was supplied.");
+            evaluator.UpdateLastHost(msg);
+            return evaluator.EvaluateBool(condition.Expression);
+        }
+        return MatchesCondition(condition, msg);
+    }
+
     public static bool MatchesCondition(FieldCondition condition, SecsItem? rootItem)
     {
         if (rootItem == null || string.IsNullOrEmpty(condition.Path))

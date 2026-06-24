@@ -10,6 +10,7 @@
     <PackageReference Include="Apache.NMS" Version="2.2.0" />
     <PackageReference Include="Apache.NMS.ActiveMQ" Version="2.2.0" />
     <PackageReference Include="Confluent.Kafka" Version="2.6.1" />
+    <PackageReference Include="DynamicExpresso.Core" Version="2.*" />
     <PackageReference Include="Grpc.Net.Client" Version="2.67.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.*" />
     <PackageReference Include="MQTTnet" Version="5.*" />

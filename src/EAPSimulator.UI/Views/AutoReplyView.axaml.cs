@@ -120,4 +120,44 @@ public partial class AutoReplyView : UserControl
         }
     }
 
+    /// <summary>
+    /// ƒx toggle on a condition row: flips between legacy (Path/Operator/Value) and expression mode.
+    /// Going expression → legacy clears Expression; legacy → expression seeds Expression from the
+    /// current legacy fields so the user sees what the engine would have synthesized.
+    /// </summary>
+    private void OnToggleExpressionMode(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        if (btn.DataContext is not ViewModels.FieldConditionViewModel cond) return;
+
+        if (cond.IsExpressionMode)
+        {
+            // Drop expression — legacy fields are kept verbatim.
+            cond.Expression = "";
+        }
+        else
+        {
+            cond.Expression = SynthesizeExpression(cond);
+        }
+    }
+
+    /// <summary>
+    /// Translate a legacy Path/Operator/Value condition into the equivalent expression string
+    /// so users can switch modes and edit further. Mirrors <see cref="EAPSimulator.Core.Protocols.SecsGem.AutoReply.MatchUtil.EvaluateCondition"/>
+    /// for the supported operators.
+    /// </summary>
+    private static string SynthesizeExpression(ViewModels.FieldConditionViewModel cond)
+    {
+        var path = cond.Path ?? "";
+        var op = cond.Operator ?? "==";
+        var val = cond.Value ?? "";
+        var lhs = string.IsNullOrEmpty(path) ? "\"\"" : $"secs[\"{path}\"]";
+        if (op == "contains")
+            return $"contains({lhs}, \"{val.Replace("\"", "\\\"")}\")";
+        if (op is ">" or "<" or ">=" or "<=")
+            return $"num({lhs}) {op} num(\"{val.Replace("\"", "\\\"")}\")";
+        // == / != — string comparison, matches MatchUtil's OrdinalIgnoreCase semantics best-effort.
+        return $"{lhs} {op} \"{val.Replace("\"", "\\\"")}\"";
+    }
+
 }

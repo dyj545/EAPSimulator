@@ -277,4 +277,462 @@ public class ScenarioEngineTests
         // Original template's ItemXml must still hold the placeholder for the next run.
         Assert.Equal("<A>${name}</A>", tpl.ItemXml);
     }
+
+    [Fact]
+    public async Task LoopWhile_StopsWhenGuardGoesFalse()
+    {
+        // Drives a counter variable up and uses LoopWhile to stop after 5 iterations —
+        // proves the engine re-evaluates the guard each round and exits cleanly.
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>step-${i}</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "while-counter",
+            Steps =
+            {
+                // i = 0
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.SetVariable,
+                    VariableName = "i",
+                    VariableSource = VariableSource.Literal,
+                    LiteralValue = "0",
+                },
+                // while num(i) < 5
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.Loop,
+                    LoopId = "W",
+                    LoopWhile = "num(vars[\"i\"]) < 5",
+                },
+                // i = num(i) + 1 — DynamicExpresso renders the literal first, so we need
+                // to render via SetVariable's Literal Rendering (which Renders ${var}):
+                //   i = (num(i)+1) requires expression eval. SetVariable can't currently
+                //   evaluate an expression body, but the test only needs the engine to
+                //   step the var. Use Literal with the existing ${i} render → it picks up
+                //   the textual previous value; do increment in the engine's Render layer
+                //   by composing the string "1", "2", ... via a helper template? Simpler:
+                //   bake the increment into a SECS Send that prints the iteration counter
+                //   already maintained by Loop in ${$loop.W.i}, then store that back to i.
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.SetVariable,
+                    VariableName = "i",
+                    VariableSource = VariableSource.Literal,
+                    LiteralValue = "${$loop.W.i}",
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.EndLoop, LoopId = "W" },
+            },
+        };
+
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.Equal("Completed", status);
+        // Iterations: i becomes "1","2","3","4","5"; the EndLoop step bumps the counter to 6
+        // and re-evaluates the guard num(i)<5 → false → exit. Sends one message per round.
+        Assert.Equal(5, sent.Count);
+        var values = sent.Select(m => ((SecsAscii)m.RootItem!).Value).ToList();
+        Assert.Equal(new[] { "step-1", "step-2", "step-3", "step-4", "step-5" }, values);
+    }
+
+    [Fact]
+    public async Task LoopWhile_GuardFalseAtEntry_RunsZeroIterations()
+    {
+        var sent = new List<SecsMessage>();
+        var engine = MakeEngine(new() { ["tpl"] = MakeAsciiTemplate() }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "while-skipped",
+            Steps =
+            {
+                new ScenarioStep { Kind = ScenarioStepKind.Loop, LoopId = "W", LoopWhile = "false" },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.EndLoop, LoopId = "W" },
+            },
+        };
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.Equal("Completed", status);
+        Assert.Empty(sent);
+    }
+
+    [Fact]
+    public async Task Branch_ExpressionCase_MatchesAndJumps()
+    {
+        // Receive a S1F1 carrying a number, then Branch on whether num(secs["0"]) > 10.
+        // No actual SECS link — we feed a synthetic message into the inbox via the handler.
+        var sent = new List<SecsMessage>();
+        var tplBig = new SecsMessageTemplate { Name = "BIG", Stream = 9, Function = 1, ItemXml = "<A>BIG</A>" };
+        var tplSmall = new SecsMessageTemplate { Name = "SMALL", Stream = 9, Function = 3, ItemXml = "<A>SMALL</A>" };
+        var engine = MakeEngine(new() { ["BIG"] = tplBig, ["SMALL"] = tplSmall }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "branch-expr",
+            Steps =
+            {
+                new ScenarioStep { Kind = ScenarioStepKind.Receive, Stream = 1, Function = 1, TimeoutMs = 5000 },
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.Branch,
+                    Cases =
+                    {
+                        new BranchCase
+                        {
+                            Conditions = { new FieldCondition { Expression = "num(secs[\"0\"]) > 10" } },
+                            TargetLabel = "big",
+                        },
+                    },
+                    DefaultLabel = "small",
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "BIG", Label = "big" },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "SMALL", Label = "small" },
+            },
+        };
+
+        // Feed a message with the first element = 42 → expression true → jump to "big".
+        var inbound = new SecsMessage(1, 1, false,
+            new SecsList(new SecsItem[] { new SecsAscii("42") }));
+        // Run the engine and inject the message after a tiny delay.
+        var runTask = engine.RunOnceAsync(scenario, CancellationToken.None);
+        // Allow the engine to reach the Receive step.
+        await Task.Delay(50);
+        await engine.HandleAsync(inbound, null!, ProtocolRole.Equipment, CancellationToken.None);
+        var status = await runTask;
+
+        Assert.Equal("Completed", status);
+        // The default-label step (SMALL) is laid out after "big" in the Steps list, so on a
+        // successful jump to "big" the engine sends BIG and then continues into SMALL too
+        // (there's no Stop/Return), giving two sends. Assert the FIRST is BIG to prove the jump.
+        Assert.NotEmpty(sent);
+        Assert.Equal((byte)9, sent[0].Stream);
+        Assert.Equal((byte)1, sent[0].Function);
+    }
+
+    [Fact]
+    public async Task Receive_ExpressionCondition_FiltersInbound()
+    {
+        // The first arrival doesn't satisfy the expression; the second does.
+        var sent = new List<SecsMessage>();
+        var engine = MakeEngine(new() { ["ok"] = MakeAsciiTemplate("<A>OK</A>") }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "expr-filter",
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.Receive,
+                    Stream = 1,
+                    Function = 1,
+                    TimeoutMs = 5000,
+                    Conditions = { new FieldCondition { Expression = "contains(secs[\"0\"], \"lot\")" } },
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "ok" },
+            },
+        };
+
+        var runTask = engine.RunOnceAsync(scenario, CancellationToken.None);
+        await Task.Delay(50);
+        // First — no "lot" in the body, should be discarded.
+        await engine.HandleAsync(
+            new SecsMessage(1, 1, false, new SecsList(new SecsItem[] { new SecsAscii("WAFER") })),
+            null!, ProtocolRole.Equipment, CancellationToken.None);
+        await Task.Delay(20);
+        // Second — contains "Lot", matches case-insensitively.
+        await engine.HandleAsync(
+            new SecsMessage(1, 1, false, new SecsList(new SecsItem[] { new SecsAscii("Lot-001") })),
+            null!, ProtocolRole.Equipment, CancellationToken.None);
+        var status = await runTask;
+
+        Assert.Equal("Completed", status);
+        Assert.Single(sent);
+    }
+
+    [Fact]
+    public async Task ForEach_VariableSplit_IteratesEachPart()
+    {
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>${slot}-${$foreach.S.index}</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "foreach-var",
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.SetVariable,
+                    VariableName = "slots",
+                    VariableSource = VariableSource.Literal,
+                    LiteralValue = "A,B,C",
+                },
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.ForEach,
+                    ForEachId = "S",
+                    ForEachSource = ForEachSource.Variable,
+                    ForEachPath = "slots",
+                    ForEachSeparator = ",",
+                    ForEachItemVariable = "slot",
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.EndForEach, ForEachId = "S" },
+            },
+        };
+
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.Equal("Completed", status);
+        Assert.Equal(3, sent.Count);
+        var values = sent.Select(m => ((SecsAscii)m.RootItem!).Value).ToList();
+        // index is 0-based; alias ${slot} carries the current item.
+        Assert.Equal(new[] { "A-0", "B-1", "C-2" }, values);
+    }
+
+    [Fact]
+    public async Task ForEach_SecsList_IteratesChildren()
+    {
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>${item}</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "foreach-secs",
+            Steps =
+            {
+                new ScenarioStep { Kind = ScenarioStepKind.Receive, Stream = 1, Function = 1, TimeoutMs = 5000 },
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.ForEach,
+                    ForEachId = "L",
+                    ForEachSource = ForEachSource.SecsList,
+                    ForEachPath = "",         // empty = iterate the root list itself
+                    ForEachItemVariable = "item",
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.EndForEach, ForEachId = "L" },
+            },
+        };
+
+        var runTask = engine.RunOnceAsync(scenario, CancellationToken.None);
+        await Task.Delay(50);
+        await engine.HandleAsync(
+            new SecsMessage(1, 1, false,
+                new SecsList(new SecsItem[]
+                {
+                    new SecsAscii("LOT-1"),
+                    new SecsAscii("LOT-2"),
+                    new SecsAscii("LOT-3"),
+                })),
+            null!, ProtocolRole.Equipment, CancellationToken.None);
+        var status = await runTask;
+
+        Assert.Equal("Completed", status);
+        Assert.Equal(3, sent.Count);
+        var values = sent.Select(m => ((SecsAscii)m.RootItem!).Value).ToList();
+        Assert.Equal(new[] { "LOT-1", "LOT-2", "LOT-3" }, values);
+    }
+
+    [Fact]
+    public async Task ForEach_EmptyCollection_SkipsBody()
+    {
+        var sent = new List<SecsMessage>();
+        var engine = MakeEngine(new() { ["tpl"] = MakeAsciiTemplate() }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "foreach-empty",
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.SetVariable,
+                    VariableName = "empty",
+                    VariableSource = VariableSource.Literal,
+                    LiteralValue = "",
+                },
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.ForEach,
+                    ForEachId = "E",
+                    ForEachSource = ForEachSource.Variable,
+                    ForEachPath = "empty",
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.EndForEach, ForEachId = "E" },
+            },
+        };
+
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.Equal("Completed", status);
+        Assert.Empty(sent);
+    }
+
+    [Fact]
+    public async Task ForEach_Nested_CrossProduct()
+    {
+        // outer = {X,Y} × inner = {1,2} → 4 messages: X-1, X-2, Y-1, Y-2
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>${o}-${i}</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "foreach-nested",
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.SetVariable,
+                    VariableName = "outer",
+                    VariableSource = VariableSource.Literal,
+                    LiteralValue = "X,Y",
+                },
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.SetVariable,
+                    VariableName = "inner",
+                    VariableSource = VariableSource.Literal,
+                    LiteralValue = "1,2",
+                },
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.ForEach,
+                    ForEachId = "O",
+                    ForEachSource = ForEachSource.Variable,
+                    ForEachPath = "outer",
+                    ForEachItemVariable = "o",
+                },
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.ForEach,
+                    ForEachId = "I",
+                    ForEachSource = ForEachSource.Variable,
+                    ForEachPath = "inner",
+                    ForEachItemVariable = "i",
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.EndForEach, ForEachId = "I" },
+                new ScenarioStep { Kind = ScenarioStepKind.EndForEach, ForEachId = "O" },
+            },
+        };
+
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.Equal("Completed", status);
+        Assert.Equal(4, sent.Count);
+        var values = sent.Select(m => ((SecsAscii)m.RootItem!).Value).ToList();
+        Assert.Equal(new[] { "X-1", "X-2", "Y-1", "Y-2" }, values);
+    }
+
+    [Fact]
+    public async Task OnErrorLabel_TimeoutRoutesToHandler()
+    {
+        // A Receive with OnTimeout=Fail and OnErrorLabel routes to the handler instead of failing.
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>err=${$error.kind}</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "err-timeout",
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.Receive,
+                    Stream = 1, Function = 1,
+                    TimeoutMs = 100,
+                    OnTimeout = ReceiveTimeoutAction.Fail,
+                    OnErrorLabel = "handler",
+                },
+                // If error-routing fails, this Send would still run and pollute the assertion.
+                new ScenarioStep { Kind = ScenarioStepKind.Log, Message = "should-not-reach" },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl", Label = "handler" },
+            },
+        };
+
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.Equal("Completed", status);
+        var single = Assert.Single(sent);
+        // The template reads $error.kind which the engine populated from the TimeoutException.
+        Assert.Equal("err=TimeoutException", ((SecsAscii)single.RootItem!).Value);
+    }
+
+    [Fact]
+    public async Task OnErrorLabel_MissingTemplate_RoutesToHandler()
+    {
+        // Send referencing a missing template would normally fail the scenario.
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>caught</A>");
+        var engine = MakeEngine(new() { ["fallback"] = tpl }, sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "err-tpl",
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.Send,
+                    TemplateName = "missing",
+                    OnErrorLabel = "rescue",
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "fallback", Label = "rescue" },
+            },
+        };
+
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.Equal("Completed", status);
+        var single = Assert.Single(sent);
+        Assert.Equal("caught", ((SecsAscii)single.RootItem!).Value);
+    }
+
+    [Fact]
+    public async Task OnErrorLabel_UnknownLabel_FailsScenarioWithOriginalError()
+    {
+        // Misconfigured handler label → engine should still fail with the original exception,
+        // not silently swallow it.
+        var sent = new List<SecsMessage>();
+        var engine = MakeEngine(new(), sent);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "err-misconfigured",
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.Send,
+                    TemplateName = "missing",
+                    OnErrorLabel = "no-such-label",
+                },
+            },
+        };
+
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.StartsWith("Failed:", status);
+    }
+
+    [Fact]
+    public async Task OnErrorLabel_Absent_StillFailsScenario()
+    {
+        // No OnErrorLabel — original "abort the scenario" behaviour must be preserved.
+        var sent = new List<SecsMessage>();
+        var engine = MakeEngine(new(), sent);
+        var scenario = new ScenarioDefinition
+        {
+            Name = "no-handler",
+            Steps =
+            {
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "missing" },
+            },
+        };
+        var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
+        Assert.StartsWith("Failed:", status);
+    }
 }

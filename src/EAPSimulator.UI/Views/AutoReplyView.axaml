@@ -145,32 +145,49 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
                                                         <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                            <TextBlock Text="字段:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                            <ComboBox ItemsSource="{Binding TemplateFields}"
-                                                                      SelectedItem="{Binding SelectedFieldOption}"
-                                                                      MinWidth="180" MaxWidth="300"
-                                                                      Padding="3,1" FontSize="11"
-                                                                      Margin="0,0,4,0"
-                                                                      VerticalContentAlignment="Center"
-                                                                      PlaceholderText="(选择字段或直接输入路径)">
-                                                                <ComboBox.ItemTemplate>
-                                                                    <DataTemplate DataType="{x:Type vm:FieldOption}">
-                                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
-                                                                    </DataTemplate>
-                                                                </ComboBox.ItemTemplate>
-                                                            </ComboBox>
-                                                            <TextBox Text="{Binding Path}"
-                                                                     Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
-                                                                     VerticalContentAlignment="Center"
-                                                                     ToolTip.Tip="手动输入路径，如 1/0"/>
-                                                            <ComboBox ItemsSource="{Binding Operators}"
-                                                                      SelectedItem="{Binding Operator}"
-                                                                      Width="55" Padding="3,1" FontSize="11"
-                                                                      Margin="4,0" VerticalContentAlignment="Center"/>
-                                                            <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                            <TextBox Text="{Binding Value}"
-                                                                     Width="80" Padding="3,1" FontFamily="Microsoft YaHei" FontSize="11"
-                                                                     Margin="0,0,4,0" VerticalContentAlignment="Center"/>
+                                                            <!-- Legacy mode: field/path/op/value pickers -->
+                                                            <StackPanel Orientation="Horizontal" IsVisible="{Binding IsLegacyMode}">
+                                                                <TextBlock Text="字段:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <ComboBox ItemsSource="{Binding TemplateFields}"
+                                                                          SelectedItem="{Binding SelectedFieldOption}"
+                                                                          MinWidth="180" MaxWidth="300"
+                                                                          Padding="3,1" FontSize="11"
+                                                                          Margin="0,0,4,0"
+                                                                          VerticalContentAlignment="Center"
+                                                                          PlaceholderText="(选择字段或直接输入路径)">
+                                                                    <ComboBox.ItemTemplate>
+                                                                        <DataTemplate DataType="{x:Type vm:FieldOption}">
+                                                                            <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
+                                                                        </DataTemplate>
+                                                                    </ComboBox.ItemTemplate>
+                                                                </ComboBox>
+                                                                <TextBox Text="{Binding Path}"
+                                                                         Width="80" Padding="3,1" FontFamily="Consolas,monospace" FontSize="11"
+                                                                         VerticalContentAlignment="Center"
+                                                                         ToolTip.Tip="手动输入路径，如 1/0"/>
+                                                                <ComboBox ItemsSource="{Binding Operators}"
+                                                                          SelectedItem="{Binding Operator}"
+                                                                          Width="55" Padding="3,1" FontSize="11"
+                                                                          Margin="4,0" VerticalContentAlignment="Center"/>
+                                                                <TextBlock Text="值:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <TextBox Text="{Binding Value}"
+                                                                         Width="80" Padding="3,1" FontFamily="Microsoft YaHei" FontSize="11"
+                                                                         Margin="0,0,4,0" VerticalContentAlignment="Center"/>
+                                                            </StackPanel>
+                                                            <!-- Expression mode: single textbox spanning the row -->
+                                                            <StackPanel Orientation="Horizontal" IsVisible="{Binding IsExpressionMode}">
+                                                                <TextBlock Text="表达式:" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                                           Foreground="#FFB454"/>
+                                                                <TextBox Text="{Binding Expression}"
+                                                                         MinWidth="380" Padding="3,1"
+                                                                         FontFamily="Consolas,monospace" FontSize="11"
+                                                                         Margin="0,0,4,0" VerticalContentAlignment="Center"
+                                                                         ToolTip.Tip="支持 secs[&quot;0/1&quot;] / vars[&quot;name&quot;] / host[&quot;field&quot;] / num()/contains() 等"/>
+                                                            </StackPanel>
+                                                            <!-- Mode toggle: clearing Expression returns to legacy mode -->
+                                                            <Button Content="ƒx" Click="OnToggleExpressionMode"
+                                                                    Padding="6,0" FontSize="11" Margin="0,0,4,0"
+                                                                    ToolTip.Tip="切换 表达式 / 字段-操作符-值 两种模式"/>
                                                             <Button Content="✕" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                     CommandParameter="{Binding}"
                                                                     Padding="4,0" FontSize="11"/>
@@ -303,6 +320,14 @@
                                 Background="#2C3E5C" Foreground="#74C7EC"
                                 Padding="8,2" FontSize="11" Margin="0,0,3,0"
                                 ToolTip.Tip="添加 EndLoop 步骤 — 关闭最近的 Loop"/>
+                        <Button Content="⟳⃗ ForEach" Command="{Binding AddStepCommand}" CommandParameter="ForEach"
+                                Background="#2C5C4A" Foreground="#94E2D5"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
+                                ToolTip.Tip="添加 ForEach 步骤 — 遍历列表(SECS子项/Host数组/变量分隔)"/>
+                        <Button Content="⤴ EndForEach" Command="{Binding AddStepCommand}" CommandParameter="EndForEach"
+                                Background="#2C5C4A" Foreground="#94E2D5"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
+                                ToolTip.Tip="添加 EndForEach 步骤 — 关闭最近的 ForEach"/>
                         <Button Content="⏎ Call" Command="{Binding AddStepCommand}" CommandParameter="CallScenario"
                                 Background="#4A2C5C" Foreground="#CBA6F7"
                                 Padding="8,2" FontSize="11" Margin="0,0,12,0"
@@ -414,6 +439,27 @@
                                              Watermark="可选,显示在步骤名后"/>
                                 </Grid>
 
+                                <!-- OnError label (always shown) — routes exceptions/timeouts to a step by label. -->
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="出错跳转:" VerticalAlignment="Center"
+                                               Foreground="#F38BA8"
+                                               ToolTip.Tip="本步骤抛异常/超时(Fail) 时跳到指定 Label;留空 = 失败终止场景"/>
+                                    <ComboBox Grid.Column="1"
+                                              ItemsSource="{Binding SelectedStep.AvailableLabels}"
+                                              SelectedItem="{Binding SelectedStep.OnErrorLabel}"
+                                              Padding="4,2" FontSize="11"
+                                              PlaceholderText="(可选)"/>
+                                    <TextBox Grid.Column="2" Text="{Binding SelectedStep.OnErrorLabel}"
+                                             MinWidth="100" Padding="3,1" FontSize="11"
+                                             Margin="4,0,0,0" VerticalContentAlignment="Center"
+                                             ToolTip.Tip="也可手动输入 Label 名"/>
+                                </Grid>
+
                                 <!-- Send / Reply: template picker -->
                                 <StackPanel IsVisible="{Binding SelectedStep.UsesTemplate}">
                                     <TextBlock Text="发送模板:" FontSize="11" Foreground="#569CD6" Margin="0,2,0,4"/>
@@ -464,24 +510,38 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
                                                 <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                    <ComboBox ItemsSource="{Binding TemplateFields}"
-                                                              SelectedItem="{Binding SelectedFieldOption}"
-                                                              MinWidth="140" MaxWidth="220"
-                                                              Padding="3,1" FontSize="11" Margin="0,0,4,0"
-                                                              VerticalContentAlignment="Center"
-                                                              PlaceholderText="(字段)"/>
-                                                    <TextBox Text="{Binding Path}"
-                                                             Width="60" Padding="3,1"
-                                                             FontFamily="Consolas,monospace" FontSize="11"
-                                                             VerticalContentAlignment="Center"
-                                                             ToolTip.Tip="如 1/0"/>
-                                                    <ComboBox ItemsSource="{Binding Operators}"
-                                                              SelectedItem="{Binding Operator}"
-                                                              Width="55" Padding="3,1" FontSize="11"
-                                                              Margin="4,0" VerticalContentAlignment="Center"/>
-                                                    <TextBox Text="{Binding Value}"
-                                                             Width="70" Padding="3,1" FontSize="11"
-                                                             Margin="0,0,4,0" VerticalContentAlignment="Center"/>
+                                                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsLegacyMode}">
+                                                        <ComboBox ItemsSource="{Binding TemplateFields}"
+                                                                  SelectedItem="{Binding SelectedFieldOption}"
+                                                                  MinWidth="140" MaxWidth="220"
+                                                                  Padding="3,1" FontSize="11" Margin="0,0,4,0"
+                                                                  VerticalContentAlignment="Center"
+                                                                  PlaceholderText="(字段)"/>
+                                                        <TextBox Text="{Binding Path}"
+                                                                 Width="60" Padding="3,1"
+                                                                 FontFamily="Consolas,monospace" FontSize="11"
+                                                                 VerticalContentAlignment="Center"
+                                                                 ToolTip.Tip="如 1/0"/>
+                                                        <ComboBox ItemsSource="{Binding Operators}"
+                                                                  SelectedItem="{Binding Operator}"
+                                                                  Width="55" Padding="3,1" FontSize="11"
+                                                                  Margin="4,0" VerticalContentAlignment="Center"/>
+                                                        <TextBox Text="{Binding Value}"
+                                                                 Width="70" Padding="3,1" FontSize="11"
+                                                                 Margin="0,0,4,0" VerticalContentAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsExpressionMode}">
+                                                        <TextBlock Text="ƒx:" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                                   Foreground="#FFB454"/>
+                                                        <TextBox Text="{Binding Expression}"
+                                                                 MinWidth="320" Padding="3,1"
+                                                                 FontFamily="Consolas,monospace" FontSize="11"
+                                                                 Margin="0,0,4,0" VerticalContentAlignment="Center"
+                                                                 ToolTip.Tip="secs[&quot;0/1&quot;] / vars[&quot;x&quot;] / host[&quot;f&quot;] / num()/contains()"/>
+                                                    </StackPanel>
+                                                    <Button Content="ƒx" Click="OnToggleExpressionMode"
+                                                            Padding="6,0" FontSize="11" Margin="0,0,4,0"
+                                                            ToolTip.Tip="切换 表达式 / 字段-操作符-值 两种模式"/>
                                                     <Button Content="✕"
                                                             Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                             CommandParameter="{Binding}"
@@ -571,24 +631,38 @@
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate DataType="{x:Type vm:FieldConditionViewModel}">
                                                                     <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                                        <ComboBox ItemsSource="{Binding TemplateFields}"
-                                                                                  SelectedItem="{Binding SelectedFieldOption}"
-                                                                                  MinWidth="120" MaxWidth="200"
-                                                                                  Padding="3,1" FontSize="11" Margin="0,0,4,0"
-                                                                                  VerticalContentAlignment="Center"
-                                                                                  PlaceholderText="(字段)"/>
-                                                                        <TextBox Text="{Binding Path}"
-                                                                                 Width="60" Padding="3,1"
-                                                                                 FontFamily="Consolas,monospace" FontSize="11"
-                                                                                 VerticalContentAlignment="Center"
-                                                                                 ToolTip.Tip="如 1/0"/>
-                                                                        <ComboBox ItemsSource="{Binding Operators}"
-                                                                                  SelectedItem="{Binding Operator}"
-                                                                                  Width="55" Padding="3,1" FontSize="11"
-                                                                                  Margin="4,0" VerticalContentAlignment="Center"/>
-                                                                        <TextBox Text="{Binding Value}"
-                                                                                 Width="70" Padding="3,1" FontSize="11"
-                                                                                 Margin="0,0,4,0" VerticalContentAlignment="Center"/>
+                                                                        <StackPanel Orientation="Horizontal" IsVisible="{Binding IsLegacyMode}">
+                                                                            <ComboBox ItemsSource="{Binding TemplateFields}"
+                                                                                      SelectedItem="{Binding SelectedFieldOption}"
+                                                                                      MinWidth="120" MaxWidth="200"
+                                                                                      Padding="3,1" FontSize="11" Margin="0,0,4,0"
+                                                                                      VerticalContentAlignment="Center"
+                                                                                      PlaceholderText="(字段)"/>
+                                                                            <TextBox Text="{Binding Path}"
+                                                                                     Width="60" Padding="3,1"
+                                                                                     FontFamily="Consolas,monospace" FontSize="11"
+                                                                                     VerticalContentAlignment="Center"
+                                                                                     ToolTip.Tip="如 1/0"/>
+                                                                            <ComboBox ItemsSource="{Binding Operators}"
+                                                                                      SelectedItem="{Binding Operator}"
+                                                                                      Width="55" Padding="3,1" FontSize="11"
+                                                                                      Margin="4,0" VerticalContentAlignment="Center"/>
+                                                                            <TextBox Text="{Binding Value}"
+                                                                                     Width="70" Padding="3,1" FontSize="11"
+                                                                                     Margin="0,0,4,0" VerticalContentAlignment="Center"/>
+                                                                        </StackPanel>
+                                                                        <StackPanel Orientation="Horizontal" IsVisible="{Binding IsExpressionMode}">
+                                                                            <TextBlock Text="ƒx:" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                                                       Foreground="#FFB454"/>
+                                                                            <TextBox Text="{Binding Expression}"
+                                                                                     MinWidth="280" Padding="3,1"
+                                                                                     FontFamily="Consolas,monospace" FontSize="11"
+                                                                                     Margin="0,0,4,0" VerticalContentAlignment="Center"
+                                                                                     ToolTip.Tip="secs[&quot;0/1&quot;] / vars[&quot;x&quot;] / host[&quot;f&quot;] / num()/contains()"/>
+                                                                        </StackPanel>
+                                                                        <Button Content="ƒx" Click="OnToggleExpressionMode"
+                                                                                Padding="6,0" FontSize="11" Margin="0,0,4,0"
+                                                                                ToolTip.Tip="切换 表达式 / 字段-操作符-值 两种模式"/>
                                                                         <Button Content="✕"
                                                                                 Command="{Binding DataContext.DeleteBranchCaseConditionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                                 CommandParameter="{Binding}"
@@ -710,9 +784,18 @@
                                                  Width="80" Padding="4,2"
                                                  FontFamily="Consolas,monospace"
                                                  VerticalContentAlignment="Center"
-                                                 ToolTip.Tip="0 = 无限循环 (依赖手动停止)"/>
+                                                 ToolTip.Tip="0 = 无限循环或交给 While 表达式控制"/>
                                     </StackPanel>
-                                    <TextBlock Text="提示: 当前轮次自动写入变量 ${$loop.&lt;LoopId&gt;.i} (从 1 开始)。"
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="While ƒx:" VerticalAlignment="Center" Margin="0,0,6,0"
+                                                   Foreground="#FFB454"/>
+                                        <TextBox Text="{Binding SelectedStep.LoopWhile}"
+                                                 MinWidth="320" Padding="4,2"
+                                                 FontFamily="Consolas,monospace" FontSize="11"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="布尔表达式;为 false 时退出循环。如 num(vars[&quot;i&quot;]) &lt; 10"/>
+                                    </StackPanel>
+                                    <TextBlock Text="提示: 当前轮次写入 ${$loop.&lt;LoopId&gt;.i} 和 loop[&quot;&lt;LoopId&gt;&quot;];次数 &gt; 0 优先,否则用 While 表达式。"
                                                FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                 </StackPanel>
 
@@ -727,6 +810,62 @@
                                                  FontFamily="Consolas,monospace"
                                                  VerticalContentAlignment="Center"
                                                  ToolTip.Tip="必须与匹配的 Loop 步骤相同"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- ForEach: start of a foreach body -->
+                                <StackPanel IsVisible="{Binding SelectedStep.IsForEachKind}" Margin="0,4,0,0">
+                                    <TextBlock Text="遍历开始:" FontSize="11"
+                                               Foreground="#94E2D5" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="ForEachId:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.ForEachId}"
+                                                 Width="100" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="与配对的 EndForEach 用同一个 ID"/>
+                                        <TextBlock Text="来源:" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                                        <ComboBox ItemsSource="{Binding SelectedStep.ForEachSourceNames}"
+                                                  SelectedItem="{Binding SelectedStep.ForEachSourceName}"
+                                                  Padding="4,2" FontSize="11" MinWidth="140"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="路径/字段/变量名:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.ForEachPath}"
+                                                 Width="220" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="SecsList: 路径 (如 1/0,空=根);HostArrayList: 字段名;Variable: 变量名(无 ${})"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="别名变量(可选):" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.ForEachItemVariable}"
+                                                 Width="120" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="非空时把当前项额外写到 ${名字} 便于模板引用"/>
+                                        <TextBlock Text="分隔符:" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.ForEachSeparator}"
+                                                 Width="60" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="仅 Variable 来源使用,默认 ,"/>
+                                    </StackPanel>
+                                    <TextBlock Text="提示: 当前项写入 ${$foreach.&lt;Id&gt;.item} 与 foreach[&quot;&lt;Id&gt;&quot;],下标写入 ${$foreach.&lt;Id&gt;.index}。"
+                                               FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <!-- EndForEach: close a foreach body -->
+                                <StackPanel IsVisible="{Binding SelectedStep.IsEndForEachKind}" Margin="0,4,0,0">
+                                    <TextBlock Text="遍历结束:" FontSize="11"
+                                               Foreground="#94E2D5" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="ForEachId:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBox Text="{Binding SelectedStep.ForEachId}"
+                                                 Width="100" Padding="4,2"
+                                                 FontFamily="Consolas,monospace"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip.Tip="必须与匹配的 ForEach 步骤相同"/>
                                     </StackPanel>
                                 </StackPanel>
 

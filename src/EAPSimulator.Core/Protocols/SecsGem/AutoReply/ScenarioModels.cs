@@ -4,8 +4,16 @@ using Newtonsoft.Json.Linq;
 namespace EAPSimulator.Core.Protocols.SecsGem.AutoReply;
 
 /// <summary>
-/// A condition that matches a specific value at a path within a SECS message item tree.
-/// Path format: "0/1/2" means root list item 0 -> list item 1 -> list item 2.
+/// A condition for matching SECS / Host messages. Carries two coexisting forms:
+/// <list type="bullet">
+///   <item><b>Legacy form</b> (Path + Operator + Value): one path, one operator, one expected
+///         string. Still supported and still authored by the simple UI.</item>
+///   <item><b>Expression form</b> (Expression): a DynamicExpresso boolean expression evaluated
+///         against the engine context (<c>secs["0/1/2"] == "OK" &amp;&amp; num(vars["count"]) &gt; 0</c>).</item>
+/// </list>
+/// At evaluation time, a non-empty <see cref="Expression"/> takes precedence; otherwise the
+/// engine synthesizes an equivalent expression from the legacy fields and runs it through the
+/// same evaluator. Old JSON files keep working with no migration.
 /// </summary>
 public class FieldCondition
 {
@@ -27,8 +35,26 @@ public class FieldCondition
     [JsonProperty("value")]
     public string Value { get; set; } = "";
 
+    /// <summary>
+    /// Optional expression-mode body. When non-empty, this is evaluated directly against the
+    /// <see cref="ScenarioExpression"/> context and the legacy Path/Operator/Value fields are
+    /// ignored. Empty by default so old files round-trip unchanged.
+    /// </summary>
+    [JsonProperty("expression")]
+    public string Expression { get; set; } = "";
+
     [JsonIgnore]
-    public string DisplayText => string.IsNullOrEmpty(Path) ? "(无条件)" : $"[{Path}] {Operator} {Value}";
+    public bool IsExpressionMode => !string.IsNullOrWhiteSpace(Expression);
+
+    [JsonIgnore]
+    public string DisplayText
+    {
+        get
+        {
+            if (IsExpressionMode) return $"{{ {Expression} }}";
+            return string.IsNullOrEmpty(Path) ? "(无条件)" : $"[{Path}] {Operator} {Value}";
+        }
+    }
 
     [JsonIgnore]
     public static string[] SupportedOperators { get; } = ["==", "!=", ">", "<", ">=", "<=", "contains"];
@@ -99,6 +125,44 @@ public enum ScenarioStepKind
     /// Returns to the next step on completion. Recursion depth is bounded.
     /// </summary>
     CallScenario,
+
+    /// <summary>
+    /// Iterate over a runtime collection (a SECS list item, a Host ArrayList field, or a
+    /// delimited string variable). Pairs with <see cref="EndForEach"/> using <see cref="ScenarioStep.ForEachId"/>.
+    /// On each iteration the current element is exposed as <c>${$foreach.&lt;Id&gt;.item}</c>
+    /// (plus an alias if <see cref="ScenarioStep.ForEachItemVariable"/> is set) and the 0-based
+    /// index as <c>${$foreach.&lt;Id&gt;.index}</c>; in expression context <c>foreach["Id"]</c>
+    /// reads the current item and <c>foreachIndex["Id"]</c> reads the index.
+    /// </summary>
+    ForEach,
+
+    /// <summary>Mark the end of a <see cref="ForEach"/> body; pairs by <see cref="ScenarioStep.ForEachId"/>.</summary>
+    EndForEach,
+}
+
+/// <summary>
+/// Where a <see cref="ScenarioStepKind.ForEach"/> step reads its collection from.
+/// </summary>
+public enum ForEachSource
+{
+    /// <summary>
+    /// Read a <c>SecsList</c> from the last received SECS message at <see cref="ScenarioStep.ForEachPath"/>.
+    /// Non-list items at the path produce a single-element iteration with the item's string value.
+    /// </summary>
+    SecsList,
+
+    /// <summary>
+    /// Read a Host field by name (<see cref="ScenarioStep.ForEachPath"/>) on the last received Host
+    /// message; iterates over its <c>Children</c> when the field is an ArrayList / Object.
+    /// </summary>
+    HostArrayList,
+
+    /// <summary>
+    /// Split a string variable (<see cref="ScenarioStep.ForEachPath"/>) by
+    /// <see cref="ScenarioStep.ForEachSeparator"/> (default <c>,</c>) and iterate the parts.
+    /// Whitespace-only segments are kept verbatim — the user controls trimming.
+    /// </summary>
+    Variable,
 }
 
 /// <summary>
@@ -188,6 +252,23 @@ public class ScenarioStep
 
     [JsonProperty("onTimeout")]
     public ReceiveTimeoutAction OnTimeout { get; set; } = ReceiveTimeoutAction.Fail;
+
+    /// <summary>
+    /// Optional label to jump to when this step throws (timeout, IO failure, template lookup
+    /// failed, expression error, …). Empty = legacy behaviour: the engine fails the whole
+    /// scenario with the exception message.
+    /// <para>While the error branch is running, three variables are populated:</para>
+    /// <list type="bullet">
+    ///   <item><c>$error.message</c> — the exception's <see cref="Exception.Message"/></item>
+    ///   <item><c>$error.kind</c>    — exception type name (e.g. <c>TimeoutException</c>)</item>
+    ///   <item><c>$error.step</c>    — index of the failing step in this scenario</item>
+    /// </list>
+    /// <para>For Receive / HostReceive, a timeout only enters this branch when
+    /// <see cref="OnTimeout"/> is <see cref="ReceiveTimeoutAction.Fail"/>; <c>Skip</c> and
+    /// <c>Continue</c> keep their existing semantics.</para>
+    /// </summary>
+    [JsonProperty("onErrorLabel")]
+    public string OnErrorLabel { get; set; } = "";
 
     // ─── HostSend / HostReceive ───
 
@@ -279,13 +360,52 @@ public class ScenarioStep
     [JsonProperty("subScenarioName")]
     public string SubScenarioName { get; set; } = "";
 
+    // ─── ForEach / EndForEach ───
+
+    /// <summary>
+    /// Pairing key between a <see cref="ScenarioStepKind.ForEach"/> step and its closing
+    /// <see cref="ScenarioStepKind.EndForEach"/>. Mirrors <see cref="LoopId"/> but kept separate
+    /// so loops and foreaches can coexist in a single scenario without id collisions.
+    /// </summary>
+    [JsonProperty("forEachId")]
+    public string ForEachId { get; set; } = "";
+
+    /// <summary>Where the collection comes from. See <see cref="ForEachSource"/>.</summary>
+    [JsonProperty("forEachSource")]
+    public ForEachSource ForEachSource { get; set; } = ForEachSource.SecsList;
+
+    /// <summary>
+    /// Source-specific selector: SECS path for <see cref="ForEachSource.SecsList"/>, Host field
+    /// name for <see cref="ForEachSource.HostArrayList"/>, variable name (no <c>${}</c>) for
+    /// <see cref="ForEachSource.Variable"/>. Empty for SECS = iterate the root if it's a list.
+    /// </summary>
+    [JsonProperty("forEachPath")]
+    public string ForEachPath { get; set; } = "";
+
+    /// <summary>
+    /// Optional alias variable name. When non-empty, each iteration also writes the current item
+    /// to <c>${name}</c> so templates can read it without the <c>$foreach.&lt;Id&gt;.item</c>
+    /// prefix. Empty = only the namespaced name is available.
+    /// </summary>
+    [JsonProperty("forEachItemVariable")]
+    public string ForEachItemVariable { get; set; } = "";
+
+    /// <summary>
+    /// Separator used when <see cref="ForEachSource"/> is <see cref="ForEachSource.Variable"/>.
+    /// Defaults to a single comma. Multi-char separators are supported verbatim.
+    /// </summary>
+    [JsonProperty("forEachSeparator")]
+    public string ForEachSeparator { get; set; } = ",";
+
     [JsonIgnore]
     public string DisplayText
     {
         get
         {
             var label = string.IsNullOrEmpty(Label) ? "" : $" — {Label}";
-            return Kind switch
+            // Append an error-arrow suffix so the step list shows protected steps at a glance.
+            var onErr = string.IsNullOrEmpty(OnErrorLabel) ? "" : $"  ⚠→{OnErrorLabel}";
+            return (Kind switch
             {
                 ScenarioStepKind.Send => $"▶ Send {(string.IsNullOrEmpty(TemplateName) ? "(未设置)" : TemplateName)}{label}",
                 ScenarioStepKind.Receive => BuildReceiveDisplay() + label,
@@ -299,8 +419,10 @@ public class ScenarioStep
                 ScenarioStepKind.Loop => BuildLoopDisplay() + label,
                 ScenarioStepKind.EndLoop => $"⤴ EndLoop {(string.IsNullOrEmpty(LoopId) ? "(无 LoopId)" : LoopId)}{label}",
                 ScenarioStepKind.CallScenario => $"⏎ Call {(string.IsNullOrEmpty(SubScenarioName) ? "(未设置)" : SubScenarioName)}{label}",
+                ScenarioStepKind.ForEach => BuildForEachDisplay() + label,
+                ScenarioStepKind.EndForEach => $"⤴ EndForEach {(string.IsNullOrEmpty(ForEachId) ? "(无 ForEachId)" : ForEachId)}{label}",
                 _ => $"? {Kind}{label}",
-            };
+            }) + onErr;
         }
     }
 
@@ -349,6 +471,20 @@ public class ScenarioStep
         if (LoopTimes > 0) return $"⟳ Loop {id} × {LoopTimes}";
         if (!string.IsNullOrEmpty(LoopWhile)) return $"⟳ Loop {id} while {LoopWhile}";
         return $"⟳ Loop {id} ∞";
+    }
+
+    private string BuildForEachDisplay()
+    {
+        var id = string.IsNullOrEmpty(ForEachId) ? "?" : ForEachId;
+        var src = ForEachSource switch
+        {
+            ForEachSource.SecsList => $"secs[{(string.IsNullOrEmpty(ForEachPath) ? "*" : ForEachPath)}]",
+            ForEachSource.HostArrayList => $"host[{(string.IsNullOrEmpty(ForEachPath) ? "*" : ForEachPath)}]",
+            ForEachSource.Variable => $"split(${{{ForEachPath}}}, \"{ForEachSeparator}\")",
+            _ => "?",
+        };
+        var alias = string.IsNullOrEmpty(ForEachItemVariable) ? "" : $" as ${ForEachItemVariable}";
+        return $"⟳⃗ ForEach {id} ← {src}{alias}";
     }
 }
 
@@ -460,6 +596,7 @@ internal class ScenarioStepConverter : JsonConverter<ScenarioStep>
         step.OnTimeout = obj.Value<string>("onTimeout") is { } otStr && Enum.TryParse<ReceiveTimeoutAction>(otStr, true, out var ot)
             ? ot
             : ReceiveTimeoutAction.Fail;
+        step.OnErrorLabel = obj.Value<string>("onErrorLabel") ?? "";
         step.DelayMs = obj.Value<int?>("delayMs") ?? 1_000;
         step.Message = obj.Value<string>("message") ?? "";
         step.Cases = obj["cases"]?.ToObject<List<BranchCase>>(serializer) ?? [];
@@ -479,6 +616,15 @@ internal class ScenarioStepConverter : JsonConverter<ScenarioStep>
         step.LoopTimes = obj.Value<int?>("loopTimes") ?? 0;
         step.LoopWhile = obj.Value<string>("loopWhile") ?? "";
         step.SubScenarioName = obj.Value<string>("subScenarioName") ?? "";
+        // ForEach fields. Older files lack them; defaults match the model.
+        step.ForEachId = obj.Value<string>("forEachId") ?? "";
+        step.ForEachSource = obj.Value<string>("forEachSource") is { } fesStr
+            && Enum.TryParse<ForEachSource>(fesStr, true, out var fes)
+                ? fes
+                : ForEachSource.SecsList;
+        step.ForEachPath = obj.Value<string>("forEachPath") ?? "";
+        step.ForEachItemVariable = obj.Value<string>("forEachItemVariable") ?? "";
+        step.ForEachSeparator = obj.Value<string>("forEachSeparator") ?? ",";
     }
 
     public override void WriteJson(JsonWriter writer, ScenarioStep? value, JsonSerializer serializer)

@@ -9,6 +9,10 @@ namespace EAPSimulator.Core.Protocols.SecsGem.AutoReply;
 /// ISecsMessageHandler for quick-reply rules.
 /// Supports conditional matching: checks FieldConditions before replying.
 /// If conditions don't match, returns null (falls through to other handlers).
+///
+/// QuickReply has no scenario-style variable bag, but expression-mode conditions are still
+/// honoured by allocating a throwaway <see cref="ScenarioExpression"/> per evaluation —
+/// users get the same <c>secs["0/1/2"]</c> syntax across QuickReply and Scenario.
 /// </summary>
 public class AutoReplyHandler : ISecsMessageHandler
 {
@@ -46,9 +50,14 @@ public class AutoReplyHandler : ISecsMessageHandler
 
     private static bool MatchesConditions(List<FieldCondition> conditions, SecsItem? rootItem)
     {
+        // Lazily allocate the evaluator only when an expression-mode condition is encountered —
+        // pure-legacy rule sets pay zero cost.
+        ScenarioExpression? evaluator = null;
         foreach (var cond in conditions)
         {
-            if (!MatchUtil.MatchesCondition(cond, rootItem))
+            if (cond.IsExpressionMode && evaluator == null)
+                evaluator = new ScenarioExpression(new ScenarioVariables());
+            if (!MatchUtil.MatchesCondition(cond, rootItem, evaluator))
                 return false;
         }
         return true;
