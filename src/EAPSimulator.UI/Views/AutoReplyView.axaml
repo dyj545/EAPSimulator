@@ -220,10 +220,27 @@
                                 Classes="accent" Padding="8,2" FontSize="11" Margin="0,0,4,0"
                                 ToolTip.Tip="运行选中的场景(需要先连接)"/>
                         <Button Content="⏹ 停止" Command="{Binding StopScenarioCommand}"
-                                Padding="8,2" FontSize="11" Margin="0,0,12,0"/>
+                                Padding="8,2" FontSize="11" Margin="0,0,8,0"/>
+                        <!-- Debugger controls — only relevant while a scenario is running. -->
+                        <Button Content="⏸ 暂停" Command="{Binding PauseScenarioCommand}"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
+                                ToolTip.Tip="在下一个步骤边界暂停"/>
+                        <Button Content="▶▶ 继续" Command="{Binding ContinueScenarioCommand}"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
+                                ToolTip.Tip="从暂停恢复执行直到下一个断点或结束"/>
+                        <Button Content="⏭ 单步" Command="{Binding StepOverScenarioCommand}"
+                                Padding="8,2" FontSize="11" Margin="0,0,3,0"
+                                ToolTip.Tip="执行一个步骤后再次暂停"/>
+                        <Button Content="🔴 断点" Command="{Binding ToggleBreakpointCommand}"
+                                Padding="8,2" FontSize="11" Margin="0,0,12,0"
+                                ToolTip.Tip="在选中步骤上切换断点"/>
                         <TextBlock Text="状态:" VerticalAlignment="Center" Opacity="0.6" Margin="0,0,4,0"/>
                         <TextBlock Text="{Binding RunStatus}" VerticalAlignment="Center"
                                    Foreground="#4CAF50" FontFamily="Consolas,monospace" FontSize="11"/>
+                        <TextBlock Text=" ⏸" VerticalAlignment="Center"
+                                   Foreground="#FFB454" FontSize="13" Margin="6,0,0,0"
+                                   IsVisible="{Binding IsPaused}"
+                                   ToolTip.Tip="已暂停"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
@@ -378,6 +395,7 @@
                                                  x:Name="FlowCanvas"
                                                  Scenario="{Binding SelectedScenario}"
                                                  SelectedStep="{Binding SelectedStep, Mode=TwoWay}"
+                                                 PausedStepIndex="{Binding PausedStepIndex}"
                                                  IsVisible="{Binding IsFlowView}"/>
                 </Grid>
 
@@ -915,6 +933,38 @@
                                    Opacity="0.4" FontSize="12"
                                    HorizontalAlignment="Center"
                                    Margin="0,40,0,0"/>
+
+                        <!-- Debugger: variable watch panel — visible only while paused. -->
+                        <Border Background="#1F1F1F" CornerRadius="4" Padding="8,6" Margin="0,12,0,0"
+                                IsVisible="{Binding IsPaused}">
+                            <StackPanel>
+                                <TextBlock Text="变量观察 (Paused)" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#FFB454" Margin="0,0,0,6"/>
+                                <TextBlock Text="{Binding PausedStepIndex, StringFormat='当前停在步骤 #{0}'}"
+                                           FontSize="10" Opacity="0.7" Margin="0,0,0,6"/>
+                                <ItemsControl ItemsSource="{Binding WatchVariables}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,1">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="2*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                           FontFamily="Consolas,monospace" FontSize="11"
+                                                           Foreground="#A6E3A1"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Value}"
+                                                           FontFamily="Consolas,monospace" FontSize="11"
+                                                           Foreground="#CDD6F4"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="8,0,0,0"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

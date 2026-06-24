@@ -60,6 +60,19 @@ public partial class ScenarioFlowCanvas : UserControl
         set => SetValue(SelectedStepProperty, value);
     }
 
+    /// <summary>
+    /// Step index the debugger is paused on, or -1 when not paused. The canvas paints a
+    /// distinct outline on that node so the user can see where execution is parked.
+    /// </summary>
+    public static readonly StyledProperty<int> PausedStepIndexProperty =
+        AvaloniaProperty.Register<ScenarioFlowCanvas, int>(nameof(PausedStepIndex), defaultValue: -1);
+
+    public int PausedStepIndex
+    {
+        get => GetValue(PausedStepIndexProperty);
+        set => SetValue(PausedStepIndexProperty, value);
+    }
+
     private readonly Canvas _canvas;
     private readonly ScrollViewer _scroll;
     private readonly Dictionary<int, Border> _nodeShells = new();
@@ -115,6 +128,10 @@ public partial class ScenarioFlowCanvas : UserControl
         {
             HighlightSelected();
         }
+        else if (e.Property == PausedStepIndexProperty)
+        {
+            HighlightSelected(); // re-derives borders, including the paused-on outline
+        }
     }
 
     private void WireScenario(ScenarioViewModel? vm)
@@ -156,6 +173,7 @@ public partial class ScenarioFlowCanvas : UserControl
             case nameof(ScenarioStepViewModel.ForEachId):
             case nameof(ScenarioStepViewModel.DefaultLabel):
             case nameof(ScenarioStepViewModel.OnErrorLabel):
+            case nameof(ScenarioStepViewModel.IsBreakpoint):
                 Rebuild();
                 break;
         }
@@ -357,6 +375,24 @@ public partial class ScenarioFlowCanvas : UserControl
         _nodeShells[node.StepIndex] = shell;
         _nodeBounds[node.StepIndex] = new Rect(node.X, node.Y,
             ScenarioFlowLayout.NodeWidth, ScenarioFlowLayout.NodeHeight);
+
+        // Breakpoint dot: small red disc in the top-left corner of nodes flagged IsBreakpoint.
+        // Drawn after the shell so it renders on top.
+        if (node.StepIndex < vm.Steps.Count && vm.Steps[node.StepIndex].IsBreakpoint)
+        {
+            var dot = new Ellipse
+            {
+                Width = 9,
+                Height = 9,
+                Fill = new SolidColorBrush(Color.FromRgb(0xE9, 0x4F, 0x4F)),
+                Stroke = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)),
+                StrokeThickness = 1,
+                ZIndex = 4,
+            };
+            Canvas.SetLeft(dot, node.X - 4);
+            Canvas.SetTop(dot, node.Y - 4);
+            _canvas.Children.Add(dot);
+        }
     }
 
     /// <summary>
@@ -951,12 +987,26 @@ public partial class ScenarioFlowCanvas : UserControl
     {
         if (Scenario == null) return;
         var selIdx = SelectedStep == null ? -1 : Scenario.Steps.IndexOf(SelectedStep);
+        var pausedIdx = PausedStepIndex;
         foreach (var (idx, shell) in _nodeShells)
         {
-            shell.BorderBrush = idx == selIdx
-                ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))
-                : new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
-            shell.BorderThickness = new Thickness(idx == selIdx ? 2 : 1);
+            // Priority: paused outline beats selection beats default. Paused = bright orange
+            // so the debugger marker is obvious even when the selected step is the same one.
+            if (idx == pausedIdx)
+            {
+                shell.BorderBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xB4, 0x54));
+                shell.BorderThickness = new Thickness(3);
+            }
+            else if (idx == selIdx)
+            {
+                shell.BorderBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                shell.BorderThickness = new Thickness(2);
+            }
+            else
+            {
+                shell.BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
+                shell.BorderThickness = new Thickness(1);
+            }
         }
     }
 
@@ -985,6 +1035,14 @@ public partial class ScenarioFlowCanvas : UserControl
         {
             parent?.InsertStepAfter(stepIndex, k);
         }));
+        menu.Items.Add(new Separator());
+        var bp = new MenuItem { Header = "切换断点 🔴" };
+        bp.Click += (_, _) =>
+        {
+            if (stepIndex >= 0 && stepIndex < vm.Steps.Count)
+                vm.Steps[stepIndex].IsBreakpoint = !vm.Steps[stepIndex].IsBreakpoint;
+        };
+        menu.Items.Add(bp);
         menu.Items.Add(new Separator());
         var del = new MenuItem { Header = "删除此步骤" };
         del.Click += (_, _) =>

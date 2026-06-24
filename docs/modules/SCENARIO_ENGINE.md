@@ -267,6 +267,31 @@ num(vars["count"]) < 5 && host.Name == "MAP_COUNT_REP" // 与/或组合
 - 目标节点没有 Label 时自动起一个（`L<idx>`，冲突则递增后缀）
 - 顺序边 / Loop/ForEach 回弧没有 thumb（这些拓扑由步骤顺序与 Loop/EndLoop 配对决定，画布上拖没地方写回）
 
+### 4.9 调试器
+
+`ScenarioEngine` 内置断点/暂停/单步能力，UI 在工具栏暴露 ⏸ 暂停 / ▶▶ 继续 / ⏭ 单步 / 🔴 断点 四个按钮。
+
+**核心 API**：
+
+| 方法 | 行为 |
+|---|---|
+| `Breakpoints` (HashSet&lt;int&gt;) | 步骤索引集合；引擎在每个步骤边界检查 |
+| `Pause()` | 请求在下一个步骤边界暂停 |
+| `Continue()` | 解除暂停，运行到下一个断点或结束 |
+| `StepOver()` | 释放当前暂停 + 在下一步前再次暂停 |
+| `Paused` 事件 | 暂停时触发 `(scenario, pc, step)`；UI 据此刷新变量观察 |
+| `Resumed` 事件 | 解除暂停时触发 |
+| `PausedVariables` | 暂停时的变量快照 |
+
+**实现**：用一个初始 0 permit 的 `SemaphoreSlim` 当信号灯——只在断点/单步/Pause 请求命中时 `WaitAsync` 阻塞，`Continue/StepOver` 各 `Release` 一次。`Stop` 也会 Release 一次让被卡住的步骤观察到取消令牌。
+
+**UI 端**：
+- 工具栏 4 个调试按钮 + ⏸ 暂停指示器（绑定 `IsPaused`）
+- 步骤 VM 增加 `IsBreakpoint`（**不持久化**）。Run 时同步全集到引擎；运行期间右键菜单/工具栏切换会立即推到引擎
+- 流程图节点左上角红点标记断点；暂停时该节点橙色粗边框
+- 右侧详情列底部"变量观察"面板（仅暂停时可见），按字典序列出 `${name}` → 值
+- 节点右键菜单加"切换断点 🔴"
+
 ## 5. 踩过的坑
 
 ### 坑 1：CancellationToken 的传递
@@ -304,3 +329,5 @@ num(vars["count"]) < 5 && host.Name == "MAP_COUNT_REP" // 与/或组合
 | 2026-06-24 | 加入 ForEach / EndForEach：支持 SECS 列表、Host ArrayList、变量分隔 3 种来源；嵌套与空集合处理；UI 提供专用编辑面板 |
 | 2026-06-24 | 每个步骤可声明 OnErrorLabel：步骤抛异常或 Receive 超时(Fail) 时跳到指定 Label，并写入 `$error.message/kind/step` 变量；UI 在步骤详情头部统一加入入口 |
 | 2026-06-24 | 加入流程图视图：`ScenarioFlowLayout`（Core，纯数据 + 测试）+ `ScenarioFlowCanvas`（UI，拖动节点 + 自动连线）；中间列加 📋/🌐 切换；节点位置持久化到 `ScenarioDefinition.Layout`，旧文件无 layout 字段照常加载 |
+| 2026-06-24 | 流程图连线编辑：BranchCase / BranchDefault / OnError 边末端可拖动 thumb，松开到目标节点即改 TargetLabel / DefaultLabel / OnErrorLabel；自动起 Label 名；FlowEdge 新增 CaseIndex |
+| 2026-06-24 | 调试器：ScenarioEngine 增加 Pause/Continue/StepOver/Breakpoints；UI 工具栏 4 个调试按钮 + 流程图节点断点红点 / 暂停橙边框 + 右侧变量观察面板；4 个新测试覆盖断点暂停、单步、变量快照 |

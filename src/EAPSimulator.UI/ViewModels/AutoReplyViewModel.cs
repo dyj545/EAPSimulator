@@ -66,9 +66,6 @@ public partial class AutoReplyViewModel : ObservableObject
 
     /// <summary>
     /// True = show the flow-canvas; false = show the legacy step ListBox.
-    /// Defaults to flow view because that's where users spend most of their authoring time
-    /// once they've discovered Branch / Loop / ForEach. The ListBox stays as a fallback for
-    /// keyboard navigation and bulk-edit cases the canvas isn't great for.
     /// </summary>
     [ObservableProperty]
     private bool _isFlowView = true;
@@ -77,6 +74,19 @@ public partial class AutoReplyViewModel : ObservableObject
     public bool IsListView => !IsFlowView;
 
     partial void OnIsFlowViewChanged(bool value) => OnPropertyChanged(nameof(IsListView));
+
+    // ─── Debugger UI state ───
+
+    /// <summary>True when the running engine is parked on a breakpoint or after a step.</summary>
+    [ObservableProperty]
+    private bool _isPaused;
+
+    /// <summary>Step index the engine is currently paused on (-1 = not paused).</summary>
+    [ObservableProperty]
+    private int _pausedStepIndex = -1;
+
+    /// <summary>Variable snapshot exposed in the watch panel; refreshed on every pause.</summary>
+    public ObservableCollection<DebuggerVariableRow> WatchVariables { get; } = new();
 
     [ObservableProperty]
     private string _statusMessage = "";
@@ -108,6 +118,11 @@ public partial class AutoReplyViewModel : ObservableObject
         if (SelectedScenario == null) { RunStatus = "未选择场景"; return; }
         if (_activeEngine == null) { RunStatus = "请先连接协议(Run 需要发送通道)"; return; }
         var def = SelectedScenario.ToModel();
+        // Sync breakpoints from the VM (per-step IsBreakpoint flag) into the engine before
+        // starting — the engine reads them at every step boundary; we push the full set on
+        // each Run so toggles between runs take effect.
+        SyncBreakpointsToEngine(def);
+        WireDebuggerEvents(_activeEngine);
         _activeEngine.Start(def);
         RunStatus = $"运行中: {def.Name}";
     }
@@ -117,6 +132,76 @@ public partial class AutoReplyViewModel : ObservableObject
     {
         _activeEngine?.Stop();
         RunStatus = "已请求停止";
+    }
+
+    /// <summary>Pause at the next step boundary.</summary>
+    [RelayCommand]
+    private void PauseScenario() => _activeEngine?.Pause();
+
+    /// <summary>Resume from the current pause and run to next breakpoint / end.</summary>
+    [RelayCommand]
+    private void ContinueScenario() => _activeEngine?.Continue();
+
+    /// <summary>Run exactly one step then pause again.</summary>
+    [RelayCommand]
+    private void StepOverScenario() => _activeEngine?.StepOver();
+
+    /// <summary>Toggle the breakpoint on the currently-selected step.</summary>
+    [RelayCommand]
+    private void ToggleBreakpoint()
+    {
+        if (SelectedStep == null) return;
+        SelectedStep.IsBreakpoint = !SelectedStep.IsBreakpoint;
+        // If the engine is running, push the change live so it takes effect next step.
+        if (SelectedScenario != null && _activeEngine != null)
+        {
+            var idx = SelectedScenario.Steps.IndexOf(SelectedStep);
+            if (idx >= 0)
+            {
+                if (SelectedStep.IsBreakpoint) _activeEngine.Breakpoints.Add(idx);
+                else _activeEngine.Breakpoints.Remove(idx);
+            }
+        }
+    }
+
+    private void SyncBreakpointsToEngine(ScenarioDefinition def)
+    {
+        if (_activeEngine == null || SelectedScenario == null) return;
+        _activeEngine.Breakpoints.Clear();
+        for (int i = 0; i < SelectedScenario.Steps.Count; i++)
+            if (SelectedScenario.Steps[i].IsBreakpoint)
+                _activeEngine.Breakpoints.Add(i);
+    }
+
+    private bool _debuggerWired;
+    private void WireDebuggerEvents(ScenarioEngine engine)
+    {
+        if (_debuggerWired) return;
+        _debuggerWired = true;
+        engine.Paused += (_, pc, _) =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                IsPaused = true;
+                PausedStepIndex = pc;
+                RefreshWatchVariables(engine);
+            });
+        };
+        engine.Resumed += () =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                IsPaused = false;
+                PausedStepIndex = -1;
+            });
+        };
+    }
+
+    private void RefreshWatchVariables(ScenarioEngine engine)
+    {
+        WatchVariables.Clear();
+        foreach (var (k, v) in engine.PausedVariables.OrderBy(p => p.Key, StringComparer.Ordinal))
+            WatchVariables.Add(new DebuggerVariableRow(k, v));
     }
 
     // ─── Quick Reply Commands ───
@@ -1265,6 +1350,14 @@ public partial class ScenarioStepViewModel : ObservableObject
     [ObservableProperty]
     private bool _waitReply;
 
+    /// <summary>
+    /// Debugger flag — true marks this step as a breakpoint. NOT serialized (transient debug
+    /// state, not part of the scenario contract). Pushed into the engine's Breakpoints set
+    /// on Run and on each toggle while paused.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isBreakpoint;
+
     // Receive
     [ObservableProperty]
     private byte _stream;
@@ -1690,3 +1783,12 @@ public partial class BranchCaseViewModel : ObservableObject
         return vm;
     }
 }
+
+
+/// <summary>
+/// One row in the debugger's variable-watch panel: variable name + its string value at the
+/// moment of the latest pause. Plain data — the panel binds an ObservableCollection of these
+/// directly, no per-row notifications needed since the whole list is rebuilt on each pause.
+/// </summary>
+public record DebuggerVariableRow(string Name, string Value);
+

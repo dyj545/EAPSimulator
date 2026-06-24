@@ -71,6 +71,44 @@ public class ScenarioEngine : ISecsMessageHandler
     public event Action<ScenarioDefinition, string>? ScenarioFinished; // status text
     public event Action<string>? Log;
 
+    /// <summary>
+    /// Fired when the engine pauses (entering a breakpoint or after a single step). The UI
+    /// listens for this to refresh the variable panel and highlight the paused-on step.
+    /// Carries the scenario, step index, and step that's *about to* run.
+    /// </summary>
+    public event Action<ScenarioDefinition, int, ScenarioStep>? Paused;
+
+    /// <summary>Fired when the engine resumes from a paused state (Continue or StepOver).</summary>
+    public event Action? Resumed;
+
+    /// <summary>
+    /// Per-scenario breakpoint set. Keyed by step index. Empty = no breakpoints (default).
+    /// Mutable: the UI can flip breakpoints during a paused run and they take effect at the
+    /// next step boundary. Cleared on Start.
+    /// </summary>
+    public HashSet<int> Breakpoints { get; } = new();
+
+    /// <summary>
+    /// Snapshot of variable values at the most recent pause. Empty when the engine isn't
+    /// paused. Used by the UI's Variable Watch panel — it reads this lazily on Paused fire.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> PausedVariables =>
+        _vars?.Snapshot() ?? (IReadOnlyDictionary<string, string>)new Dictionary<string, string>();
+
+    /// <summary>True while the engine is parked at a breakpoint or post-step pause.</summary>
+    public bool IsPaused => _isPaused;
+
+    /// <summary>
+    /// Pause signal. Initial state has 0 permits — the engine only calls WaitAsync when it
+    /// has actually decided to pause (breakpoint hit or step-over armed), and Continue /
+    /// StepOver release a single permit to unblock it. Created on Start.
+    /// </summary>
+    private SemaphoreSlim? _pauseGate;
+    private bool _stepOverArmed;
+    private bool _isPaused;
+    /// <summary>Set by Pause() — checked at the next step boundary to trigger a pause.</summary>
+    private bool _pauseRequested;
+
     public bool IsRunning => _runTask is { IsCompleted: false };
     public ScenarioDefinition? RunningScenario { get; private set; }
     public int CurrentStepIndex { get; private set; }
@@ -154,6 +192,10 @@ public class ScenarioEngine : ISecsMessageHandler
                 return;
             }
             _runCts = new CancellationTokenSource();
+            _pauseGate = new SemaphoreSlim(0, 1); // 0 permits = release-on-demand
+            _stepOverArmed = false;
+            _isPaused = false;
+            _pauseRequested = false;
             RunningScenario = scenario;
             CurrentStepIndex = 0;
             _lastReceived = null;
@@ -174,6 +216,49 @@ public class ScenarioEngine : ISecsMessageHandler
         lock (_lock)
         {
             _runCts?.Cancel();
+            // Releasing the gate too lets a paused step unblock and observe the cancellation
+            // token, otherwise Stop would just sit there until the next non-paused step.
+            try { _pauseGate?.Release(); } catch (SemaphoreFullException) { /* already free */ }
+        }
+    }
+
+    /// <summary>
+    /// Request a pause at the next step boundary. Idempotent — if already paused or stopped
+    /// it's a no-op. The UI's "⏸ 暂停" button calls this.
+    /// </summary>
+    public void Pause() => _pauseRequested = true;
+
+    /// <summary>Resume from a paused state, runs until the next breakpoint or end.</summary>
+    public void Continue()
+    {
+        var gate = _pauseGate;
+        if (gate == null) return;
+        if (!_isPaused) return;
+        try { gate.Release(); } catch (SemaphoreFullException) { /* race: already released */ }
+    }
+
+    /// <summary>Step exactly one step then pause again. Arms a flag the run loop honours.</summary>
+    public void StepOver()
+    {
+        _stepOverArmed = true;
+        Continue();
+    }
+
+    private async Task PauseAndWaitAsync(ScenarioDefinition scenario, int pc, ScenarioStep step, CancellationToken ct)
+    {
+        var gate = _pauseGate;
+        if (gate == null) return;
+        _isPaused = true;
+        Paused?.Invoke(scenario, pc, step);
+        EmitLog($"⏸ Scenario '{scenario.Name}' paused at step {pc}");
+        try
+        {
+            await gate.WaitAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _isPaused = false;
+            Resumed?.Invoke();
         }
     }
 
@@ -331,6 +416,21 @@ public class ScenarioEngine : ISecsMessageHandler
                     // ignore frames they didn't load.
                     CurrentStepIndex = frame.Pc;
                     RunningScenario = frame.Scenario;
+
+                    // Debugger gate: pause BEFORE running the step when any of:
+                    //  - a breakpoint is set on it,
+                    //  - a previous Pause() request is pending, or
+                    //  - the user armed a single-step from the last pause.
+                    // PauseAndWaitAsync awaits a SemaphoreSlim that starts with 0 permits;
+                    // Continue/StepOver release one to resume. Sub-scenario frames share the
+                    // gate so stepping doesn't accidentally fall through CallScenario.
+                    if (Breakpoints.Contains(frame.Pc) || _stepOverArmed || _pauseRequested)
+                    {
+                        _stepOverArmed = false;
+                        _pauseRequested = false;
+                        await PauseAndWaitAsync(frame.Scenario, frame.Pc, step, ct).ConfigureAwait(false);
+                    }
+
                     StepStarted?.Invoke(frame.Scenario, frame.Pc, step);
                     EmitLog($"Scenario '{frame.Scenario.Name}' step {frame.Pc}: {step.DisplayText}");
 

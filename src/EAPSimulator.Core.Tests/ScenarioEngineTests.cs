@@ -735,4 +735,125 @@ public class ScenarioEngineTests
         var status = await engine.RunOnceAsync(scenario, CancellationToken.None);
         Assert.StartsWith("Failed:", status);
     }
+
+    [Fact]
+    public async Task Debugger_BreakpointPausesAndContinueResumes()
+    {
+        // Two Send steps; breakpoint on step 1. The engine should fire Paused before step 1
+        // runs (so only step 0 has been sent), then Continue lets the remainder finish.
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>x</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+        engine.Breakpoints.Add(1);
+
+        var pausedTcs = new TaskCompletionSource<int>();
+        engine.Paused += (_, pc, _) => pausedTcs.TrySetResult(pc);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "dbg-bp",
+            Steps =
+            {
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+            },
+        };
+
+        engine.Start(scenario);
+        var pausedAt = await pausedTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, pausedAt);
+        Assert.True(engine.IsPaused);
+        Assert.Single(sent); // step 0 already ran, step 1 parked
+
+        engine.Continue();
+        // Poll until the engine reports finished (RunningScenario goes null).
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (engine.RunningScenario != null && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+        Assert.Null(engine.RunningScenario);
+        Assert.Equal(2, sent.Count);
+    }
+
+    [Fact]
+    public async Task Debugger_StepOverAdvancesExactlyOneStep()
+    {
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>x</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+        engine.Breakpoints.Add(0); // pause before the first step
+
+        var pauses = new List<int>();
+        engine.Paused += (_, pc, _) => pauses.Add(pc);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "dbg-step",
+            Steps =
+            {
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+            },
+        };
+
+        engine.Start(scenario);
+        // Wait for the initial breakpoint pause at step 0.
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (pauses.Count < 1 && DateTime.UtcNow < deadline) await Task.Delay(10);
+        Assert.Single(pauses);
+        Assert.Empty(sent);
+
+        engine.StepOver();
+        // After step 0 runs, the engine should pause AGAIN before step 1.
+        deadline = DateTime.UtcNow.AddSeconds(2);
+        while (pauses.Count < 2 && DateTime.UtcNow < deadline) await Task.Delay(10);
+        Assert.Equal(2, pauses.Count);
+        Assert.Equal(1, pauses[1]);
+        Assert.Single(sent);
+
+        // Continue runs the rest unguarded.
+        engine.Continue();
+        deadline = DateTime.UtcNow.AddSeconds(2);
+        while (engine.RunningScenario != null && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+        Assert.Equal(3, sent.Count);
+    }
+
+    [Fact]
+    public async Task Debugger_VariablesSnapshotReflectsPausedState()
+    {
+        // After SetVariable runs and we pause on the next step, PausedVariables must include
+        // the value just assigned — the watch panel relies on this snapshot.
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>${lot}</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+        engine.Breakpoints.Add(1); // pause BEFORE the Send, AFTER SetVariable ran
+
+        var pausedTcs = new TaskCompletionSource<IReadOnlyDictionary<string, string>>();
+        engine.Paused += (_, _, _) => pausedTcs.TrySetResult(engine.PausedVariables);
+
+        var scenario = new ScenarioDefinition
+        {
+            Name = "dbg-vars",
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.SetVariable,
+                    VariableName = "lot",
+                    VariableSource = VariableSource.Literal,
+                    LiteralValue = "LOT-42",
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+            },
+        };
+        engine.Start(scenario);
+        var snap = await pausedTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal("LOT-42", snap["lot"]);
+
+        engine.Continue();
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (engine.RunningScenario != null && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+    }
 }
