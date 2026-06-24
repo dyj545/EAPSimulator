@@ -64,6 +64,20 @@ public partial class AutoReplyViewModel : ObservableObject
     [ObservableProperty]
     private ScenarioStepViewModel? _selectedStep;
 
+    /// <summary>
+    /// True = show the flow-canvas; false = show the legacy step ListBox.
+    /// Defaults to flow view because that's where users spend most of their authoring time
+    /// once they've discovered Branch / Loop / ForEach. The ListBox stays as a fallback for
+    /// keyboard navigation and bulk-edit cases the canvas isn't great for.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isFlowView = true;
+
+    /// <summary>Inverse of <see cref="IsFlowView"/> for binding to the ListBox's IsVisible.</summary>
+    public bool IsListView => !IsFlowView;
+
+    partial void OnIsFlowViewChanged(bool value) => OnPropertyChanged(nameof(IsListView));
+
     [ObservableProperty]
     private string _statusMessage = "";
 
@@ -993,6 +1007,21 @@ public partial class ScenarioViewModel : ObservableObject
 
     public ObservableCollection<ScenarioStepViewModel> Steps { get; } = [];
 
+    /// <summary>
+    /// Per-step (x, y) overrides for the flow canvas, keyed by step index. Mutated when the user
+    /// drags a node; persisted to/from <see cref="ScenarioFlowPersistedLayout"/> via
+    /// <see cref="ToModel"/> / <see cref="FromModel"/>. Empty = canvas falls back to its column
+    /// default and the JSON gets no <c>layout</c> key — old files round-trip unchanged.
+    /// </summary>
+    public Dictionary<int, (double X, double Y)> LayoutOverrides { get; } = new();
+
+    /// <summary>
+    /// Build a lightweight <see cref="ScenarioDefinition"/> snapshot for the flow canvas — only
+    /// the fields the layout engine reads. Avoids the full <see cref="ToModel"/> cost on every
+    /// step-property change while still letting <see cref="ScenarioFlowLayout"/> see fresh data.
+    /// </summary>
+    public ScenarioDefinition ToModelLayoutPreview() => ToModel();
+
     public ScenarioViewModel()
     {
         Steps.CollectionChanged += (_, args) =>
@@ -1033,7 +1062,7 @@ public partial class ScenarioViewModel : ObservableObject
 
     public ScenarioDefinition ToModel()
     {
-        return new ScenarioDefinition
+        var def = new ScenarioDefinition
         {
             Name = Name,
             Description = Description,
@@ -1043,6 +1072,17 @@ public partial class ScenarioViewModel : ObservableObject
             AutoStart = AutoStart,
             Steps = Steps.Select(s => s.ToModel()).ToList(),
         };
+        if (LayoutOverrides.Count > 0)
+        {
+            def.Layout = new ScenarioFlowPersistedLayout
+            {
+                Nodes = LayoutOverrides
+                    .Select(kv => new ScenarioFlowPersistedNode { StepIndex = kv.Key, X = kv.Value.X, Y = kv.Value.Y })
+                    .OrderBy(n => n.StepIndex)
+                    .ToList(),
+            };
+        }
+        return def;
     }
 
     public static ScenarioViewModel FromModel(ScenarioDefinition def)
@@ -1058,6 +1098,11 @@ public partial class ScenarioViewModel : ObservableObject
         };
         foreach (var step in def.Steps)
             vm.Steps.Add(ScenarioStepViewModel.FromModel(step));
+        if (def.Layout?.Nodes != null)
+        {
+            foreach (var n in def.Layout.Nodes)
+                vm.LayoutOverrides[n.StepIndex] = (n.X, n.Y);
+        }
         vm.RefreshAvailableLabels();
         return vm;
     }

@@ -2,6 +2,7 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:EAPSimulator.UI.ViewModels"
+             xmlns:controls="using:EAPSimulator.UI.Controls"
              xmlns:converters="using:EAPSimulator.UI.Converters"
              FontSize="12">
 
@@ -340,10 +341,21 @@
                         <Button Content="↓" Command="{Binding MoveStepDownCommand}"
                                 Padding="6,2" FontSize="11"
                                 ToolTip.Tip="下移"/>
+                        <!-- View mode toggle: flow canvas vs legacy list -->
+                        <Button Content="📋 列表" Click="OnToggleListViewClick"
+                                Padding="6,2" FontSize="11" Margin="12,0,2,0"
+                                ToolTip.Tip="切换到列表视图(键盘导航/批量编辑友好)"/>
+                        <Button Content="🌐 流程图" Click="OnToggleFlowViewClick"
+                                Padding="6,2" FontSize="11" Margin="0,0,2,0"
+                                ToolTip.Tip="切换到流程图视图(可视化拖动节点)"/>
+                        <Button Content="↺ 重置布局" Click="OnResetLayoutClick"
+                                Padding="6,2" FontSize="11"
+                                ToolTip.Tip="把流程图节点位置恢复到默认列布局"/>
                     </StackPanel>
                     <ListBox Grid.Row="1"
                              ItemsSource="{Binding SelectedScenario.Steps}"
                              SelectedItem="{Binding SelectedStep}"
+                             IsVisible="{Binding IsListView}"
                              Padding="2">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -358,6 +370,11 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+                    <controls:ScenarioFlowCanvas Grid.Row="1"
+                                                 x:Name="FlowCanvas"
+                                                 Scenario="{Binding SelectedScenario}"
+                                                 SelectedStep="{Binding SelectedStep, Mode=TwoWay}"
+                                                 IsVisible="{Binding IsFlowView}"/>
                 </Grid>
 
                 <GridSplitter Grid.Column="3" Width="4"

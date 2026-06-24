@@ -220,6 +220,36 @@ num(vars["count"]) < 5 && host.Name == "MAP_COUNT_REP" // 与/或组合
 
 **向后兼容**：`FieldCondition` 同时保留旧的 `Path/Operator/Value` 三件套。UI 里通过 `ƒx` 按钮在两种模式间切换；JSON 反序列化时，`expression` 字段为空就回退到旧字段。
 
+### 4.8 流程图视图
+
+中间列右上角的 `📋 列表` / `🌐 流程图` 按钮在两种视图间切换；默认显示流程图。
+
+**结构**：
+
+| 文件 | 职责 |
+|---|---|
+| `Core/.../ScenarioFlowLayout.cs` | 纯数据布局：扫描 Steps 产出 Nodes + Edges，无 UI 依赖；可单测 |
+| `Core/.../ScenarioModels.cs::ScenarioFlowPersistedLayout` | JSON 持久化结构（每步的 X/Y 覆写） |
+| `UI/Controls/ScenarioFlowCanvas.cs` | 渲染节点 + 连线 + 拖动；监听 Steps 集合与拓扑字段变化自动重建 |
+
+**边类型与样式**：
+
+| FlowEdgeKind | 何时产生 | 颜色 |
+|---|---|---|
+| Sequential | 默认顺序流 | 灰 |
+| LoopBack | EndLoop → 配对的 Loop 头 | 蓝（贝塞尔回弧） |
+| ForEachBack | EndForEach → 配对的 ForEach 头 | 青绿（贝塞尔回弧） |
+| BranchCase | Branch 每个 case → Label 节点 | 粉 |
+| BranchDefault | Branch 的 defaultLabel | 浅灰 |
+| OnError | 任意步骤 OnErrorLabel → Label 节点 | 红，虚线 |
+
+**拖动与持久化**：
+
+- 节点鼠标左键按下 → 选中对应步骤，开始拖动
+- 释放后位置写入 `LayoutOverrides`（仅当移动 > 1px），并触发重绘以重路由箭头
+- 保存场景时，所有非零位置写入 `ScenarioDefinition.Layout.Nodes`；旧 JSON（无 layout 字段）正常加载
+- 工具栏 `↺ 重置布局` 清空 overrides，回到默认列布局
+
 ## 5. 踩过的坑
 
 ### 坑 1：CancellationToken 的传递
@@ -243,7 +273,7 @@ num(vars["count"]) < 5 && host.Name == "MAP_COUNT_REP" // 与/或组合
 - [x] `LoopWhile` 表达式 — 2026-06-24
 - [x] 支持 ForEach 步骤（SECS子项 / Host数组 / 变量分隔） — 2026-06-24
 - [x] 异常/超时分支（OnErrorLabel） — 2026-06-24
-- [ ] 图形化场景编辑器（拖拽式）
+- [x] 图形化场景编辑器（自动布局 + 拖动 + 联动选中） — 2026-06-24
 
 ## 7. 变更记录
 
@@ -256,3 +286,4 @@ num(vars["count"]) < 5 && host.Name == "MAP_COUNT_REP" // 与/或组合
 | 2026-06-24 | 引入 ScenarioExpression（基于 DynamicExpresso）；Branch/Receive/HostReceive/AutoReply 条件支持表达式模式；启用 LoopWhile；UI 上每条条件加 ƒx 模式切换 |
 | 2026-06-24 | 加入 ForEach / EndForEach：支持 SECS 列表、Host ArrayList、变量分隔 3 种来源；嵌套与空集合处理；UI 提供专用编辑面板 |
 | 2026-06-24 | 每个步骤可声明 OnErrorLabel：步骤抛异常或 Receive 超时(Fail) 时跳到指定 Label，并写入 `$error.message/kind/step` 变量；UI 在步骤详情头部统一加入入口 |
+| 2026-06-24 | 加入流程图视图：`ScenarioFlowLayout`（Core，纯数据 + 测试）+ `ScenarioFlowCanvas`（UI，拖动节点 + 自动连线）；中间列加 📋/🌐 切换；节点位置持久化到 `ScenarioDefinition.Layout`，旧文件无 layout 字段照常加载 |

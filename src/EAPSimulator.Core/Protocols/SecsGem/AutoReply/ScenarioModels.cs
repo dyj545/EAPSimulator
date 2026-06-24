@@ -542,6 +542,48 @@ public class ScenarioDefinition
 
     [JsonProperty("steps")]
     public List<ScenarioStep> Steps { get; set; } = [];
+
+    /// <summary>
+    /// Persisted positions for the flow-canvas editor, keyed by step index. Layout is recomputed
+    /// from the step list on every open (so adding/deleting steps shifts indices correctly); the
+    /// stored x/y only override the default vertical positions for steps the user has dragged.
+    /// Null on legacy files — fine, the layout engine falls back to its column default.
+    /// </summary>
+    [JsonProperty("layout")]
+    public ScenarioFlowPersistedLayout? Layout { get; set; }
+}
+
+/// <summary>
+/// Slim on-disk shape for canvas positions. Reuses <see cref="ScenarioLayout"/>'s vocabulary
+/// (separate NodePosition list) so we can grow into <see cref="ScenarioLayout"/> later without
+/// re-migrating files; for now we only need step → (x, y).
+/// </summary>
+public class ScenarioFlowPersistedLayout
+{
+    [JsonProperty("nodes")]
+    public List<ScenarioFlowPersistedNode> Nodes { get; set; } = [];
+
+    [JsonProperty("zoom")]
+    public double Zoom { get; set; } = 1.0;
+
+    [JsonProperty("offsetX")]
+    public double OffsetX { get; set; }
+
+    [JsonProperty("offsetY")]
+    public double OffsetY { get; set; }
+}
+
+/// <summary>Position override for a single step in a scenario's layout.</summary>
+public class ScenarioFlowPersistedNode
+{
+    [JsonProperty("stepIndex")]
+    public int StepIndex { get; set; }
+
+    [JsonProperty("x")]
+    public double X { get; set; }
+
+    [JsonProperty("y")]
+    public double Y { get; set; }
 }
 
 /// <summary>

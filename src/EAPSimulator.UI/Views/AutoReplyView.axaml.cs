@@ -160,4 +160,19 @@ public partial class AutoReplyView : UserControl
         return $"{lhs} {op} \"{val.Replace("\"", "\\\"")}\"";
     }
 
+    private void OnToggleListViewClick(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel != null) ViewModel.IsFlowView = false;
+    }
+
+    private void OnToggleFlowViewClick(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel != null) ViewModel.IsFlowView = true;
+    }
+
+    private void OnResetLayoutClick(object? sender, RoutedEventArgs e)
+    {
+        FlowCanvas?.ResetLayout();
+    }
+
 }
