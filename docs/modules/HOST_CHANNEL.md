@@ -443,6 +443,7 @@ ScrollViewer
 | 2026-06-18 | HTTP 通道支持自定义 Header（Authorization / X-Api-Key 等鉴权头），Config 界面 HTTP 区块加 Headers 表格；Core 层既有 `HttpHeaders` 字段一直可用，本轮只暴露 UI |
 | 2026-06-18 | HTTP 通道闭环：测试连接改为真发 OPTIONS/HEAD/GET 探测请求（带 token、识别 401/403/5xx）；Listener Passive 模式校验 `Authorization` 头，不匹配返 401；Config 界面 HTTP 区块加主动/被动模式切换 + 期望 Authorization 输入框（仅 Passive 可见） |
 | 2026-06-18 | MQTT 补齐 username/password（既有字段从未传给 broker，认证 broker 连不上）；8 个 transport SendAsync 失败时主动触发 Disconnected 事件，UI 灯立即变红，不再要等到下一次发送才暴露掉线 |
+| 2026-06-25 | Host 消息模板编辑器加搜索 + 分组：`HostMessageEditorViewModel` 新增 `SearchText` / `SelectedGroup` / `FilteredTemplates` / `GroupNames` / `TemplateCountSummary` / `ClearSearchCommand`；分组按模板名第一个 `_` 前缀自动生成（`MESLOTEND_MES_LotEnd` → `MESLOTEND`，无 `_` → `未分组`）；列表项额外显示分组徽标；搜索匹配名/描述/方向/分组。左侧列宽 260→300 容纳分组徽标与搜索框。用户手册新增 §4 Host 消息模板管理。 |
 
 ---
 

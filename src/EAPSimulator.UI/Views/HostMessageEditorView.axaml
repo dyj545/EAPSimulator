@@ -5,9 +5,9 @@
              FontSize="12"
              KeyDown="OnKeyDown">
 
-    <Grid ColumnDefinitions="260,Auto,*" RowDefinitions="*,Auto">
+    <Grid ColumnDefinitions="300,Auto,*" RowDefinitions="*,Auto">
         <!-- Left: Template list -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto">
             <Border Grid.Row="0" Padding="4,4" Background="#2A2A2A">
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <Button Content="保存" Command="{Binding SaveCommand}"
@@ -25,8 +25,28 @@
                 </StackPanel>
             </Border>
 
-            <ListBox Grid.Row="1"
-                     ItemsSource="{Binding Templates}"
+            <Border Grid.Row="1" Padding="4,4" Background="#252525">
+                <StackPanel Spacing="4">
+                    <TextBox Text="{Binding SearchText}"
+                             Padding="4,2" FontSize="11"
+                             VerticalContentAlignment="Center"
+                             Watermark="搜索消息名 / 描述 / 分组"/>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="分组:" VerticalAlignment="Center" FontSize="11" Opacity="0.7"/>
+                        <ComboBox ItemsSource="{Binding GroupNames}"
+                                  SelectedItem="{Binding SelectedGroup}"
+                                  Padding="4,1" FontSize="11"
+                                  VerticalContentAlignment="Center" HorizontalAlignment="Stretch"/>
+                        <Button Content="清空"
+                                Command="{Binding ClearSearchCommand}"
+                                Padding="6,1" FontSize="11"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding TemplateCountSummary}" FontSize="10" Opacity="0.55"/>
+                </StackPanel>
+            </Border>
+
+            <ListBox Grid.Row="2"
+                     ItemsSource="{Binding FilteredTemplates}"
                      SelectedItem="{Binding SelectedTemplate}"
                      Padding="2"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -34,6 +54,10 @@
                     <DataTemplate DataType="{x:Type vm:HostMessageTemplateViewModel}">
                         <StackPanel Margin="2">
                             <DockPanel>
+                                <Border Background="#1F1F1F" CornerRadius="2" Padding="4,1" Margin="0,0,6,0">
+                                    <TextBlock Text="{Binding GroupName}" FontSize="9"
+                                               FontWeight="Bold" Foreground="#89B4FA"/>
+                                </Border>
                                 <Border Background="#1F1F1F" CornerRadius="2" Padding="4,1" Margin="0,0,6,0">
                                     <TextBlock Text="{Binding DirectionName}" FontSize="9"
                                                FontWeight="Bold" Foreground="#FF9800"/>
@@ -52,7 +76,7 @@
                 </ListBox.ItemTemplate>
             </ListBox>
 
-            <Border Grid.Row="2" Padding="4,2" Background="#252525">
+            <Border Grid.Row="3" Padding="4,2" Background="#252525">
                 <TextBlock Text="{Binding StatusMessage}" FontSize="11" Opacity="0.6"
                            TextTrimming="CharacterEllipsis"/>
             </Border>

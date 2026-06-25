@@ -13,7 +13,7 @@ namespace EAPSimulator.Core.Protocols.SecsGem.AutoReply;
 public static class ScenarioFlowLayout
 {
     public const double NodeWidth = 220;
-    public const double NodeHeight = 44;
+    public const double NodeHeight = 58;
     public const double HorizontalGap = 60;     // horizontal lane for jump-back edges
     public const double VerticalGap = 24;       // gap between adjacent nodes' bounding boxes
 

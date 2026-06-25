@@ -544,6 +544,23 @@ public class ScenarioDefinition
     public List<ScenarioStep> Steps { get; set; } = [];
 
     /// <summary>
+    /// 当为 true，并且 <see cref="TriggerStream"/>/<see cref="TriggerFunction"/> 命中入站消息时
+    /// (并通过可选 <see cref="TriggerConditions"/>)，引擎会在本场景未运行的情况下自动 Start。
+    /// 例：S6F11 + Conditions=[secs[0/1] == "1001"] → 每次收到 CEID=1001 的事件就拉起对应场景。
+    /// </summary>
+    [JsonProperty("triggerOnMessage")]
+    public bool TriggerOnMessage { get; set; } = false;
+
+    [JsonProperty("triggerStream")]
+    public byte TriggerStream { get; set; }
+
+    [JsonProperty("triggerFunction")]
+    public byte TriggerFunction { get; set; }
+
+    [JsonProperty("triggerConditions")]
+    public List<FieldCondition> TriggerConditions { get; set; } = [];
+
+    /// <summary>
     /// Persisted positions for the flow-canvas editor, keyed by step index. Layout is recomputed
     /// from the step list on every open (so adding/deleting steps shifts indices correctly); the
     /// stored x/y only override the default vertical positions for steps the user has dragged.

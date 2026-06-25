@@ -13,6 +13,20 @@ public partial class HostMessageEditorViewModel : ObservableObject
 
     public ObservableCollection<HostMessageTemplateViewModel> Templates { get; } = [];
 
+    public ObservableCollection<HostMessageTemplateViewModel> FilteredTemplates { get; } = [];
+
+    public ObservableCollection<string> GroupNames { get; } = ["全部"];
+
+    [ObservableProperty]
+    private string _searchText = "";
+
+    [ObservableProperty]
+    private string _selectedGroup = "全部";
+
+    public string TemplateCountSummary => string.IsNullOrWhiteSpace(SearchText) && SelectedGroup == "全部"
+        ? $"{Templates.Count} 个模板"
+        : $"{FilteredTemplates.Count}/{Templates.Count} 个模板";
+
     [ObservableProperty]
     private HostMessageTemplateViewModel? _selectedTemplate;
 
@@ -40,7 +54,12 @@ public partial class HostMessageEditorViewModel : ObservableObject
 
     public HostMessageEditorViewModel()
     {
-        Templates.CollectionChanged += (_, _) => OnPropertyChanged(nameof(TemplateNames));
+        Templates.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(TemplateNames));
+            RebuildGroups();
+            RefreshFilteredTemplates();
+        };
     }
 
     public void LoadFromPath(string path)
@@ -61,8 +80,11 @@ public partial class HostMessageEditorViewModel : ObservableObject
             Templates.Clear();
             foreach (var t in coll.Templates)
                 Templates.Add(HostMessageTemplateViewModel.FromModel(t));
+            RebuildGroups();
+            RefreshFilteredTemplates();
 
-            if (Templates.Count > 0) SelectedTemplate = Templates[0];
+            if (FilteredTemplates.Count > 0) SelectedTemplate = FilteredTemplates[0];
+            else SelectedTemplate = null;
             StatusMessage = $"已加载 {Templates.Count} 个 Host 消息模板";
             RefreshPreview();
         }
@@ -73,6 +95,53 @@ public partial class HostMessageEditorViewModel : ObservableObject
     }
 
     public void LoadDefault() => LoadFromPath(_filePath);
+
+    partial void OnSearchTextChanged(string value) => RefreshFilteredTemplates();
+
+    partial void OnSelectedGroupChanged(string value) => RefreshFilteredTemplates();
+
+    private void RebuildGroups()
+    {
+        var current = SelectedGroup;
+        GroupNames.Clear();
+        GroupNames.Add("全部");
+        foreach (var g in Templates.Select(t => t.GroupName).Where(g => !string.IsNullOrEmpty(g)).Distinct().OrderBy(g => g))
+            GroupNames.Add(g);
+        SelectedGroup = GroupNames.Contains(current) ? current : "全部";
+        OnPropertyChanged(nameof(TemplateCountSummary));
+    }
+
+    private void RefreshFilteredTemplates()
+    {
+        var search = SearchText?.Trim() ?? "";
+        var group = SelectedGroup ?? "全部";
+        var filtered = Templates.Where(t =>
+            (group == "全部" || t.GroupName == group) &&
+            (string.IsNullOrEmpty(search)
+             || t.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+             || t.Description.Contains(search, StringComparison.OrdinalIgnoreCase)
+             || t.DirectionName.Contains(search, StringComparison.OrdinalIgnoreCase)
+             || t.GroupName.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        FilteredTemplates.Clear();
+        foreach (var t in filtered)
+            FilteredTemplates.Add(t);
+
+        if (SelectedTemplate != null && !FilteredTemplates.Contains(SelectedTemplate))
+            SelectedTemplate = FilteredTemplates.FirstOrDefault();
+        else if (SelectedTemplate == null && FilteredTemplates.Count > 0)
+            SelectedTemplate = FilteredTemplates[0];
+
+        OnPropertyChanged(nameof(TemplateCountSummary));
+    }
+
+    [RelayCommand]
+    private void ClearSearch()
+    {
+        SearchText = "";
+        SelectedGroup = "全部";
+    }
 
     public void RefreshPreview()
     {
@@ -174,6 +243,13 @@ public partial class HostMessageEditorViewModel : ObservableObject
     {
         if (e.PropertyName == nameof(HostMessageTemplateViewModel.BodyFormat))
             OnPropertyChanged(nameof(IsRawBody));
+        if (e.PropertyName == nameof(HostMessageTemplateViewModel.Name)
+            || e.PropertyName == nameof(HostMessageTemplateViewModel.Description)
+            || e.PropertyName == nameof(HostMessageTemplateViewModel.DirectionName))
+        {
+            RebuildGroups();
+            RefreshFilteredTemplates();
+        }
     }
 }
 
@@ -213,8 +289,21 @@ public partial class HostMessageTemplateViewModel : ObservableObject
         }
     }
 
+    public string GroupName
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Name)) return "未命名";
+            var idx = Name.IndexOf('_');
+            return idx > 0 ? Name[..idx] : "未分组";
+        }
+    }
+
     partial void OnDirectionChanged(HostMessageDirection value)
         => OnPropertyChanged(nameof(DirectionName));
+
+    partial void OnNameChanged(string value)
+        => OnPropertyChanged(nameof(GroupName));
 
     [RelayCommand]
     private void AddField()

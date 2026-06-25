@@ -142,6 +142,13 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex) { LogSystem($"Host template load error: {ex.Message}"); }
 
+        // Keep AutoReply HostSend/HostReceive fuzzy-search source in sync immediately after
+        // startup. Previously this list was only filled when Host connected, so the scenario
+        // editor's Host message name box was empty before connecting.
+        HostEditor.Templates.CollectionChanged += OnHostTemplatesCollectionChanged;
+        foreach (var t in HostEditor.Templates) WireHostTemplateEvents(t);
+        SyncHostMessageNamesToAutoReply();
+
         // Wire up Host editor send button to protocol
         HostEditor.SendRequested += async tpl => { await SendHostTestMessageAsync(tpl); };
 
@@ -173,6 +180,37 @@ public partial class MainViewModel : ObservableObject
             ch.PropertyChanged -= OnChannelPropertyChanged;
             ch.PropertyChanged += OnChannelPropertyChanged;
         }
+    }
+
+    private void OnHostTemplatesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+            foreach (HostMessageTemplateViewModel t in e.NewItems)
+                WireHostTemplateEvents(t);
+        if (e.OldItems != null)
+            foreach (HostMessageTemplateViewModel t in e.OldItems)
+                t.PropertyChanged -= OnHostTemplatePropertyChanged;
+        SyncHostMessageNamesToAutoReply();
+    }
+
+    private void WireHostTemplateEvents(HostMessageTemplateViewModel template)
+    {
+        template.PropertyChanged -= OnHostTemplatePropertyChanged;
+        template.PropertyChanged += OnHostTemplatePropertyChanged;
+    }
+
+    private void OnHostTemplatePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(HostMessageTemplateViewModel.Name))
+            SyncHostMessageNamesToAutoReply();
+    }
+
+    private void SyncHostMessageNamesToAutoReply()
+    {
+        AutoReply.HostMessageNames.Clear();
+        foreach (var name in HostEditor.Templates.Select(t => t.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
+            AutoReply.HostMessageNames.Add(name);
+        RefreshBridgeHostTemplates();
     }
 
     private void OnChannelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -345,10 +383,7 @@ public partial class MainViewModel : ObservableObject
 
         // Load host templates from editor
         _hostTemplates = HostEditor.Templates.Select(t => t.ToModel()).ToList();
-        AutoReply.HostMessageNames.Clear();
-        foreach (var t in HostEditor.Templates)
-            AutoReply.HostMessageNames.Add(t.Name);
-        RefreshBridgeHostTemplates();
+        SyncHostMessageNamesToAutoReply();
 
         var hostLogger = _loggerFactory.CreateLogger<EAPSimulator.Core.Protocols.HostProtocol.HostProtocol>();
         _hostProtocol = new EAPSimulator.Core.Protocols.HostProtocol.HostProtocol(hostLogger);
@@ -592,10 +627,7 @@ public partial class MainViewModel : ObservableObject
     private async Task StartHostAsync(CancellationToken ct)
     {
         // Sync host message names from editor into AutoReply scenario combo.
-        AutoReply.HostMessageNames.Clear();
-        foreach (var t in HostEditor.Templates)
-            AutoReply.HostMessageNames.Add(t.Name);
-        RefreshBridgeHostTemplates();
+        SyncHostMessageNamesToAutoReply();
 
         // Rebuild typed template list from editor.
         _hostTemplates = HostEditor.Templates.Select(t => t.ToModel()).ToList();

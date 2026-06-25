@@ -856,4 +856,80 @@ public class ScenarioEngineTests
         while (engine.RunningScenario != null && DateTime.UtcNow < deadline)
             await Task.Delay(20);
     }
+
+    [Fact]
+    public async Task TriggerOnMessage_StartsScenarioAndFeedsTriggerMessageToReceive()
+    {
+        // Message-triggered scenarios should start while the engine is idle, then push the same
+        // inbound message into the new inbox so the first Receive step can capture it immediately.
+        var sent = new List<SecsMessage>();
+        var tpl = MakeAsciiTemplate("<A>triggered</A>");
+        var engine = MakeEngine(new() { ["tpl"] = tpl }, sent);
+        var scenario = new ScenarioDefinition
+        {
+            Name = "ceid-1001-flow",
+            TriggerOnMessage = true,
+            TriggerStream = 6,
+            TriggerFunction = 11,
+            TriggerConditions =
+            {
+                new FieldCondition { Path = "0", Operator = "==", Value = "1001" },
+            },
+            Steps =
+            {
+                new ScenarioStep
+                {
+                    Kind = ScenarioStepKind.Receive,
+                    Stream = 6,
+                    Function = 11,
+                    TimeoutMs = 5_000,
+                },
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+            },
+        };
+        engine.SetTriggerScenarios([scenario]);
+
+        await engine.HandleAsync(
+            new SecsMessage(6, 11, true, new SecsList(new SecsItem[] { new SecsU4(new uint[] { 1001 }) })),
+            null!, ProtocolRole.Equipment, CancellationToken.None);
+
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (sent.Count == 0 && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+
+        var single = Assert.Single(sent);
+        Assert.Equal((byte)1, single.Stream);
+        Assert.Equal((byte)3, single.Function);
+    }
+
+    [Fact]
+    public async Task TriggerOnMessage_IgnoresNonMatchingConditions()
+    {
+        var sent = new List<SecsMessage>();
+        var engine = MakeEngine(new() { ["tpl"] = MakeAsciiTemplate() }, sent);
+        var scenario = new ScenarioDefinition
+        {
+            Name = "ceid-1001-flow",
+            TriggerOnMessage = true,
+            TriggerStream = 6,
+            TriggerFunction = 11,
+            TriggerConditions =
+            {
+                new FieldCondition { Expression = "secs[\"0\"] == \"1001\"" },
+            },
+            Steps =
+            {
+                new ScenarioStep { Kind = ScenarioStepKind.Send, TemplateName = "tpl" },
+            },
+        };
+        engine.SetTriggerScenarios([scenario]);
+
+        await engine.HandleAsync(
+            new SecsMessage(6, 11, true, new SecsList(new SecsItem[] { new SecsU4(new uint[] { 2002 }) })),
+            null!, ProtocolRole.Equipment, CancellationToken.None);
+
+        await Task.Delay(100);
+        Assert.Empty(sent);
+        Assert.False(engine.IsRunning);
+    }
 }

@@ -27,6 +27,12 @@ public partial class AutoReplyViewModel : ObservableObject
     public ObservableCollection<ScenarioViewModel> Scenarios { get; } = [];
 
     /// <summary>
+    /// 场景名列表 — 给 CallScenario 步骤的子场景下拉做模糊搜索用。
+    /// 与 <see cref="Scenarios"/> 同步：Scenarios 变更 / 单个场景改名时这里也会刷新。
+    /// </summary>
+    public ObservableCollection<string> ScenarioNames { get; } = [];
+
+    /// <summary>
     /// Available template names from the message template file.
     /// Set by MainViewModel after loading templates.
     /// </summary>
@@ -111,6 +117,33 @@ public partial class AutoReplyViewModel : ObservableObject
 
     /// <summary>The currently active scenario engine, set by ApplyToRouter when protocol starts.</summary>
     private ScenarioEngine? _activeEngine;
+
+    public AutoReplyViewModel()
+    {
+        Scenarios.CollectionChanged += (_, e) =>
+        {
+            if (e.NewItems != null)
+                foreach (ScenarioViewModel s in e.NewItems)
+                    s.PropertyChanged += OnScenarioPropertyChanged;
+            if (e.OldItems != null)
+                foreach (ScenarioViewModel s in e.OldItems)
+                    s.PropertyChanged -= OnScenarioPropertyChanged;
+            RefreshScenarioNames();
+        };
+    }
+
+    private void OnScenarioPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ScenarioViewModel.Name))
+            RefreshScenarioNames();
+    }
+
+    private void RefreshScenarioNames()
+    {
+        ScenarioNames.Clear();
+        foreach (var s in Scenarios)
+            ScenarioNames.Add(s.Name);
+    }
 
     [RelayCommand]
     private void RunScenario()
@@ -269,17 +302,29 @@ public partial class AutoReplyViewModel : ObservableObject
         if (!string.IsNullOrEmpty(kindName) && Enum.TryParse<ScenarioStepKind>(kindName, true, out var k))
             kind = k;
         var step = new ScenarioStepViewModel { Kind = kind };
+        // Insert immediately AFTER the currently selected step (most natural "add next step"
+        // gesture). With no selection — e.g. brand-new scenario — append to the end.
+        var sel = SelectedStep;
+        var insertAt = SelectedScenario.Steps.Count;
+        if (sel != null)
+        {
+            var idx = SelectedScenario.Steps.IndexOf(sel);
+            if (idx >= 0)
+                insertAt = idx + 1;
+        }
         // Sensible per-kind defaults
         switch (kind)
         {
             case ScenarioStepKind.Send:
-                step.TemplateName = TemplateNames.FirstOrDefault() ?? "";
+                // Keep new Send steps blank. Defaulting to the first template (usually S1F1)
+                // makes users accidentally send the wrong message; the template picker already
+                // supports fuzzy search so choosing explicitly is cheap.
                 break;
             case ScenarioStepKind.Receive:
                 step.TimeoutMs = 30_000;
                 break;
             case ScenarioStepKind.Reply:
-                step.TemplateName = TemplateNames.FirstOrDefault() ?? "";
+                step.TemplateName = DefaultReplyTemplateName(insertAt) ?? TemplateNames.FirstOrDefault() ?? "";
                 break;
             case ScenarioStepKind.Delay:
                 step.DelayMs = 1_000;
@@ -319,21 +364,8 @@ public partial class AutoReplyViewModel : ObservableObject
                 break;
         }
         step.UpdateDisplayText();
-        // Insert immediately AFTER the currently selected step (most natural "add next step"
-        // gesture). With no selection — e.g. brand-new scenario — append to the end.
-        var sel = SelectedStep;
-        if (sel != null)
-        {
-            var idx = SelectedScenario.Steps.IndexOf(sel);
-            if (idx >= 0)
-            {
-                SelectedScenario.ShiftLayoutOverrides(idx + 1, +1);
-                SelectedScenario.Steps.Insert(idx + 1, step);
-                SelectedStep = step;
-                return;
-            }
-        }
-        SelectedScenario.Steps.Add(step);
+        SelectedScenario.ShiftLayoutOverrides(insertAt, +1);
+        SelectedScenario.Steps.Insert(insertAt, step);
         SelectedStep = step;
     }
 
@@ -345,8 +377,8 @@ public partial class AutoReplyViewModel : ObservableObject
     public void InsertStepAfter(int insertAfterIndex, ScenarioStepKind kind)
     {
         if (SelectedScenario == null) return;
-        var step = BuildStepWithDefaults(kind);
         var insertAt = Math.Clamp(insertAfterIndex + 1, 0, SelectedScenario.Steps.Count);
+        var step = BuildStepWithDefaults(kind, insertAt);
         SelectedScenario.ShiftLayoutOverrides(insertAt, +1);
         SelectedScenario.Steps.Insert(insertAt, step);
         SelectedStep = step;
@@ -355,27 +387,29 @@ public partial class AutoReplyViewModel : ObservableObject
     public void InsertStepBefore(int insertBeforeIndex, ScenarioStepKind kind)
     {
         if (SelectedScenario == null) return;
-        var step = BuildStepWithDefaults(kind);
         var insertAt = Math.Clamp(insertBeforeIndex, 0, SelectedScenario.Steps.Count);
+        var step = BuildStepWithDefaults(kind, insertAt);
         SelectedScenario.ShiftLayoutOverrides(insertAt, +1);
         SelectedScenario.Steps.Insert(insertAt, step);
         SelectedStep = step;
     }
 
     /// <summary>Centralised per-kind defaults so both append and insert paths agree.</summary>
-    private ScenarioStepViewModel BuildStepWithDefaults(ScenarioStepKind kind)
+    private ScenarioStepViewModel BuildStepWithDefaults(ScenarioStepKind kind, int? insertAt = null)
     {
         var step = new ScenarioStepViewModel { Kind = kind };
         switch (kind)
         {
             case ScenarioStepKind.Send:
-                step.TemplateName = TemplateNames.FirstOrDefault() ?? "";
+                // Keep new Send steps blank. Defaulting to the first template (usually S1F1)
+                // makes users accidentally send the wrong message; the template picker already
+                // supports fuzzy search so choosing explicitly is cheap.
                 break;
             case ScenarioStepKind.Receive:
                 step.TimeoutMs = 30_000;
                 break;
             case ScenarioStepKind.Reply:
-                step.TemplateName = TemplateNames.FirstOrDefault() ?? "";
+                step.TemplateName = DefaultReplyTemplateName(insertAt) ?? TemplateNames.FirstOrDefault() ?? "";
                 break;
             case ScenarioStepKind.Delay:
                 step.DelayMs = 1_000;
@@ -409,6 +443,38 @@ public partial class AutoReplyViewModel : ObservableObject
         }
         step.UpdateDisplayText();
         return step;
+    }
+
+    /// <summary>
+    /// Pick a reply template for a newly inserted Reply step from the nearest previous Receive.
+    /// SECS/GEM replies conventionally use the same Stream and Function+1, so a Receive S6F11
+    /// suggests S6F12 automatically. This is only a default; the user can still override it in UI.
+    /// </summary>
+    private string? DefaultReplyTemplateName(int? insertAt)
+    {
+        if (SelectedScenario == null) return null;
+        var start = Math.Min(insertAt ?? SelectedScenario.Steps.Count, SelectedScenario.Steps.Count) - 1;
+        for (int i = start; i >= 0; i--)
+        {
+            var prev = SelectedScenario.Steps[i];
+            if (prev.Kind != ScenarioStepKind.Receive) continue;
+
+            byte stream = prev.Stream;
+            byte function = prev.Function;
+            if ((stream == 0 || function == 0) && !string.IsNullOrEmpty(prev.TemplateName))
+            {
+                var receiveTpl = FindTemplateByName(prev.TemplateName);
+                if (receiveTpl != null)
+                {
+                    stream = receiveTpl.Stream;
+                    function = receiveTpl.Function;
+                }
+            }
+            if (stream == 0 || function == 0 || function == byte.MaxValue) return null;
+            var replyTpl = FindTemplateByStreamFunction(stream, (byte)(function + 1));
+            return replyTpl?.Name;
+        }
+        return null;
     }
 
     /// <summary>Pick the next free LoopId in the current scenario (L1, L2, ...).</summary>
@@ -540,8 +606,12 @@ public partial class AutoReplyViewModel : ObservableObject
         var idx = SelectedScenario.Steps.IndexOf(SelectedStep);
         if (idx > 0)
         {
+            var moved = SelectedStep;
             SelectedScenario.Steps.Move(idx, idx - 1);
             SelectedScenario.SwapLayoutOverrides(idx, idx - 1);
+            // ListBox 双向绑定在 Move 时会把 SelectedItem 短暂写回 null，
+            // 这里把选中项恢复回那个被移动的步骤，连续按 ↑ 才不需要再点一次。
+            SelectedStep = moved;
         }
     }
 
@@ -552,8 +622,10 @@ public partial class AutoReplyViewModel : ObservableObject
         var idx = SelectedScenario.Steps.IndexOf(SelectedStep);
         if (idx < SelectedScenario.Steps.Count - 1)
         {
+            var moved = SelectedStep;
             SelectedScenario.Steps.Move(idx, idx + 1);
             SelectedScenario.SwapLayoutOverrides(idx, idx + 1);
+            SelectedStep = moved;
         }
     }
 
@@ -606,6 +678,32 @@ public partial class AutoReplyViewModel : ObservableObject
             SelectedQuickReply.Conditions.Remove(cond);
             SelectedQuickReply.UpdateDisplayText();
         }
+    }
+
+    [RelayCommand]
+    private void AddTriggerCondition()
+    {
+        if (SelectedScenario == null) return;
+        var cond = new FieldConditionViewModel { Path = "1/0", Value = "" };
+        // 把当前触发模板的字段树灌进新条件，让"字段"下拉立即可用——否则要等用户重新选一次模板才会有内容。
+        var tplName = SelectedScenario.TriggerTemplateName;
+        if (string.IsNullOrEmpty(tplName) && SelectedScenario.TriggerStream != 0)
+        {
+            // 没显式选模板但 S/F 已填 → 反查模板名兜底
+            var tpl = FindTemplateByStreamFunction(SelectedScenario.TriggerStream, SelectedScenario.TriggerFunction);
+            if (tpl != null) tplName = tpl.Name;
+        }
+        if (!string.IsNullOrEmpty(tplName))
+            foreach (var f in ExtractTemplateFields(tplName))
+                cond.TemplateFields.Add(f);
+        SelectedScenario.TriggerConditions.Add(cond);
+    }
+
+    [RelayCommand]
+    private void DeleteTriggerCondition(FieldConditionViewModel? cond)
+    {
+        if (cond == null || SelectedScenario == null) return;
+        SelectedScenario.TriggerConditions.Remove(cond);
     }
 
     // ─── Save/Load ───
@@ -720,6 +818,25 @@ public partial class AutoReplyViewModel : ObservableObject
     public SecsMessageTemplate? FindTemplateByStreamFunction(byte stream, byte function)
     {
         return _allTemplates.FirstOrDefault(t => t.Stream == stream && t.Function == function);
+    }
+
+    /// <summary>
+    /// Resolve a user's partial Host message input to a single known template name. AutoCompleteBox
+    /// filters visually, but Text binding still writes the raw typed text; this lets typing a unique
+    /// tail such as "LotEnd" commit to "MESLOTEND_MES_LotEnd" so HostSend can find the template.
+    /// </summary>
+    public string? ResolveUniqueHostMessageName(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var exact = HostMessageNames.FirstOrDefault(n => string.Equals(n, text, StringComparison.Ordinal));
+        if (exact != null) return exact;
+
+        var matches = HostMessageNames
+            .Where(n => n.Contains(text, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.Ordinal)
+            .Take(2)
+            .ToList();
+        return matches.Count == 1 ? matches[0] : null;
     }
 
     /// <summary>
@@ -892,6 +1009,12 @@ public partial class AutoReplyViewModel : ObservableObject
             Avalonia.Threading.Dispatcher.UIThread.Post(() => RunStatus = $"{sc.Name}: {status}");
         router.SetScenarioEngine(engine);
         _activeEngine = engine;
+
+        // Register message-triggered scenarios. 引擎空闲时收到匹配消息会自动 Start。
+        engine.SetTriggerScenarios(
+            Scenarios.Where(s => s.Enabled && s.TriggerOnMessage
+                                 && ScenarioEngine.RoleAllows(s.Role, CurrentRole))
+                     .Select(s => s.ToModel()));
 
         // Auto-start scenarios — but only those whose authored Role matches this side.
         foreach (var scVm in Scenarios.Where(s => s.Enabled && s.AutoStart
@@ -1150,6 +1273,66 @@ public partial class ScenarioViewModel : ObservableObject
     private bool _autoStart;
 
     /// <summary>
+    /// 当为 true 时，引擎空闲且收到 (TriggerStream,TriggerFunction) 命中且所有 TriggerConditions 匹配
+    /// 的入站 SECS 消息时，自动 Start 本场景。典型用法：S6F11 + CEID==某值 → 跑对应处理流程。
+    /// </summary>
+    [ObservableProperty]
+    private bool _triggerOnMessage;
+
+    [ObservableProperty]
+    private byte _triggerStream;
+
+    [ObservableProperty]
+    private byte _triggerFunction;
+
+    /// <summary>
+    /// 触发模板选择 UI 用 — 选中一个模板名后自动把 <see cref="TriggerStream"/>/<see cref="TriggerFunction"/>
+    /// 同步过来；同时把模板字段树灌进 <see cref="TriggerConditions"/> 的 TemplateFields，使条件可以下拉选路径。
+    /// 不参与序列化（仅 UI 辅助）。
+    /// </summary>
+    [ObservableProperty]
+    private string _triggerTemplateName = "";
+
+    partial void OnTriggerTemplateNameChanged(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return;
+        var parent = AutoReplyViewModel.Instance;
+        var tpl = parent?.FindTemplateByName(value);
+        if (tpl == null)
+        {
+            // 用户还在输入中（AutoCompleteBox 的 Text 在每次按键时都会回写），
+            // 名字尚未对上某个模板就别动 S/F 和已经填好的 TemplateFields——否则会被空列表覆盖。
+            return;
+        }
+        _triggerTemplateAuthoritative = true;
+        TriggerStream = tpl.Stream;
+        TriggerFunction = tpl.Function;
+        _triggerTemplateAuthoritative = false;
+        parent?.PopulateTemplateFields(TriggerConditions, value);
+    }
+
+    /// <summary>
+    /// True 表示 S/F 当前由模板选择驱动，OnTriggerStream/FunctionChanged 不应反过来清空模板名。
+    /// 用户手动改 S/F 时这个标志为 false，模板名会被清掉以避免显示和实际不一致。
+    /// </summary>
+    private bool _triggerTemplateAuthoritative;
+
+    partial void OnTriggerStreamChanged(byte value)
+    {
+        if (_triggerTemplateAuthoritative) return;
+        // 手动改 S/F → 取消"已选模板"的视觉绑定，避免模板名和实际 S/F 对不上。
+        TriggerTemplateName = "";
+    }
+
+    partial void OnTriggerFunctionChanged(byte value)
+    {
+        if (_triggerTemplateAuthoritative) return;
+        TriggerTemplateName = "";
+    }
+
+    public ObservableCollection<FieldConditionViewModel> TriggerConditions { get; } = [];
+
+    /// <summary>
     /// Which side of the link this scenario is authored for. Drives the role badge in the
     /// list and is checked when ScenarioEngine.Start is called.
     /// </summary>
@@ -1255,6 +1438,7 @@ public partial class ScenarioViewModel : ObservableObject
                 foreach (ScenarioStepViewModel s in args.OldItems)
                     s.PropertyChanged -= OnStepPropertyChanged;
             RefreshAvailableLabels();
+            RefreshTriggerWarning();
         };
     }
 
@@ -1262,6 +1446,40 @@ public partial class ScenarioViewModel : ObservableObject
     {
         if (e.PropertyName == nameof(ScenarioStepViewModel.Label))
             RefreshAvailableLabels();
+        // 首步 Kind 变了可能让"触发但首步不是 Receive"的警告生效/消失。
+        if (e.PropertyName == nameof(ScenarioStepViewModel.Kind))
+            RefreshTriggerWarning();
+    }
+
+    partial void OnTriggerOnMessageChanged(bool value) => RefreshTriggerWarning();
+
+    /// <summary>
+    /// 触发配置的静态校验提示。返回空串表示没问题；否则一段人话警告。
+    /// 当前只检一种常见坑：勾了触发但首步不是 Receive —— 触发消息会进 inbox，
+    /// 但若首步直接是 Reply / Send / Branch 等，<c>_lastReceived</c> 仍是 null，
+    /// 后续 Reply 步骤会抛错走 OnError。
+    /// </summary>
+    public string TriggerWarning
+    {
+        get
+        {
+            if (!TriggerOnMessage) return "";
+            if (Steps.Count == 0)
+                return "⚠ 已勾选触发但场景没有步骤";
+            var first = Steps[0];
+            if (first.Kind != ScenarioStepKind.Receive)
+                return $"⚠ 首步是 {first.Kind}，建议改为 Receive。否则触发消息无法绑定到 _lastReceived，" +
+                       "后续 Reply 会失败。";
+            return "";
+        }
+    }
+
+    public bool HasTriggerWarning => !string.IsNullOrEmpty(TriggerWarning);
+
+    private void RefreshTriggerWarning()
+    {
+        OnPropertyChanged(nameof(TriggerWarning));
+        OnPropertyChanged(nameof(HasTriggerWarning));
     }
 
     /// <summary>
@@ -1292,6 +1510,10 @@ public partial class ScenarioViewModel : ObservableObject
             Enabled = Enabled,
             Loop = Loop,
             AutoStart = AutoStart,
+            TriggerOnMessage = TriggerOnMessage,
+            TriggerStream = TriggerStream,
+            TriggerFunction = TriggerFunction,
+            TriggerConditions = TriggerConditions.Select(c => c.ToModel()).ToList(),
             Steps = Steps.Select(s => s.ToModel()).ToList(),
         };
         if (LayoutOverrides.Count > 0)
@@ -1317,7 +1539,25 @@ public partial class ScenarioViewModel : ObservableObject
             Enabled = def.Enabled,
             Loop = def.Loop,
             AutoStart = def.AutoStart,
+            TriggerOnMessage = def.TriggerOnMessage,
+            TriggerStream = def.TriggerStream,
+            TriggerFunction = def.TriggerFunction,
         };
+        foreach (var c in def.TriggerConditions)
+            vm.TriggerConditions.Add(FieldConditionViewModel.FromModel(c));
+        // 反查触发模板名，让 AutoCompleteBox 加载场景后能显示已选模板；同时把字段树灌进
+        // 已有的 TriggerConditions（来自 JSON 反序列化的条件 TemplateFields 是空的）。
+        if (def.TriggerOnMessage && (def.TriggerStream != 0 || def.TriggerFunction != 0))
+        {
+            var parent = AutoReplyViewModel.Instance;
+            var tpl = parent?.FindTemplateByStreamFunction(def.TriggerStream, def.TriggerFunction);
+            if (tpl != null)
+            {
+                vm._triggerTemplateAuthoritative = true;
+                vm.TriggerTemplateName = tpl.Name;
+                vm._triggerTemplateAuthoritative = false;
+            }
+        }
         foreach (var step in def.Steps)
             vm.Steps.Add(ScenarioStepViewModel.FromModel(step));
         if (def.Layout?.Nodes != null)
@@ -1555,7 +1795,22 @@ public partial class ScenarioStepViewModel : ObservableObject
     partial void OnDelayMsChanged(int value) => UpdateDisplayText();
     partial void OnMessageChanged(string value) => UpdateDisplayText();
     partial void OnLabelChanged(string value) => UpdateDisplayText();
-    partial void OnHostMessageNameChanged(string value) => UpdateDisplayText();
+    partial void OnHostMessageNameChanged(string value)
+    {
+        UpdateDisplayText();
+        if (_hostMessageNameAuthoritative) return;
+        if (string.IsNullOrWhiteSpace(value)) return;
+
+        var parent = AutoReplyViewModel.Instance;
+        var match = parent?.ResolveUniqueHostMessageName(value);
+        if (match == null || string.Equals(match, value, StringComparison.Ordinal)) return;
+
+        _hostMessageNameAuthoritative = true;
+        HostMessageName = match;
+        _hostMessageNameAuthoritative = false;
+    }
+
+    private bool _hostMessageNameAuthoritative;
     partial void OnHostChannelNameChanged(string value) => UpdateDisplayText();
     partial void OnVariableNameChanged(string value) => UpdateDisplayText();
     partial void OnVariablePathChanged(string value) => UpdateDisplayText();
@@ -1582,16 +1837,18 @@ public partial class ScenarioStepViewModel : ObservableObject
 
         var parent = AutoReplyViewModel.Instance;
         var tpl = parent?.FindTemplateByName(value);
-        if (tpl != null && Kind == ScenarioStepKind.Receive)
+        // tpl == null 说明用户还在 AutoCompleteBox 里逐字输入，没对上有效模板；
+        // 这种中间态别动 S/F 和 TemplateFields，否则会被空列表覆盖（参考触发模板的同类保护）。
+        if (tpl == null) return;
+        if (Kind == ScenarioStepKind.Receive)
         {
             // For a Receive step using a template as a shape hint, copy S/F.
             Stream = tpl.Stream;
             Function = tpl.Function;
+            // Populate condition field options from the template body so the user
+            // can pick paths via the dropdown.
+            parent?.PopulateTemplateFields(Conditions, value);
         }
-        // Populate condition field options from the template body so the user
-        // can pick paths via the dropdown.
-        if (Kind == ScenarioStepKind.Receive && parent != null)
-            parent.PopulateTemplateFields(Conditions, value);
     }
 
     public void UpdateDisplayText()

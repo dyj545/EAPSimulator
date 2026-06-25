@@ -30,6 +30,8 @@
           "alias": "SVID",
           "description": "状态变量ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -66,6 +68,8 @@
           "alias": "ALID",
           "description": "报警ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -74,6 +78,8 @@
           "alias": "ALTX",
           "description": "报警文本",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -82,6 +88,8 @@
           "alias": "ALCD",
           "description": "报警代码",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -109,6 +117,8 @@
           "alias": "SVID",
           "description": "状态变量ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -117,6 +127,8 @@
           "alias": "SVNAME",
           "description": "状态变量名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -125,6 +137,8 @@
           "alias": "SV说明",
           "description": "",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -133,6 +147,8 @@
           "alias": "UNITS",
           "description": "单位",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -160,6 +176,8 @@
           "alias": "ACK",
           "description": "通信确认码 00=成功/01=失败",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -178,6 +196,8 @@
           "alias": "ACK",
           "description": "通信确认码 00=成功/01=失败",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -259,6 +279,8 @@
           "alias": "ACK",
           "description": "确认码",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -267,6 +289,8 @@
           "alias": "CEED",
           "description": "控制状态",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -294,6 +318,8 @@
           "alias": "DVID",
           "description": "数据变量ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -302,6 +328,8 @@
           "alias": "DVNAME",
           "description": "数据变量名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -310,6 +338,8 @@
           "alias": "DV说明",
           "description": "",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -318,6 +348,8 @@
           "alias": "UNITS",
           "description": "单位",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -345,6 +377,8 @@
           "alias": "CEID",
           "description": "收集事件ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -353,6 +387,8 @@
           "alias": "CENAME",
           "description": "事件名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -389,6 +425,8 @@
           "alias": "ECID",
           "description": "设备常量ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -407,6 +445,8 @@
           "alias": "ECV",
           "description": "设备常量值",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -425,6 +465,8 @@
           "alias": "ECID",
           "description": "设备常量ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -433,6 +475,8 @@
           "alias": "ECV",
           "description": "设备常量值",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -478,6 +522,8 @@
           "alias": "PPID",
           "description": "配方ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -486,6 +532,8 @@
           "alias": "PPBODY",
           "description": "配方内容",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -522,6 +570,8 @@
           "alias": "PPID",
           "description": "配方ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -530,6 +580,8 @@
           "alias": "PPBODY",
           "description": "配方内容",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -656,6 +708,8 @@
           "alias": "ECID",
           "description": "设备常量ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -664,6 +718,8 @@
           "alias": "ECNAME",
           "description": "常量名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -672,6 +728,8 @@
           "alias": "EC说明",
           "description": "",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -680,6 +738,8 @@
           "alias": "UNITS",
           "description": "单位",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -698,6 +758,8 @@
           "alias": "RPTID",
           "description": "报告ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -725,6 +787,8 @@
           "alias": "RPTID",
           "description": "报告ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -752,6 +816,8 @@
           "alias": "CEED",
           "description": "启用/禁用标志",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -770,6 +836,8 @@
           "alias": "CEED",
           "description": "启用/禁用标志",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -797,6 +865,8 @@
           "alias": "RCMD",
           "description": "远程命令名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -815,6 +885,8 @@
           "alias": "RCMD",
           "description": "远程命令名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -833,6 +905,8 @@
           "alias": "RCMD",
           "description": "远程命令名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -851,6 +925,8 @@
           "alias": "ACK",
           "description": "命令确认码",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -869,6 +945,8 @@
           "alias": "ACK",
           "description": "命令确认码",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -887,6 +965,8 @@
           "alias": "OBJID",
           "description": "对象ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -895,6 +975,8 @@
           "alias": "OBJTYPE",
           "description": "对象类型",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -994,6 +1076,8 @@
           "alias": "ACK",
           "description": "通信确认码",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1012,6 +1096,8 @@
           "alias": "ACK",
           "description": "通信确认码",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1030,6 +1116,8 @@
           "alias": "ALCD",
           "description": "报警代码 SET=1/CLEAR=0",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1038,6 +1126,8 @@
           "alias": "ALID",
           "description": "报警ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1046,6 +1136,8 @@
           "alias": "ALNAME",
           "description": "报警名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1054,6 +1146,8 @@
           "alias": "ALTX",
           "description": "报警描述",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1072,6 +1166,8 @@
           "alias": "ALCD",
           "description": "报警代码 SET=1/CLEAR=0",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1080,6 +1176,8 @@
           "alias": "ALID",
           "description": "报警ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1088,6 +1186,8 @@
           "alias": "ALNAME",
           "description": "报警名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1096,6 +1196,8 @@
           "alias": "ALTX",
           "description": "报警描述",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1150,6 +1252,8 @@
           "alias": "ALID",
           "description": "报警ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1168,6 +1272,8 @@
           "alias": "ALID",
           "description": "报警ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1176,6 +1282,8 @@
           "alias": "ALCD",
           "description": "报警代码",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1184,6 +1292,8 @@
           "alias": "ALNAME",
           "description": "报警名称",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1192,6 +1302,8 @@
           "alias": "ALTX",
           "description": "报警描述",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1210,6 +1322,8 @@
           "alias": "DATAID",
           "description": "数据ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1218,6 +1332,8 @@
           "alias": "CEID",
           "description": "收集事件ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1236,6 +1352,8 @@
           "alias": "DATAID",
           "description": "数据ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1244,6 +1362,8 @@
           "alias": "CEID",
           "description": "收集事件ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1262,6 +1382,8 @@
           "alias": "DATAID",
           "description": "数据ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1270,6 +1392,8 @@
           "alias": "CEID",
           "description": "收集事件ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1288,6 +1412,8 @@
           "alias": "DATAID",
           "description": "数据ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1296,6 +1422,8 @@
           "alias": "CEID",
           "description": "收集事件ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1304,6 +1432,8 @@
           "alias": "机台状态",
           "description": "5 = Remote，4 = Local",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1403,6 +1533,8 @@
           "alias": "DATAID",
           "description": "数据ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1411,6 +1543,8 @@
           "alias": "CEID",
           "description": "收集事件ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1447,6 +1581,8 @@
           "alias": "CEID",
           "description": "收集事件ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1465,6 +1601,8 @@
           "alias": "RPTID",
           "description": "报告ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1708,6 +1846,8 @@
           "alias": "TID",
           "description": "终端ID",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null
@@ -1716,6 +1856,8 @@
           "alias": "TEXT",
           "description": "终端消息",
           "format": "",
+          "inputFormat": null,
+          "previewFormat": null,
           "nlb": "",
           "defaultValue": "",
           "valueMappings": null

@@ -54,8 +54,8 @@ EAPSimulator.UI     (net9.0-windows, WPF) ← 唯一阻断点
 - [ ] `ConfigWindow.xaml.cs` — 简单，基本不改
 
 #### 视图 (10 个文件)
-- [ ] `Views/AutoReplyView.xaml` — 最复杂，大量 WPF-UI 控件和触发器
-- [ ] `Views/AutoReplyView.xaml.cs` — ComboBox 事件处理
+- [ ] `Views/AutoReplyView.xaml` — 最复杂，大量 WPF-UI 控件和触发器（迁移后为 `AutoReplyView.axaml`）
+- [ ] `Views/AutoReplyView.xaml.cs` — 模板选择控件迁移后改为 `AutoCompleteBox`（不再依赖 ComboBox 事件处理）
 - [ ] `Views/ConfigView.xaml` — ui:TextBox 等
 - [ ] `Views/ConfigView.xaml.cs` — 基本不改
 - [ ] `Views/MessageEditorView.xaml` — 复杂，TreeView + ContextMenu + 触发器
@@ -174,6 +174,8 @@ WPF 和 Avalonia 的 ContextMenu 语法基本相同，但有差异：
 
 ### 3.8 ComboBox
 
+> **⚠️ 此节已部分过时（2026-06-24）**：模糊搜索需求最终改用 `AutoCompleteBox` + `FilterMode=Contains` 实现，不再依赖 ComboBox 的编辑模式 / `StaysOpenOnEdit` / `IsTextSearchEnabled` 等行为。所有模板 / 子场景 / Host 消息名选择控件统一为 `AutoCompleteBox`。本节保留作为迁移期决策记录；新功能请参考 [SCENARIO_ENGINE.md §4.10](modules/SCENARIO_ENGINE.md#410-编辑器-ui-约定2026-06-24-之后)。
+
 | WPF | Avalonia | 影响 |
 |-----|---------|------|
 | `IsTextSearchEnabled="False"` | 无直接等价，需检查 | AutoReplyView |
@@ -182,10 +184,7 @@ WPF 和 Avalonia 的 ContextMenu 语法基本相同，但有差异：
 | `DropDownOpened` 事件 | `DropDownOpened` 事件 (需验证) | AutoReplyView |
 | `cb.IsDropDownOpen` | `cb.IsDropDownOpen` (需验证) | AutoReplyView |
 
-**要求:**
-- 验证 Avalonia ComboBox 的编辑模式行为
-- 如果 Avalonia 不支持 `StaysOpenOnEdit`，需要自定义实现
-- 验证模糊搜索功能在 Avalonia 下是否正常工作
+**要求:** ~~验证 Avalonia ComboBox 的编辑模式行为 / `StaysOpenOnEdit` 自定义实现 / 模糊搜索在 Avalonia 下表现~~ → **已废弃**：项目已迁移到 `AutoCompleteBox`，该控件原生支持 `Text` 两向绑定 + `FilterMode=Contains` 子串过滤；编辑模式由控件自身实现，无需 hack。注意点：`AutoCompleteBox` 顶层 `VerticalContentAlignment` 不生效，需要通过样式选择器 `AutoCompleteBox /template/ TextBox` 穿透到内层 TextBox 才能让文本垂直居中。
 
 ### 3.9 剪贴板和键盘
 
@@ -372,7 +371,7 @@ WPF 和 Avalonia 的 ContextMenu 语法基本相同，但有差异：
 
 2. **Style.Triggers 重写** — WPF 的 `Trigger`（基于属性值）在 Avalonia 中没有直接等价物，需要改为 DataTrigger 或 Behavior。
 
-3. **模糊搜索 ComboBox** — `IsTextSearchEnabled` 和 `StaysOpenOnEdit` 在 Avalonia 中的行为可能不同，需要充分测试。
+3. ~~**模糊搜索 ComboBox** — `IsTextSearchEnabled` 和 `StaysOpenOnEdit` 在 Avalonia 中的行为可能不同，需要充分测试。~~ → **已替代（2026-06-24）**：改用 `AutoCompleteBox` + `FilterMode=Contains`，原生支持子串过滤；不再需要测试 ComboBox 的隐藏行为。
 
 ### 6.2 中风险项
 

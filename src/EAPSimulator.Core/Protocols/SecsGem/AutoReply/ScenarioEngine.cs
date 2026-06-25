@@ -115,6 +115,22 @@ public class ScenarioEngine : ISecsMessageHandler
 
     public bool ConsumedLast { get; private set; }
 
+    /// <summary>
+    /// 触发场景列表。HandleAsync 在引擎空闲时遍历，匹配 (Stream,Function) + Conditions 命中即 Start。
+    /// 通过 <see cref="SetTriggerScenarios"/> 注册（一般由 UI 在 ApplyToRouter 阶段调用）。
+    /// </summary>
+    private List<ScenarioDefinition> _triggerScenarios = new();
+
+    /// <summary>
+    /// 把一组场景注册为"按入站消息触发"。调用方应只传 <c>Enabled &amp;&amp; TriggerOnMessage</c> 的场景，
+    /// 引擎不再二次过滤。后续每条入站 SECS 消息在引擎空闲时会按列表顺序匹配，第一条命中就 Start，
+    /// 其余忽略（同一消息最多触发一个场景）。
+    /// </summary>
+    public void SetTriggerScenarios(IEnumerable<ScenarioDefinition> scenarios)
+    {
+        _triggerScenarios = scenarios?.ToList() ?? new();
+    }
+
     public ScenarioEngine(
         ILogger logger,
         Func<string, SecsMessageTemplate?> templateLookup,
@@ -1106,6 +1122,44 @@ public class ScenarioEngine : ISecsMessageHandler
     {
         var inbox = _inbox;
         ConsumedLast = inbox != null && inbox.Writer.TryWrite(request);
+        // 引擎空闲时检查是否有"按消息触发"的场景命中，命中则把它启动起来 — 之后这条消息
+        // 落进新建场景的 _inbox（如果首步是 Receive 会消费它）。
+        if (inbox == null)
+            TryStartTriggeredScenario(request);
         return Task.FromResult<SecsMessage?>(null);
+    }
+
+    /// <summary>
+    /// 引擎空闲时，按注册顺序找第一条 (Stream,Function) + 条件命中的触发场景并 Start。
+    /// 注意：单引擎实例同一时刻只能跑一个场景，所以只挑首个命中。Start 后立刻把当前消息写入
+    /// 它的 inbox，方便首步 Receive 直接消费这条触发消息。
+    /// </summary>
+    private void TryStartTriggeredScenario(SecsMessage request)
+    {
+        if (_triggerScenarios.Count == 0) return;
+        var triggerExpr = new ScenarioExpression(new ScenarioVariables());
+        foreach (var sc in _triggerScenarios)
+        {
+            if (!sc.TriggerOnMessage) continue;
+            if (sc.TriggerStream != request.Stream || sc.TriggerFunction != request.Function) continue;
+            if (!RoleAllows(sc.Role, _currentRole)) continue;
+            bool allMatch = true;
+            foreach (var cond in sc.TriggerConditions)
+            {
+                if (!MatchUtil.MatchesCondition(cond, request.RootItem, triggerExpr))
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+            if (!allMatch) continue;
+            EmitLog($"⚡ S{sc.TriggerStream}F{sc.TriggerFunction} 触发场景 '{sc.Name}'");
+            Start(sc);
+            // Start 重置了 _inbox，把触发消息丢进去，首步 Receive 可以立刻消费。
+            var newInbox = _inbox;
+            if (newInbox != null && newInbox.Writer.TryWrite(request))
+                ConsumedLast = true;
+            return;
+        }
     }
 }

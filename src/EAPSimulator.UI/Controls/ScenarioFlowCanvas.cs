@@ -286,16 +286,33 @@ public partial class ScenarioFlowCanvas : UserControl
     private void DrawNode(ScenarioViewModel vm, FlowNode node)
     {
         var (fill, fg) = NodeColors(node.Kind);
-        var label = new TextBlock
+        var (kindBadge, detail) = SplitKindAndDetail(node);
+        var kindLine = new TextBlock
         {
-            Text = node.Step.DisplayText,
+            Text = kindBadge,
+            Foreground = fg,
+            Opacity = 0.85,
+            FontSize = 10,
+            FontWeight = FontWeight.Bold,
+            FontFamily = new FontFamily("Consolas,Microsoft YaHei,monospace"),
+        };
+        var detailLine = new TextBlock
+        {
+            Text = detail,
             Foreground = fg,
             FontSize = 11,
             FontFamily = new FontFamily("Consolas,Microsoft YaHei,monospace"),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            Margin = new Thickness(NodePadding, 4, NodePadding, 4),
+            TextWrapping = TextWrapping.Wrap,
         };
+        var textStack = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Vertical,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            Margin = new Thickness(NodePadding, 2, NodePadding, 2),
+            Spacing = 1,
+        };
+        textStack.Children.Add(kindLine);
+        textStack.Children.Add(detailLine);
         var idxText = new TextBlock
         {
             Text = node.StepIndex.ToString(),
@@ -310,12 +327,12 @@ public partial class ScenarioFlowCanvas : UserControl
         var content = new DockPanel { LastChildFill = true };
         DockPanel.SetDock(idxText, Dock.Left);
         content.Children.Add(idxText);
-        content.Children.Add(label);
+        content.Children.Add(textStack);
 
         var shell = new Border
         {
             Width = ScenarioFlowLayout.NodeWidth,
-            Height = ScenarioFlowLayout.NodeHeight,
+            MinHeight = ScenarioFlowLayout.NodeHeight,
             CornerRadius = new CornerRadius(4),
             Background = fill,
             BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33)),
@@ -951,6 +968,29 @@ public partial class ScenarioFlowCanvas : UserControl
             ZIndex = 5,
         };
         _canvas.Children.Add(arrow);
+    }
+
+    /// <summary>
+    /// Split a step's <see cref="ScenarioStepViewModel.DisplayText"/> into a short kind badge
+    /// (rendered as the bold first line) and the remaining detail (wrapped on the second line).
+    /// The existing DisplayText format is always "<icon> <KindWord> <rest…>", so we keep the
+    /// first two tokens as the badge and let everything else wrap. Falls back gracefully if the
+    /// text is shorter than expected.
+    /// </summary>
+    private static (string Badge, string Detail) SplitKindAndDetail(FlowNode node)
+    {
+        var text = node.Step.DisplayText ?? "";
+        if (string.IsNullOrWhiteSpace(text))
+            return (node.Kind.ToString(), "");
+        // First two whitespace-separated tokens form the badge — e.g. "▶ Send", "◀ Recv",
+        // "⑂ Branch", "⤴ EndLoop". Whatever follows is the detail.
+        int firstSp = text.IndexOf(' ');
+        if (firstSp < 0) return (text, "");
+        int secondSp = text.IndexOf(' ', firstSp + 1);
+        if (secondSp < 0) return (text, "");
+        var badge = text.Substring(0, secondSp);
+        var detail = text.Substring(secondSp + 1).TrimStart();
+        return (badge, detail);
     }
 
     private static (IBrush fill, IBrush fg) NodeColors(ScenarioStepKind kind) => kind switch

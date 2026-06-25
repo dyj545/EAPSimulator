@@ -120,6 +120,37 @@
 - 行内字段：8-10px
 - 标签与输入框：0（Grid 自动对齐）
 
+### 2.6 模糊搜索 / 可输入下拉 — 用 `AutoCompleteBox`
+
+任何"列表挑一个 + 也允许直接输入新值"的场景都用 `AutoCompleteBox` + `FilterMode="Contains"`，不要再走 ComboBox 的编辑模式 / IsTextSearchEnabled / StaysOpenOnEdit 那条老路（Avalonia 下行为不一致且不可控）。
+
+```xaml
+<AutoCompleteBox ItemsSource="{Binding TemplateNames}"
+                 Text="{Binding SelectedTemplateName}"
+                 FilterMode="Contains"
+                 Padding="4,2" FontSize="11"
+                 Watermark="(输入关键字过滤)"/>
+```
+
+⚠️ **内层 TextBox 不响应顶层 `VerticalContentAlignment`**。文本默认贴顶，必须通过样式选择器穿透：
+
+```xaml
+<UserControl.Styles>
+    <Style Selector="AutoCompleteBox /template/ TextBox">
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+</UserControl.Styles>
+```
+
+把它放在使用 AutoCompleteBox 的 View 顶部一次，覆盖该 View 内所有实例。
+
+对于模板名、Host 消息名、子场景名这类“点击后通常要直接替换”的输入框，给 `AutoCompleteBox` 增加 `Classes="templatePicker"`，样式统一设置 `MinimumPrefixLength=0` / `MinimumPopulateDelay=0`。点击/聚焦只做自动全选，不要打开下拉；只在 `TextInputEvent`（真实键盘文本输入）到达 templatePicker 后延后一拍 `IsDropDownOpen=true` 展开过滤结果。不要用普通 `GotFocus`、`PointerPressed` 或 `TextChanged` 打开下拉：切换选中项/数据绑定刷新也会改写 Text，容易误弹其他模板清单。自动全选可捕获模板内层 `TextBox` 的 `GotFocusEvent` / `PointerPressedEvent` 调 `SelectAll()`，但不要在延迟回调中再 `Focus()` 旧 TextBox。不要给所有 AutoCompleteBox 无差别全选：Label 跳转等字段经常需要局部编辑。
+
+**何时不用 AutoCompleteBox**：
+
+- 仅从固定列表里选、绝不需要输入新值 → 用 `ComboBox`（保留键盘下拉/列表语义）。
+- 列表元素需要复杂的图标 + 多行模板 → ComboBox + ItemTemplate（AutoCompleteBox 的下拉模板能力较弱）。
+
 ## 3. 样式选择器语法
 
 **错误（嵌套 Style）：**
@@ -184,3 +215,5 @@ await dialog.ShowDialog(ownerWindow);
 | 日期 | 内容 |
 |---|---|
 | 2026-06-17 | 初始版本：从 Host Channel 重构中提炼 |
+| 2026-06-24 | 新增 §2.6 `AutoCompleteBox` 约定 + 内层 TextBox `VerticalContentAlignment` 样式穿透写法 |
+| 2026-06-25 | 补充模板/Host消息/子场景 AutoCompleteBox 使用 `Classes="templatePicker"` 做点击/聚焦自动全选，并强制输入时展开过滤清单的约定 |
