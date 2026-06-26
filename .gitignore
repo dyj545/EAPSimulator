@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# 单个文件
+settings.local.json
+
+# 指定目录（末尾加 /）
+
+# 目录下所有文件
+logs/*

@@ -238,7 +238,7 @@
           "timeoutMs": 30000,
           "onTimeout": 0,
           "onErrorLabel": "",
-          "hostMessageName": "",
+          "hostMessageName": "MESLOTEND_MES_LotEnd",
           "hostChannelName": "",
           "delayMs": 1000,
           "message": "",
