@@ -364,8 +364,10 @@ FodyWeavers.xsd
 
 # 单个文件
 settings.local.json
+MES-EAP接口-20250421.xlsx
 
 # 指定目录（末尾加 /）
+Issues/
 
 # 目录下所有文件
 logs/*
